@@ -91,8 +91,9 @@ Passkeys need the browser to see the exact `BASE_URL` host, so use `http://local
 The database is one SQLite file on the `tagteam-data` volume. Take a consistent copy while the app is running:
 
 ```bash
-docker compose exec tagteam node dist/backup.js /data/backup-$(date +%F).db
-docker compose cp tagteam:/data/backup-$(date +%F).db .
+BACKUP=backup-$(date +%F).db
+docker compose exec tagteam node dist/backup.js /data/$BACKUP
+docker compose cp tagteam:/data/$BACKUP .
 ```
 
 Restore by stopping the app, replacing `/data/tagteam.db` with the backup, and starting it again.
