@@ -37,10 +37,7 @@ export async function signUp(
 ): Promise<string> {
 	const res = await app.request("/api/auth/sign-up/email", {
 		method: "POST",
-		headers: {
-			"content-type": "application/json",
-			origin: TEST_CONFIG.baseUrl,
-		},
+		headers: { "content-type": "application/json" },
 		body: JSON.stringify({ email, password: "correct-horse-battery", name }),
 	});
 	if (res.status !== 200)
@@ -64,7 +61,6 @@ export function api(
 	const allHeaders: Record<string, string> = { ...headers };
 	if (cookie) allHeaders.cookie = cookie;
 	if (body !== undefined) allHeaders["content-type"] = "application/json";
-	if (path.startsWith("/api/auth/")) allHeaders.origin = TEST_CONFIG.baseUrl;
 	return Promise.resolve(
 		app.request(path, {
 			method,

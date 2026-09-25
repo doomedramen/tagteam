@@ -19,6 +19,13 @@ it("serves the API over HTTP with a file database and enforces Origin on auth", 
 			name: "Sam",
 		});
 		const headers = { "content-type": "application/json" };
+		const noOrigin = await fetch(`${base}/api/auth/sign-up/email`, {
+			method: "POST",
+			headers,
+			body,
+		});
+		expect(noOrigin.status).toBe(403);
+
 		const withOrigin = await fetch(`${base}/api/auth/sign-up/email`, {
 			method: "POST",
 			headers: { ...headers, origin: TEST_CONFIG.baseUrl },
@@ -26,17 +33,6 @@ it("serves the API over HTTP with a file database and enforces Origin on auth", 
 		});
 		expect(withOrigin.status).toBe(200);
 		expect(existsSync(databasePath)).toBe(true);
-
-		const signInBody = JSON.stringify({
-			email: "sam@example.com",
-			password: "correct-horse-battery",
-		});
-		const noOrigin = await fetch(`${base}/api/auth/sign-in/email`, {
-			method: "POST",
-			headers,
-			body: signInBody,
-		});
-		expect(noOrigin.status).toBe(403);
 	} finally {
 		await server.stop();
 		rmSync(dir, { recursive: true, force: true });
