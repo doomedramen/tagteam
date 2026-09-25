@@ -177,6 +177,17 @@ describe("deriveTask", () => {
 		]);
 	});
 
+	it("stops entries at archivedAt even when now is later", () => {
+		const archived = { ...daily08, archivedAt: at("2026-09-22", "12:00") };
+		const d = deriveTask(archived, [], at("2026-09-25", "09:00"));
+		expect(lines(d)).toEqual([
+			"2026-09-21 overdue",
+			"2026-09-22 missed <2026-09-21",
+		]);
+		expect(d.current?.key).toBe("2026-09-21");
+		expect(d.missedWhileOpen).toBe(1);
+	});
+
 	it("ignores nudges", () => {
 		const d = deriveTask(
 			daily08,

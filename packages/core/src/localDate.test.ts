@@ -50,6 +50,14 @@ describe("localDate", () => {
 		);
 	});
 
+	it("shifts a nonexistent wall-clock time forward across the DST spring-forward gap", () => {
+		// UK clocks go 01:00 -> 02:00 on 2026-03-29; 01:30 doesn't exist, so Luxon
+		// shifts it forward by the gap to 02:30 BST (same instant as 01:30 UTC).
+		expect(atTime("2026-03-29", "01:30", "Europe/London")).toBe(
+			Date.UTC(2026, 2, 29, 1, 30),
+		);
+	});
+
 	it("validates inputs", () => {
 		expect(isLocalDate("2026-02-28")).toBe(true);
 		expect(isLocalDate("2026-02-30")).toBe(false);
