@@ -3,6 +3,7 @@ import type { Auth } from "./auth";
 import type { Db } from "./db/client";
 import { fail } from "./http/errors";
 import { type AppEnv, requireSession } from "./http/session";
+import { groupRoutes } from "./routes/groups";
 import { meRoutes } from "./routes/me";
 
 export interface AppDeps {
@@ -22,6 +23,7 @@ export function createApp({ db, auth, now = Date.now }: AppDeps) {
 	const api = new Hono<AppEnv>();
 	api.use("*", requireSession({ db, auth, now }));
 	api.route("/me", meRoutes({ db, now }));
+	api.route("/groups", groupRoutes({ db, now }));
 	app.route("/api", api);
 
 	app.notFound((c) => fail(c, 404, "not_found", "Not found."));
