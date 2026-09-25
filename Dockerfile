@@ -15,8 +15,11 @@ RUN pnpm --filter @tagteam/server build
 # Runtime payload: bundle, migrations, and the one native dependency built for this platform.
 WORKDIR /out
 RUN cp -r /repo/apps/server/dist /repo/apps/server/drizzle . \
+	&& rm -f dist/*.map \
 	&& node -e "const v = require('/repo/apps/server/node_modules/better-sqlite3/package.json').version; require('node:fs').writeFileSync('package.json', JSON.stringify({ private: true, type: 'module', dependencies: { 'better-sqlite3': v } }))" \
-	&& npm install --omit=dev --no-audit --no-fund
+	&& npm install --omit=dev --no-audit --no-fund \
+	&& rm -rf node_modules/better-sqlite3/deps \
+	&& find node_modules/better-sqlite3/prebuilds -type f ! -name "linux-$(node -p process.arch).node" -delete
 
 FROM node:24-bookworm-slim
 ENV NODE_ENV=production \

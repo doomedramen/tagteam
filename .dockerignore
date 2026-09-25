@@ -7,5 +7,5 @@ docs
 data
 **/*.db
 **/*.db-*
-.env
-.env.*
+**/.env
+**/.env.*
