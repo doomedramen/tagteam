@@ -33,7 +33,7 @@ recurring tasks ("brush teeth", daily) and see each other's progress so they can
 | Due time | Date + optional time, owner's IANA timezone |
 | Missed recurrences | One open instance per task; gaps logged as missed (see §5) |
 | Stack | React + Vite SPA, Serwist SW, Dexie (IndexedDB); Hono on Node, Better Auth, Drizzle + SQLite, WebSocket, web-push |
-| Sync | Outbox + server change feed (global seq); completions event-sourced; task fields LWW |
+| Sync | Outbox of idempotent mutations → POST /api/sync/push; GET /api/sync/pull?cursor= returns rows with seq > cursor (+ full snapshot of newly joined groups, + removedGroupIds); live pokes over SSE (GET /api/live) |
 
 ## 3. Architecture
 
@@ -44,8 +44,8 @@ Phone (installed PWA)                        Server (1 Docker image, behind clou
 │   ↕ live queries (Dexie)      │            │  /api/auth/*   Better Auth       │
 │ IndexedDB: tasks, events,     │  push ───► │  /api/sync/push  apply muts,     │
 │   members, groups, outbox     │ ◄── pull   │                  idempotent      │
-│ Sync worker (outbox, cursor)  │ ◄── WS ─── │  /api/sync/pull  rows > cursor   │
-│ Serwist SW: precache shell,   │   "poke"   │  /api/live       WS per group    │
+│ Sync worker (outbox, cursor)  │ ◄── SSE ── │  /api/sync/pull  rows > cursor   │
+│ Serwist SW: precache shell,   │   "poke"   │  /api/live       SSE pokes       │
 │   push notifications          │            │  scheduler: due/overdue push     │
 └───────────────────────────────┘            │ SQLite (Drizzle), web-push VAPID │
                                              └──────────────────────────────────┘
@@ -69,13 +69,13 @@ Monorepo packages:
   affected rows re-pulled.
 - **Pull:** `GET /api/sync/pull?cursor=N` returns all rows visible to user with `seq > N`
   (tombstones included), plus new cursor.
-- **Live:** WS per active group; server sends `{poke}` after commits touching that group; client pulls.
+- **Live:** SSE stream per signed-in client (GET /api/live); server sends "poke" after commits touching the user's groups; client pulls. Keep-alive comment every 25 s.
 
 ### 3.2 Conflict handling
 
 - Completions, un-completions, nudges: **append-only events** keyed by client UUID → never conflict.
-- Task field edits: **field-level last-writer-wins** using hybrid logical clock stamps from the
-  client. Only the owner edits a task, so conflicts only arise across one user's devices.
+- Task field groups (title, notes, schedule, archive) are last-writer-wins by the mutation's client
+  timestamp, clamped to server time + 5 min; ties go to the later arrival.
 - Duplicate completion of the same occurrence (two offline devices): second is ignored during
   derivation (kept in log).
 
@@ -96,6 +96,15 @@ Server job every minute computes due / overdue tasks with the same `core` engine
 push. Dedupe via `(taskId, occurrenceKey, kind)` unique log. Nudges send immediately (rate
 limited: 1 nudge per sender per task per 30 min).
 
+### 3.6 Sync protocol
+
+- Mutations (`@tagteam/core` `Mutation`): `task.create`, `task.update`, `task.schedule`, `task.archive`,
+  `task.complete`, `task.uncomplete`, `task.nudge`. Each has a client UUID `id` and client `at`.
+- `POST /api/sync/push { mutations }` (≤ 100) → per-mutation `applied | duplicate | rejected (reason)`.
+  Rejected mutations are dropped by the client and its data re-pulled.
+- `GET /api/sync/pull?cursor=N` → `{ cursor, groups, members, tasks, events, removedGroupIds }`.
+- Nudges: any other active member, once per sender per task per 30 min.
+
 ## 4. Data model
 
 Better Auth owns `user`, `session`, `account`, `passkey`. App tables (all synced tables carry
@@ -107,16 +116,16 @@ Better Auth owns `user`, `session`, `account`, `passkey`. App tables (all synced
 - `invite_code` — code (6 digits, unique among active), groupId, createdBy, expiresAt (7 days),
   usedBy, usedAt, revokedAt. Single use: consumed atomically on join. Redeem attempts rate limited
   per user (5/min, 20/h).
-- `task` — id (client UUID), groupId, ownerId, title, notes, timezone, startDate, dueTime (nullable
-  `HH:MM`), archivedAt, createdAt, field HLC stamps
-- `task_rule` — taskId, effectiveFrom (local date), rule (nullable = one-off). Rule changes add a
-  new row effective from today, so history before an edit uses the old rule. A currently open
-  (overdue) instance stays open until completed; slots after it follow the new rule.
-- `task_event` — id (client UUID), taskId, userId, type (`completed` | `uncompleted` | `nudged`),
-  occurrenceKey, at (client instant), refEventId (for `uncompleted`)
+- `task` — id, groupId, ownerId, title, notes, timezone, startDate, rules (JSON RuleVersion[] —
+  each {effectiveFrom, rule, dueTime}), archivedAt, createdAt, clocks (LWW per field group), seq
+- `task_event` — id (= mutation id), taskId, groupId, userId, type, occurrenceKey, refEventId, at
+  (client, clamped), receivedAt, seq
 - `push_subscription` — userId, endpoint, keys, deviceLabel
 - `notification_log` — taskId, occurrenceKey, kind; unique
 - `applied_mutation` — mutationId, userId, appliedAt (idempotency)
+- `sync_state` — key, value (global change sequence)
+
+`group`, `profile`, and `membership` also carry `seq`.
 
 Recurrence rule shape:
 
