@@ -2,7 +2,7 @@
 
 _Last updated: 2026-09-25 (during Plan 5, Task 10)._
 
-## Done (on `main`; CI green through Plan 4, Plan 5 verified locally)
+## Done (on `main`; CI green through Plan 5)
 
 | Plan | Scope | Notes |
 |---|---|---|
@@ -10,7 +10,7 @@ _Last updated: 2026-09-25 (during Plan 5, Task 10)._
 | 02 server foundation | Hono, Better Auth (passkey + password), SQLite, profiles, groups, single-use 6-digit invites | |
 | 03 container + CI | esbuild bundle, backup CLI, non-root Docker image, GitHub Actions → `ghcr.io/doomedramen/tagteam` (amd64), README compose | IP rate limits dropped by owner decision |
 | 04 sync | per-version due times, Mutation vocabulary, tasks/events tables, push/pull with global seq, SSE `/api/live`, e2e convergence test | |
-| 05 app foundation + Today | sign-in, groups, Today, offline sync, PWA, Docker hosting | Local e2e flow passed; CI e2e job added, hosted CI run pending |
+| 05 app foundation + Today | sign-in, groups, Today, offline sync, PWA, Docker hosting | Local e2e flow and hosted CI passed |
 
 ## Complete — Plan 5: `docs/superpowers/plans/2026-09-25-05-app-foundation-today.md`
 
@@ -28,7 +28,7 @@ PWA foundation + the first real screens (Today, Add task). Executed task-by-task
 | 8 sign in / sign up / passkeys / session gate + router | implemented; typecheck and 375 × 812 visual checks passed; tests pending |
 | 9 welcome (create/join group) + group switcher | implemented; create/join and switcher visually checked; tests pending |
 | 10 service worker, server serves SPA, Docker, dev setup | implemented; PWA build, container smoke, and 375 × 812 browser review passed; tests pending |
-| 11 Playwright e2e (sign up → offline completion) + CI job | implemented; local e2e passed; actionlint passed |
+| 11 Playwright e2e (sign up → offline completion) + CI job | implemented; local e2e, hosted CI, and actionlint passed |
 
 Task 8 wires real routes and screens into the app. Unit tests for Tasks 8–10 remain follow-up work.
 Task 11 e2e covers account creation, group setup, task creation, offline completion, and online sync.
