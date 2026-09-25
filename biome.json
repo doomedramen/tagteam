@@ -7,7 +7,14 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["packages/**", "apps/**", "*.json", "*.yaml", "*.yml"]
+		"includes": [
+			"packages/**",
+			"apps/**",
+			"*.json",
+			"*.yaml",
+			"!pnpm-lock.yaml",
+			"*.yml"
+		]
 	},
 	"formatter": {
 		"enabled": true,
