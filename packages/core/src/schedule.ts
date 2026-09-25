@@ -20,7 +20,7 @@ export interface TaskSchedule {
 	timezone: string;
 	/** Ascending by `effectiveFrom`; `rules[0].effectiveFrom === startDate`. */
 	rules: RuleVersion[];
-	/** Epoch ms. No occurrence starts after this. */
+	/** Epoch ms. No occurrence, including lookahead ones from `expandSlots`, starts after this. */
 	archivedAt?: number | null;
 }
 
@@ -54,8 +54,10 @@ function* ruleKeys(rule: Rule | null, anchor: LocalDate): Generator<LocalDate> {
 	}
 	switch (rule.freq) {
 		case "day":
+			// Loops forever (caller stops pulling); never reaches the next case.
 			for (let n = 0; ; n++) yield addDays(anchor, n * rule.interval);
 		case "week": {
+			// Loops forever (caller stops pulling); never reaches the next case.
 			const weekdays = [...rule.weekdays].sort((a, b) => a - b);
 			const firstMonday = isoMonday(anchor);
 			for (let n = 0; ; n++) {
@@ -67,6 +69,7 @@ function* ruleKeys(rule: Rule | null, anchor: LocalDate): Generator<LocalDate> {
 			}
 		}
 		case "month": {
+			// Loops forever (caller stops pulling); this is the last case.
 			for (let n = 0; ; n++) {
 				const first = firstOfMonth(anchor, n * rule.interval);
 				const length = daysInMonth(first);
@@ -101,7 +104,8 @@ export interface Slot {
 
 /**
  * Slots whose period has started by `until` (capped at `archivedAt`), plus the next
- * `lookahead` slots — unless the task was archived by `until`, then none after.
+ * `lookahead` slots that still start at or before `archivedAt` — unless the task was
+ * archived by `until`, then none after.
  */
 export function expandSlots(
 	s: TaskSchedule,
@@ -129,8 +133,13 @@ export function expandSlots(
 	});
 	const started = slots.filter((slot) => slot.periodStart <= limit);
 	if (s.archivedAt != null && s.archivedAt <= until) return started;
+	const archiveLimit = s.archivedAt ?? Number.POSITIVE_INFINITY;
 	return [
 		...started,
-		...slots.filter((slot) => slot.periodStart > limit).slice(0, lookahead),
+		...slots
+			.filter(
+				(slot) => slot.periodStart > limit && slot.periodStart <= archiveLimit,
+			)
+			.slice(0, lookahead),
 	];
 }

@@ -98,6 +98,26 @@ describe("occurrenceKeys", () => {
 			"2026-10-02",
 		]);
 	});
+
+	it("returns to a recurring rule after a one-off version in between", () => {
+		const s: TaskSchedule = {
+			...schedule("2026-09-21", { freq: "day", interval: 1 }),
+			rules: [
+				{ effectiveFrom: "2026-09-21", rule: { freq: "day", interval: 1 } },
+				{ effectiveFrom: "2026-09-24", rule: null },
+				{ effectiveFrom: "2026-09-26", rule: { freq: "day", interval: 1 } },
+			],
+		};
+		expect(take(s, 7)).toEqual([
+			"2026-09-21",
+			"2026-09-22",
+			"2026-09-23",
+			"2026-09-24",
+			"2026-09-26",
+			"2026-09-27",
+			"2026-09-28",
+		]);
+	});
 });
 
 describe("scheduleErrors", () => {
@@ -217,5 +237,21 @@ describe("expandSlots", () => {
 		const archived = { ...daily08, archivedAt: london("2026-09-22", "12:00") };
 		const slots = expandSlots(archived, london("2026-09-25", "12:00"));
 		expect(slots.map((s) => s.key)).toEqual(["2026-09-21", "2026-09-22"]);
+	});
+
+	it("never returns a lookahead slot starting after archivedAt", () => {
+		// until is before archivedAt, but archivedAt is still before the next
+		// occurrence's periodStart, so the lookahead slot must be withheld.
+		const weekly = schedule("2026-09-26", {
+			freq: "week",
+			interval: 1,
+			weekdays: [6],
+		});
+		const archived = {
+			...weekly,
+			archivedAt: london("2026-09-30", "12:00"),
+		};
+		const slots = expandSlots(archived, london("2026-09-27", "12:00"));
+		expect(slots.map((s) => s.key)).toEqual(["2026-09-26"]);
 	});
 });
