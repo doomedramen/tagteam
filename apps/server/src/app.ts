@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
 import type { Auth } from "./auth";
 import type { Db } from "./db/client";
@@ -11,6 +12,8 @@ import { inviteRoutes } from "./routes/invites";
 import { liveRoutes } from "./routes/live";
 import { meRoutes } from "./routes/me";
 import { syncRoutes } from "./routes/sync";
+
+export const MAX_BODY_BYTES = 1024 * 1024;
 
 export interface AppDeps {
 	db: Db;
@@ -33,6 +36,14 @@ export function createApp({
 	// Public routes are registered first: they respond without calling next(),
 	// so the session middleware of the /api sub-app never runs for them.
 	app.get("/api/health", (c) => c.json({ ok: true }));
+	app.use(
+		"/api/*",
+		bodyLimit({
+			maxSize: MAX_BODY_BYTES,
+			onError: (c) =>
+				fail(c, 413, "payload_too_large", "That request is too large."),
+		}),
+	);
 	app.use("/api/auth/*", rejectUntrustedOrigin(trustedOrigin));
 	app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 

@@ -143,7 +143,7 @@ describe("GET /api/sync/pull", () => {
 	});
 
 	it("validates the cursor", async () => {
-		for (const bad of ["-1", "1.5", "abc"]) {
+		for (const bad of ["-1", "1.5", "abc", "1234567890123456"]) {
 			expect(
 				(await api(ctx.app, sam, "GET", `/api/sync/pull?cursor=${bad}`)).status,
 			).toBe(400);

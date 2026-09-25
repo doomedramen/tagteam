@@ -41,7 +41,7 @@ export function syncRoutes(deps: SyncDeps) {
 
 	routes.get("/pull", (c) => {
 		const raw = c.req.query("cursor") ?? "0";
-		if (!/^\d+$/.test(raw))
+		if (!/^\d{1,15}$/.test(raw))
 			return fail(
 				c,
 				400,

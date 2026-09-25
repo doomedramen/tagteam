@@ -129,4 +129,19 @@ describe("server foundation", () => {
 		});
 		expect(other.status).toBe(200);
 	});
+
+	it("rejects request bodies over 1 MB with 413", async () => {
+		const cookie = await signUp(ctx.app);
+		const res = await api(ctx.app, cookie, "POST", "/api/sync/push", {
+			mutations: [],
+			pad: "x".repeat(1024 * 1024),
+		});
+		expect(res.status).toBe(413);
+		expect(await readJson<ErrorBody>(res)).toEqual({
+			error: {
+				code: "payload_too_large",
+				message: "That request is too large.",
+			},
+		});
+	});
 });

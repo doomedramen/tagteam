@@ -98,6 +98,7 @@ export function pull(db: Db, userId: string, cursor: number): PullResponse {
 				.select({ id: groups.id, name: groups.name })
 				.from(groups)
 				.where(visible(groups.id, groups.seq))
+				.orderBy(groups.name)
 				.all(),
 			members: tx
 				.select({
