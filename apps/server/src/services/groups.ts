@@ -26,7 +26,7 @@ export function listMyGroups(db: Db, userId: string): MyGroup[] {
 }
 
 export function isActiveMember(
-	db: Db,
+	db: Pick<Db, "select">,
 	groupId: string,
 	userId: string,
 ): boolean {

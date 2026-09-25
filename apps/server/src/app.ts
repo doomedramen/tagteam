@@ -4,6 +4,7 @@ import type { Db } from "./db/client";
 import { fail } from "./http/errors";
 import { type AppEnv, requireSession } from "./http/session";
 import { groupRoutes } from "./routes/groups";
+import { inviteRoutes } from "./routes/invites";
 import { meRoutes } from "./routes/me";
 
 export interface AppDeps {
@@ -24,6 +25,7 @@ export function createApp({ db, auth, now = Date.now }: AppDeps) {
 	api.use("*", requireSession({ db, auth, now }));
 	api.route("/me", meRoutes({ db, now }));
 	api.route("/groups", groupRoutes({ db, now }));
+	api.route("/", inviteRoutes({ db, now }));
 	app.route("/api", api);
 
 	app.notFound((c) => fail(c, 404, "not_found", "Not found."));
