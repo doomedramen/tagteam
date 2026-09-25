@@ -1,0 +1,31 @@
+{
+	"name": "@tagteam/server",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "tsx watch src/index.ts",
+		"start": "tsx src/index.ts",
+		"test": "vitest run",
+		"typecheck": "tsc -p .",
+		"db:generate": "drizzle-kit generate",
+		"auth:schema": "pnpm dlx @better-auth/cli@latest generate --config scripts/auth-schema.config.ts --output src/db/auth-schema.ts -y"
+	},
+	"dependencies": {
+		"@better-auth/passkey": "^1.7.6",
+		"@hono/node-server": "^2.1.1",
+		"@tagteam/core": "workspace:*",
+		"better-auth": "^1.7.6",
+		"better-sqlite3": "^13.0.3",
+		"drizzle-orm": "^0.45.3",
+		"hono": "^4.13.9"
+	},
+	"devDependencies": {
+		"@types/better-sqlite3": "^9.6.0",
+		"@types/node": "^26.6.2",
+		"drizzle-kit": "^0.31.11",
+		"tsx": "^4.23.15",
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.2"
+	}
+}

@@ -13,7 +13,8 @@
 			"*.json",
 			"*.yaml",
 			"!pnpm-lock.yaml",
-			"*.yml"
+			"*.yml",
+			"!apps/server/drizzle"
 		]
 	},
 	"formatter": {
