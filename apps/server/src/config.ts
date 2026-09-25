@@ -9,6 +9,8 @@ export interface Config {
 	rpName: string;
 	/** Folder of drizzle SQL migrations; defaults to the source tree's drizzle/ (set in the Docker image). */
 	migrationsDir?: string;
+	/** Built web app to serve (production image); unset in development where Vite serves it. */
+	webDir?: string;
 }
 
 export function loadConfig(env: Record<string, string | undefined>): Config {
@@ -32,5 +34,6 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 		rpId: env.RP_ID ?? url.hostname,
 		rpName: env.RP_NAME ?? "TagTeam",
 		migrationsDir: env.MIGRATIONS_DIR,
+		webDir: env.WEB_DIR,
 	};
 }

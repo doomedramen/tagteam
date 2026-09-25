@@ -1,3 +1,5 @@
+import { serveStatic } from "@hono/node-server/serve-static";
+import type { Context } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
@@ -22,6 +24,7 @@ export interface AppDeps {
 	trustedOrigin: string;
 	now?: () => number;
 	live?: LiveHub;
+	webDir?: string;
 }
 
 export function createApp({
@@ -30,6 +33,7 @@ export function createApp({
 	trustedOrigin,
 	now = Date.now,
 	live = createLiveHub(),
+	webDir,
 }: AppDeps) {
 	const app = new Hono();
 
@@ -62,6 +66,33 @@ export function createApp({
 	);
 	api.route("/live", liveRoutes({ hub: live }));
 	app.route("/api", api);
+
+	if (webDir) {
+		const isApi = (path: string) => path === "/api" || path.startsWith("/api/");
+		const noCache = (_path: string, c: Context) =>
+			c.header("cache-control", "no-cache");
+		const files = serveStatic({
+			root: webDir,
+			onFound: (path, c) =>
+				c.header(
+					"cache-control",
+					path.includes("/assets/")
+						? "public, max-age=31536000, immutable"
+						: "no-cache",
+				),
+		});
+		const appShell = serveStatic({
+			root: webDir,
+			path: "index.html",
+			onFound: noCache,
+		});
+		app.on(["GET", "HEAD"], "*", (c, next) =>
+			isApi(c.req.path) ? next() : files(c, next),
+		);
+		app.on(["GET", "HEAD"], "*", (c, next) =>
+			isApi(c.req.path) ? next() : appShell(c, next),
+		);
+	}
 
 	app.onError((err, c) => {
 		if (err instanceof HTTPException) return err.getResponse();

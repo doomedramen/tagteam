@@ -52,7 +52,7 @@ jobs:
           docker run -d --name smoke -p 127.0.0.1:3000:3000 -e AUTH_SECRET="$(openssl rand -base64 32)" -e BASE_URL=http://localhost:3000 tagteam:ci
           # shellcheck disable=SC2034
           for i in $(seq 30); do curl -fs http://127.0.0.1:3000/api/health && break; sleep 1; done
-          node apps/server/scripts/smoke.mjs http://localhost:3000
+          node apps/server/scripts/smoke.mjs http://localhost:3000 --web
 
       - name: Show smoke container logs
         if: failure()

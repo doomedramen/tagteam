@@ -6,15 +6,19 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/core/package.json packages/core/
 COPY apps/server/package.json apps/server/
+COPY apps/web/package.json apps/web/
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.base.json ./
 COPY packages/core packages/core
 COPY apps/server apps/server
+COPY apps/web apps/web
 RUN pnpm --filter @tagteam/server build
+RUN pnpm --filter @tagteam/web build
 
 # Runtime payload: bundle, migrations, and the one native dependency built for this platform.
 WORKDIR /out
 RUN cp -r /repo/apps/server/dist /repo/apps/server/drizzle . \
+	&& cp -r /repo/apps/web/dist web \
 	&& rm -f dist/*.map \
 	&& node -e "const v = require('/repo/apps/server/node_modules/better-sqlite3/package.json').version; require('node:fs').writeFileSync('package.json', JSON.stringify({ private: true, type: 'module', dependencies: { 'better-sqlite3': v } }))" \
 	&& npm install --omit=dev --no-audit --no-fund \
@@ -25,7 +29,8 @@ FROM node:24-bookworm-slim
 ENV NODE_ENV=production \
 	PORT=3000 \
 	DATABASE_PATH=/data/tagteam.db \
-	MIGRATIONS_DIR=/app/drizzle
+	MIGRATIONS_DIR=/app/drizzle \
+	WEB_DIR=/app/web
 WORKDIR /app
 COPY --from=build /out ./
 RUN mkdir -p /data && chown node:node /data

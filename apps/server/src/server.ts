@@ -15,6 +15,7 @@ export function startServer(config: Config): Promise<RunningServer> {
 		db,
 		auth: createAuth(db, config),
 		trustedOrigin: config.baseUrl,
+		webDir: config.webDir,
 	});
 	return new Promise((resolve) => {
 		const server = serve({ fetch: app.fetch, port: config.port }, (info) => {

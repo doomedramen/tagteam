@@ -21,7 +21,9 @@ export interface TestContext {
 	close: () => void;
 }
 
-export function createTestContext(): TestContext {
+export function createTestContext(
+	options: { webDir?: string } = {},
+): TestContext {
 	const clock = { now: Date.UTC(2026, 8, 25, 12) };
 	const { db, close } = openDb(":memory:");
 	const auth = createAuth(db, TEST_CONFIG);
@@ -30,6 +32,7 @@ export function createTestContext(): TestContext {
 		auth,
 		trustedOrigin: TEST_CONFIG.baseUrl,
 		now: () => clock.now,
+		webDir: options.webDir,
 	});
 	return { db, app, clock, close };
 }

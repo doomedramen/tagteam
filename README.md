@@ -2,7 +2,7 @@
 
 Shared habits and chores for small groups. Everyone in a group sees each other's tasks — daily, weekly, monthly or every N days/weeks/months — with a full history of what was done on time, late, or missed. Built as an offline-first, mobile-first PWA.
 
-> Status: server, sync, sign-in, group setup, Today, and add-task flows are implemented. Remaining screens and PWA packaging are in progress.
+> Status: accounts, groups, recurring tasks, offline sync, and the Today screen are implemented.
 
 ## Run it with Docker Compose
 
@@ -77,6 +77,7 @@ Passkeys need the browser to see the exact `BASE_URL` host, so use `http://local
 | `PORT` | no | `3000` | HTTP port inside the container. |
 | `DATABASE_PATH` | no | `/data/tagteam.db` | SQLite file (keep it on the volume). |
 | `MIGRATIONS_DIR` | no | `/app/drizzle` | Set by the image; leave as is. |
+| `WEB_DIR` | no | `/app/web` | Built PWA directory; set by the image. |
 | `RP_ID` | no | host of `BASE_URL` | Passkey relying-party id. |
 | `RP_NAME` | no | `TagTeam` | Name shown in passkey prompts. |
 
@@ -112,8 +113,9 @@ Requires Node 24+ and pnpm 10.
 
 ```bash
 pnpm install
-cp apps/server/.env.example apps/server/.env   # then set AUTH_SECRET
-pnpm --filter @tagteam/server dev              # http://localhost:3000
+cp apps/server/.env.example apps/server/.env   # set AUTH_SECRET and BASE_URL=http://localhost:5173
+pnpm --filter @tagteam/server dev              # API on :3000
+pnpm --filter @tagteam/web dev                 # app on http://localhost:5173 (proxies /api)
 pnpm test && pnpm typecheck && pnpm lint
 ```
 
