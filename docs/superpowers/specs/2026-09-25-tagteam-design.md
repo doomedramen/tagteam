@@ -32,7 +32,7 @@ recurring tasks ("brush teeth", daily) and see each other's progress so they can
 | Notifications | Web push: due/overdue reminders + nudge button |
 | Due time | Date + optional time, owner's IANA timezone |
 | Missed recurrences | One open instance per task; gaps logged as missed (see §5) |
-| Stack | React + Vite SPA, Serwist SW, Dexie (IndexedDB); Hono on Node, Better Auth, Drizzle + SQLite, WebSocket, web-push |
+| Stack | React + Vite SPA, Serwist SW, Dexie (IndexedDB); Hono on Node, Better Auth, Drizzle + SQLite, SSE, web-push |
 | Sync | Outbox of idempotent mutations → POST /api/sync/push; GET /api/sync/pull?cursor= returns rows with seq > cursor (+ full snapshot of newly joined groups, + removedGroupIds); live pokes over SSE (GET /api/live) |
 
 ## 3. Architecture
@@ -56,13 +56,13 @@ Monorepo packages:
 - `packages/core` — pure TypeScript shared by client + server: recurrence rules, occurrence engine,
   history derivation, mutation types + validation. No I/O. Heavily unit-tested.
 - `apps/web` — React SPA, Dexie store, sync worker, Serwist service worker.
-- `apps/server` — Hono API, Better Auth, Drizzle/SQLite, sync endpoints, WS hub, push scheduler.
+- `apps/server` — Hono API, Better Auth, Drizzle/SQLite, sync endpoints, SSE live stream, push scheduler.
 
 ### 3.1 Local-first data flow
 
 - UI reads/writes **only IndexedDB** (Dexie live queries). Never blocks on network.
 - Each write = local row change + mutation appended to `outbox` with client UUID.
-- Sync triggers: app open, `online` event, WS poke, after local writes (debounced ~500 ms),
+- Sync triggers: app open, `online` event, SSE poke, after local writes (debounced ~500 ms),
   periodic while visible.
 - **Push:** send outbox batch → server applies each mutation idempotently (mutation id dedupe table),
   validates ownership/membership, returns results. Rejected mutations are dropped locally and the
