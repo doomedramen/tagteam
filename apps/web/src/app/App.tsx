@@ -1,3 +1,6 @@
+import { RouterProvider } from "react-router";
+import { router } from "./router";
+
 export function App() {
-	return <p className="p-4 text-lg font-semibold">TagTeam</p>;
+	return <RouterProvider router={router} />;
 }

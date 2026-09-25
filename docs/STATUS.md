@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-09-25 (during Plan 5, Task 7)._
+_Last updated: 2026-09-25 (during Plan 5, Task 8)._
 
 ## Done (on `main`, CI green through Plan 4)
 
@@ -23,13 +23,13 @@ PWA foundation + the first real screens (Today, Add task). Executed task-by-task
 | 4 API client, auth client, sync engine, live + triggers | done |
 | 5 UI kit + app shell | done |
 | 6 Today screen | done |
-| 7 Add task sheet | review fixes in progress: cleared due time must not reach a mutation; guard double submit |
-| 8 sign in / sign up / passkeys / session gate + router | next — first time screens are visible in the browser |
+| 7 Add task sheet | done — due-time validation and double-submit guard |
+| 8 sign in / sign up / passkeys / session gate + router | implemented; typecheck and 375 × 812 visual checks passed; tests pending |
 | 9 welcome (create/join group) + group switcher | |
 | 10 service worker, server serves SPA, Docker, dev setup | `.claude/launch.json` "web" config already added — keep it |
 | 11 Playwright e2e (sign up → offline completion) + CI job | |
 
-Until Task 8 lands, `apps/web` renders only a placeholder ("TagTeam").
+Task 8 wires real routes and screens into the app. Unit tests were not run in this pass.
 
 Per-task execution ledger (rulings, review findings, deferred minors) lives in the git-ignored
 `.superpowers/sdd/2026-09-25-05-app-foundation-today/progress.md` in the working checkout. The

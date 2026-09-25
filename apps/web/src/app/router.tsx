@@ -1,0 +1,87 @@
+import { useLiveQuery } from "dexie-react-hooks";
+import { useCallback, useEffect, useState } from "react";
+import { createBrowserRouter, Navigate, Outlet } from "react-router";
+import { AddTaskSheet } from "../features/add-task/AddTaskSheet";
+import { AddPasskeyScreen } from "../features/auth/AddPasskeyScreen";
+import { SignInScreen } from "../features/auth/SignInScreen";
+import { SignUpScreen } from "../features/auth/SignUpScreen";
+import { MeScreen } from "../features/me/MeScreen";
+import { ComingSoon } from "../features/placeholder/ComingSoon";
+import { TodayScreen } from "../features/today/TodayScreen";
+import { SessionGate } from "../session/SessionGate";
+import { useSession } from "../session/session";
+import { useSyncStatus } from "../sync/use-sync-status";
+import { Banner } from "../ui/Banner";
+import { AppShell } from "./AppShell";
+import { SyncChip } from "./SyncChip";
+
+function MainLayout() {
+	const { me, store, engine, activeGroupId, setActiveGroup } = useSession();
+	const status = useSyncStatus(engine);
+	const [adding, setAdding] = useState(false);
+	const openAdd = useCallback(() => setAdding(true), []);
+	const closeAdd = useCallback(() => setAdding(false), []);
+	const localGroups = useLiveQuery(() => store.groups.toArray(), [store]);
+	const groups =
+		localGroups && localGroups.length > 0 ? localGroups : me.groups;
+	const active =
+		groups.find((group) => group.id === activeGroupId) ?? groups[0];
+
+	useEffect(() => {
+		if (localGroups !== undefined && active && active.id !== activeGroupId)
+			void setActiveGroup(active.id);
+	}, [localGroups, active, activeGroupId, setActiveGroup]);
+
+	if (localGroups === undefined) return null;
+	if (!active) return <Navigate to="/welcome" replace />;
+
+	return (
+		<AppShell
+			title={
+				<span className="truncate text-[17px] font-semibold">
+					{active.name}
+				</span>
+			}
+			trailing={<SyncChip status={status} />}
+			banner={
+				status.state === "reauth" ? (
+					<Banner
+						tone="warning"
+						action={{
+							label: "Reconnect",
+							onClick: () => window.location.reload(),
+						}}
+					>
+						Your session expired.
+					</Banner>
+				) : null
+			}
+			onAdd={openAdd}
+		>
+			<Outlet context={{ openAdd }} />
+			<AddTaskSheet open={adding} onClose={closeAdd} />
+		</AppShell>
+	);
+}
+
+export const router = createBrowserRouter([
+	{ path: "/sign-in", element: <SignInScreen /> },
+	{ path: "/sign-up", element: <SignUpScreen /> },
+	{
+		element: <SessionGate />,
+		children: [
+			{ path: "/passkey", element: <AddPasskeyScreen /> },
+			{ path: "/welcome", element: <ComingSoon title="Welcome" /> },
+			{
+				element: <MainLayout />,
+				children: [
+					{ index: true, element: <TodayScreen /> },
+					{ path: "team", element: <ComingSoon title="Team" /> },
+					{ path: "history", element: <ComingSoon title="History" /> },
+					{ path: "me", element: <MeScreen /> },
+				],
+			},
+		],
+	},
+	{ path: "*", element: <Navigate to="/" replace /> },
+]);

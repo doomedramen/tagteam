@@ -2,7 +2,7 @@
 
 Shared habits and chores for small groups. Everyone in a group sees each other's tasks — daily, weekly, monthly or every N days/weeks/months — with a full history of what was done on time, late, or missed. Built as an offline-first, mobile-first PWA.
 
-> Status: server foundation (accounts, groups, invite codes). Task sync and the app UI are in progress.
+> Status: server, sync, and the first web screens (sign-in, passkeys, Today, add task) are implemented. Group onboarding and remaining screens are in progress.
 
 ## Run it with Docker Compose
 
