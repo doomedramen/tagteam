@@ -1,3 +1,4 @@
+import type { Context } from "hono";
 import { Hono } from "hono";
 import type { Auth } from "./auth";
 import type { Db } from "./db/client";
@@ -19,7 +20,16 @@ export function createApp({ db, auth, now = Date.now }: AppDeps) {
 	// Public routes are registered first: they respond without calling next(),
 	// so the session middleware of the /api sub-app never runs for them.
 	app.get("/api/health", (c) => c.json({ ok: true }));
-	app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+
+	const authHandler = async (c: Context) => {
+		const origin = c.req.header("origin");
+		if (!origin) {
+			return fail(c, 403, "forbidden", "Origin header required.");
+		}
+		return auth.handler(c.req.raw);
+	};
+	app.get("/api/auth/*", authHandler);
+	app.post("/api/auth/*", authHandler);
 
 	const api = new Hono<AppEnv>();
 	api.use("*", requireSession({ db, auth, now }));
