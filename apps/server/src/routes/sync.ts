@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import type { Db } from "../db/client";
 import { fail } from "../http/errors";
 import type { AppEnv } from "../http/session";
+import { pull } from "../services/sync-pull";
 import { applyMutations } from "../services/sync-push";
 
 export interface SyncDeps {
@@ -36,6 +37,18 @@ export function syncRoutes(deps: SyncDeps) {
 		);
 		if (groupIds.size > 0) deps.onChange?.(groupIds);
 		return c.json({ results });
+	});
+
+	routes.get("/pull", (c) => {
+		const raw = c.req.query("cursor") ?? "0";
+		if (!/^\d+$/.test(raw))
+			return fail(
+				c,
+				400,
+				"invalid_request",
+				"cursor must be a non-negative integer.",
+			);
+		return c.json(pull(deps.db, c.var.user.id, Number(raw)));
 	});
 
 	return routes;

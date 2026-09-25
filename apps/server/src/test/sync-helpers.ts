@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Mutation, MutationType } from "@tagteam/core";
 import type { Hono } from "hono";
+import type { PullResponse } from "../services/sync-pull";
 import type { MutationResult } from "../services/sync-push";
 import { api, readJson } from "./harness";
 
@@ -24,4 +25,15 @@ export async function push(app: Hono, cookie: string, mutations: unknown[]) {
 			? await readJson<{ results: MutationResult[] }>(res)
 			: { results: [] };
 	return { status: res.status, results: body.results };
+}
+
+export async function pullAll(
+	app: Hono,
+	cookie: string,
+	cursor = 0,
+): Promise<PullResponse> {
+	const res = await api(app, cookie, "GET", `/api/sync/pull?cursor=${cursor}`);
+	if (res.status !== 200)
+		throw new Error(`pull failed: ${res.status} ${await res.text()}`);
+	return readJson<PullResponse>(res);
 }
