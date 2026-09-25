@@ -3,6 +3,7 @@ import { NUDGE_INTERVAL_MS } from "@tagteam/core";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BellRing, ChevronDown, UserRoundPlus } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
+import { Link } from "react-router";
 import { dayBounds, useNow } from "../../lib/time";
 import { useSession } from "../../session/session";
 import { Avatar } from "../../ui/Avatar";
@@ -72,14 +73,17 @@ function TaskRows({
 										: "size-2 shrink-0 rounded-full bg-text-3"
 							}
 						/>
-						<div className="min-w-0 flex-1">
+						<Link
+							to={`/tasks/${row.task.id}`}
+							className="min-w-0 flex-1 rounded-lg focus-visible:outline-2 focus-visible:outline-accent"
+						>
 							<p className="truncate text-[14px] font-medium">
 								{row.task.title}
 							</p>
 							<p className="text-[13px] text-text-2">
 								{rowLabel(row, now, { tz: row.task.timezone })}
 							</p>
-						</div>
+						</Link>
 						{row.kind === "overdue" &&
 						member.member.userId !== currentUserId ? (
 							wasRecentlyNudged && nudgeAt !== null ? (

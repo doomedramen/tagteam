@@ -9,6 +9,7 @@ import { GroupSwitcher } from "../features/groups/GroupSwitcher";
 import { WelcomeScreen } from "../features/groups/WelcomeScreen";
 import { HistoryScreen } from "../features/history/HistoryScreen";
 import { MeScreen } from "../features/me/MeScreen";
+import { TaskDetailScreen } from "../features/task-detail/TaskDetailScreen";
 import { TeamScreen } from "../features/team/TeamScreen";
 import { TodayScreen } from "../features/today/TodayScreen";
 import { SessionGate } from "../session/SessionGate";
@@ -75,6 +76,7 @@ export const router = createBrowserRouter([
 				element: <MainLayout />,
 				children: [
 					{ index: true, element: <TodayScreen /> },
+					{ path: "tasks/:taskId", element: <TaskDetailScreen /> },
 					{ path: "team", element: <TeamScreen /> },
 					{ path: "history", element: <HistoryScreen /> },
 					{ path: "me", element: <MeScreen /> },

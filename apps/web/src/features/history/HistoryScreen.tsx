@@ -2,6 +2,7 @@ import type { MemberDto, TaskDto } from "@tagteam/core";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BellRing, CircleAlert, CircleCheck, Clock3, Plus } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router";
 import {
 	browserTimeZone,
 	dayBounds,
@@ -173,7 +174,12 @@ export function HistoryScreen() {
 										</span>
 										<div className="min-w-0 flex-1">
 											<p className="text-[14px] font-medium leading-5">
-												{activityText(item, me.user.id)}
+												<Link
+													to={`/tasks/${item.taskId}`}
+													className="rounded-sm focus-visible:outline-2 focus-visible:outline-accent"
+												>
+													{activityText(item, me.user.id)}
+												</Link>
 											</p>
 											<p className="mt-1 text-[12px] text-text-2">
 												{formatTime(item.at)}

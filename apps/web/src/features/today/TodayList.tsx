@@ -1,4 +1,5 @@
 import { Check, Repeat } from "lucide-react";
+import { Link } from "react-router";
 import { cx } from "../../lib/cx";
 import { Button } from "../../ui/Button";
 import { ConfettiBurst } from "../../ui/ConfettiBurst";
@@ -55,7 +56,10 @@ function Row({
 	return (
 		<li className="flex items-center gap-3 border-b border-line py-3 last:border-0">
 			<CheckCircle row={row} onToggle={onToggle} celebrating={celebrating} />
-			<div className="min-w-0 flex-1">
+			<Link
+				to={`/tasks/${row.task.id}`}
+				className="min-w-0 flex-1 rounded-lg focus-visible:outline-2 focus-visible:outline-accent"
+			>
 				<p
 					className={cx(
 						"truncate text-[15px]",
@@ -73,7 +77,7 @@ function Row({
 				>
 					{rowLabel(row, now)}
 				</p>
-			</div>
+			</Link>
 			{row.recurring ? (
 				<Repeat
 					role="img"
