@@ -4,7 +4,7 @@
 
 **Goal:** Ship the server as a small, non-root Docker image built and published to GitHub Container Registry by GitHub Actions, with a copy-paste `docker-compose.yml` (app + `cloudflared`) in the README — after applying the security decisions made during Plan 2 review.
 
-**Architecture:** The server is bundled with esbuild into `dist/index.js` (+ `dist/backup.js`), keeping only the native `better-sqlite3` external. A multi-stage Dockerfile builds the bundle in a full Node image and copies bundle + migrations + a production install of `better-sqlite3` into `node:24-bookworm-slim`, running as `node` with data in a `/data` volume. CI runs typecheck/lint/tests, builds the image, smoke-tests it over HTTP with `scripts/smoke.mjs`, then pushes multi-arch (`amd64` + `arm64`) images to `ghcr.io/<owner>/<repo>` on `main` and `v*` tags.
+**Architecture:** The server is bundled with esbuild into `dist/index.js` (+ `dist/backup.js`), keeping only the native `better-sqlite3` external. A multi-stage Dockerfile builds the bundle in a full Node image and copies bundle + migrations + a production install of `better-sqlite3` into `node:24-bookworm-slim`, running as `node` with data in a `/data` volume. CI runs typecheck/lint/tests, builds the image, smoke-tests it over HTTP with `scripts/smoke.mjs`, then pushes `linux/amd64` images to `ghcr.io/<owner>/<repo>` on `main` and `v*` tags.
 
 **Tech Stack:** esbuild, Docker (multi-stage, buildx), GitHub Actions (`docker/*` actions, `pnpm/action-setup`), existing Hono/Better Auth/Drizzle server.
 
@@ -17,7 +17,7 @@
 - Better Auth origin checks stay forced on (`advanced.disableOriginCheck: false`). Additionally, state-changing `/api/auth/*` requests whose `Origin` header is **present and not `BASE_URL`'s origin** are rejected `403 invalid_origin` (login-CSRF guard). Requests **without** `Origin` pass (non-browser clients).
 - Error body shape everywhere: `{ "error": { "code": string, "message": string, "details"?: string[] } }`.
 - Image: `node:24-bookworm-slim` runtime, runs as user `node`, `WORKDIR /app`, data at `/data` (`DATABASE_PATH=/data/tagteam.db`), migrations at `/app/drizzle` (`MIGRATIONS_DIR`), `EXPOSE 3000`, `HEALTHCHECK` on `/api/health`, `CMD ["node", "dist/index.js"]`.
-- Registry: `ghcr.io/${{ github.repository }}` (currently `ghcr.io/doomedramen/tagteam`). Tags: `latest` (default branch), `sha-<short>`, semver `X.Y.Z` and `X.Y` from `vX.Y.Z` tags. Platforms `linux/amd64,linux/arm64`. Push only on non-PR events.
+- Registry: `ghcr.io/${{ github.repository }}` (currently `ghcr.io/doomedramen/tagteam`). Tags: `latest` (default branch), `sha-<short>`, semver `X.Y.Z` and `X.Y` from `vX.Y.Z` tags. Platform `linux/amd64` only (user decision 2026-09-25; arm64 later). Push only on non-PR events.
 - The compose file publishes **no** app port to the network by default; `cloudflared` reaches the app on the internal network (`http://tagteam:3000`).
 - Commits: Conventional Commits, no co-author trailers, never `--no-verify`. All work directly on `main`.
 
@@ -36,7 +36,7 @@
 package.json                              + "packageManager": "pnpm@10.20.0"
 .dockerignore                             build context exclusions
 Dockerfile                                multi-stage image
-.github/workflows/ci.yml                  test → image smoke → multi-arch push
+.github/workflows/ci.yml                  test → image smoke → amd64 push
 README.md                                 overview, compose quick start, config, backup, development
 docs/superpowers/specs/2026-09-25-tagteam-design.md   decision updates (Task 1)
 apps/server/
@@ -562,7 +562,6 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v5
-      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
       - name: Build image for smoke test
@@ -599,11 +598,11 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
-      - name: Build and push multi-arch image
+      - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -616,16 +615,16 @@ jobs:
 Run: `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:latest -color`
 Expected: no findings. (If an action major version is reported as outdated/nonexistent, bump to the current major and note it.)
 
-- [ ] **Step 3: Verify the arm64 image builds**
+- [ ] **Step 3: Verify the amd64 image builds**
 
-Run: `docker buildx build --platform linux/arm64 -t tagteam:arm64-check .`
-Expected: build succeeds (the native module installs/compiles for arm64). Record duration. On an arm64 host this is native; on amd64 it uses QEMU and is slow — acceptable.
+Run: `docker buildx build --platform linux/amd64 -t tagteam:amd64-check .`
+Expected: build succeeds (on an Apple Silicon host this is emulated and slower — acceptable). Record duration.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add .github/workflows/ci.yml
-git commit -m "ci: test, smoke-test and publish multi-arch image to GHCR"
+git commit -m "ci: test, smoke-test and publish image to GHCR"
 ```
 
 ---
