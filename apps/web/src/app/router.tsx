@@ -5,6 +5,8 @@ import { AddTaskSheet } from "../features/add-task/AddTaskSheet";
 import { AddPasskeyScreen } from "../features/auth/AddPasskeyScreen";
 import { SignInScreen } from "../features/auth/SignInScreen";
 import { SignUpScreen } from "../features/auth/SignUpScreen";
+import { GroupSwitcher } from "../features/groups/GroupSwitcher";
+import { WelcomeScreen } from "../features/groups/WelcomeScreen";
 import { MeScreen } from "../features/me/MeScreen";
 import { ComingSoon } from "../features/placeholder/ComingSoon";
 import { TodayScreen } from "../features/today/TodayScreen";
@@ -37,11 +39,7 @@ function MainLayout() {
 
 	return (
 		<AppShell
-			title={
-				<span className="truncate text-[17px] font-semibold">
-					{active.name}
-				</span>
-			}
+			title={<GroupSwitcher groups={groups} activeId={active.id} />}
 			trailing={<SyncChip status={status} />}
 			banner={
 				status.state === "reauth" ? (
@@ -71,7 +69,7 @@ export const router = createBrowserRouter([
 		element: <SessionGate />,
 		children: [
 			{ path: "/passkey", element: <AddPasskeyScreen /> },
-			{ path: "/welcome", element: <ComingSoon title="Welcome" /> },
+			{ path: "/welcome", element: <WelcomeScreen /> },
 			{
 				element: <MainLayout />,
 				children: [

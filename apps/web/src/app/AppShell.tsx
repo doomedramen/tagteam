@@ -45,7 +45,7 @@ export function AppShell({
 		<div className="flex min-h-dvh flex-col">
 			<header className="sticky top-0 z-30 bg-bg/90 pt-[env(safe-area-inset-top)] backdrop-blur">
 				<div className="flex min-h-14 items-center justify-between gap-3 px-4">
-					<div className="min-w-0">{title}</div>
+					<div className="min-w-0 flex-1">{title}</div>
 					{trailing}
 				</div>
 			</header>
