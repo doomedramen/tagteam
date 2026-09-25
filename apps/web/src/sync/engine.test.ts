@@ -118,6 +118,23 @@ describe("sync engine", () => {
 		engine.dispose();
 	});
 
+	it("does not retry a concurrent request after a run fails, but keeps the outbox for a later trigger", async () => {
+		const api = fakeApi();
+		const engine = createSyncEngine({ store, api, me, debounceMs: 10_000 });
+		await engine.enqueue(create());
+
+		api.push.mockRejectedValueOnce(new OfflineError());
+		await Promise.all([engine.sync(), engine.sync()]);
+		expect(api.push).toHaveBeenCalledTimes(1);
+		expect(engine.getStatus()).toMatchObject({ state: "offline", pending: 1 });
+		expect(await store.outbox.count()).toBe(1);
+
+		await engine.sync();
+		expect(await store.outbox.count()).toBe(0);
+		expect(engine.getStatus()).toMatchObject({ state: "idle", pending: 0 });
+		engine.dispose();
+	});
+
 	it("notifies subscribers", async () => {
 		const engine = createSyncEngine({
 			store,

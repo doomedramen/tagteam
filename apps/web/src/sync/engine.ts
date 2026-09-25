@@ -111,6 +111,8 @@ export function createSyncEngine(opts: {
 				do {
 					again = false;
 					await runOnce();
+					// Only loop again after a clean run: if runOnce ended in offline/reauth/signedOut/error,
+					// retrying immediately would just hit the same failure — the outbox is kept and a later trigger retries instead.
 				} while (again && status.state === "idle");
 			})().finally(() => {
 				running = null;
