@@ -4,6 +4,17 @@ import { createPortal } from "react-dom";
 const FOCUSABLE_SELECTOR =
 	'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+/**
+ * Element to prefer when moving focus into the dialog. React's `autoFocus` prop
+ * calls `.focus()` imperatively during commit rather than setting the DOM
+ * `autofocus` attribute, so it only takes effect once and is lost across a
+ * React 19 StrictMode dev double-invoke (effect → cleanup → effect) or any
+ * later re-run of this effect. Consumers that need focus to land on a
+ * specific field whenever the sheet (re-)opens should mark it with
+ * `data-autofocus` in addition to (or instead of) `autoFocus`.
+ */
+const PREFERRED_FOCUS_SELECTOR = "[autofocus], [data-autofocus]";
+
 /** Bottom sheet dialog. Closes on backdrop tap and Escape. */
 export function Sheet({
 	open,
@@ -21,14 +32,29 @@ export function Sheet({
 
 	useEffect(() => {
 		if (!open) return;
-		previouslyFocused.current =
-			document.activeElement instanceof HTMLElement
-				? document.activeElement
-				: null;
-
 		const dialog = dialogRef.current;
-		if (dialog && !dialog.contains(document.activeElement)) {
-			const first = dialog.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+		const activeIsInsideDialog =
+			!!dialog && dialog.contains(document.activeElement);
+
+		// Only remember the pre-open focus target when it's outside the dialog.
+		// Under React 19 StrictMode's dev double-invoke (effect → cleanup →
+		// effect), the cleanup already restores focus to the real trigger before
+		// this effect runs again, so re-capturing here would be a no-op; but if
+		// focus were still inside the dialog for some other reason, capturing it
+		// would clobber the real trigger with one of the dialog's own children.
+		if (!activeIsInsideDialog) {
+			previouslyFocused.current =
+				document.activeElement instanceof HTMLElement
+					? document.activeElement
+					: null;
+		}
+
+		if (dialog && !activeIsInsideDialog) {
+			const preferred = dialog.querySelector<HTMLElement>(
+				PREFERRED_FOCUS_SELECTOR,
+			);
+			const first =
+				preferred ?? dialog.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
 			(first ?? dialog).focus();
 		}
 

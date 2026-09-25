@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { Button } from "./Button";
 import { Chip } from "./Chip";
@@ -101,6 +101,18 @@ describe("UI kit", () => {
 		screen.getByRole("button", { name: "Last" }).focus();
 		await userEvent.tab();
 		expect(screen.getByRole("button", { name: "First" })).toHaveFocus();
+	});
+
+	it("keeps the intended autofocus target focused under StrictMode double-invoked effects", () => {
+		render(
+			<StrictMode>
+				<Sheet open onClose={vi.fn()} label="Add task">
+					<input aria-label="Name" />
+					<input aria-label="Title" data-autofocus />
+				</Sheet>
+			</StrictMode>,
+		);
+		expect(screen.getByLabelText("Title")).toHaveFocus();
 	});
 
 	it("toasts show a message with an action", async () => {
