@@ -18,6 +18,7 @@
 	--warning-soft: #fbf0dc;
 	--danger: #c93131;
 	--danger-soft: #fbe9e9;
+	--ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
 	--av-blue: #dbe8fd;
 	--av-blue-fg: #1d4ed8;
 	--av-green: #dcf0df;
@@ -95,21 +96,132 @@
 		sans-serif;
 }
 
-@keyframes sheet-up {
-	from {
-		transform: translateY(100%);
-	}
-}
-@keyframes fade-in {
-	from {
-		opacity: 0;
-	}
-}
 @keyframes toast-in {
 	from {
 		opacity: 0;
 		transform: translateY(8px);
 	}
+}
+@keyframes confetti-burst {
+	0% {
+		opacity: 0;
+		transform: translate(0, 0) rotate(0deg) scale(0.7);
+	}
+	12% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+		transform: translate(var(--burst-x), var(--burst-y))
+			rotate(var(--burst-rotation)) scale(0.85);
+	}
+}
+
+@keyframes sync-badge-in {
+	from {
+		opacity: 0;
+		transform: translateY(-3px);
+	}
+}
+
+.confetti-piece {
+	transform: translate(var(--burst-x), var(--burst-y))
+		rotate(var(--burst-rotation));
+	animation: confetti-burst 280ms var(--ease-out-strong) both;
+}
+
+.sheet-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 50;
+	background: rgb(0 0 0 / 0.4);
+	transition: opacity 150ms ease-out;
+}
+
+.sheet-backdrop[data-starting-style],
+.sheet-backdrop[data-ending-style] {
+	opacity: 0;
+}
+
+.sheet-viewport {
+	position: fixed;
+	inset: 0 0 var(--drawer-keyboard-inset, 0px);
+	z-index: 50;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+.sheet-popup {
+	position: relative;
+	display: flex;
+	width: 100%;
+	max-height: 92%;
+	min-height: 0;
+	flex-direction: column;
+	padding: 0.5rem 1rem
+		max(
+			1rem,
+			calc(env(safe-area-inset-bottom) - var(--drawer-keyboard-inset, 0px))
+		);
+	border-radius: 1.5rem 1.5rem 0 0;
+	background: var(--surface);
+	box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+	transform: translateY(
+		calc(
+			var(--drawer-snap-point-offset, 0px) +
+			var(--drawer-swipe-movement-y, 0px)
+		)
+	);
+	transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1);
+	pointer-events: auto;
+}
+
+.sheet-popup[data-starting-style],
+.sheet-popup[data-ending-style] {
+	transform: translateY(
+		calc(
+			100% +
+			var(--drawer-snap-point-offset, 0px) +
+			var(--drawer-swipe-movement-y, 0px)
+		)
+	);
+}
+
+.sheet-handle {
+	width: 2.25rem;
+	height: 0.25rem;
+	flex: none;
+	margin: 0 auto 0.75rem;
+	border-radius: 9999px;
+	background: var(--line);
+}
+
+.sheet-scroll {
+	min-height: 0;
+	flex: 1;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	-webkit-overflow-scrolling: touch;
+}
+
+.sheet-close {
+	position: absolute;
+	top: 0.5rem;
+	right: 1rem;
+	display: flex;
+	width: 2rem;
+	height: 2rem;
+	align-items: center;
+	justify-content: center;
+	border-radius: 9999px;
+	color: var(--text-2);
+}
+
+.sheet-close:hover {
+	background: var(--surface-2);
 }
 
 .avatar-blue {
@@ -162,7 +274,17 @@ body {
 	outline-offset: 2px;
 }
 
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+	outline: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
+	.confetti-piece {
+		animation: none;
+		opacity: 0.7;
+	}
 	*,
 	*::before,
 	*::after {

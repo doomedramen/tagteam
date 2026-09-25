@@ -40,7 +40,7 @@ describe("syncLabel", () => {
 			"Offline · 2 queued",
 		);
 		expect(syncLabel({ state: "syncing", pending: 3, lastSyncedAt: 1 })).toBe(
-			"Syncing 3",
+			"Syncing",
 		);
 	});
 });

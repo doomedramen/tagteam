@@ -1,9 +1,10 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router";
 import { readFlag, writeFlag } from "../../lib/storage";
 import { dayBounds, useNow } from "../../lib/time";
 import { useSession } from "../../session/session";
+import { fireScreenConfettiCannon } from "../../ui/confetti";
 import { useToast } from "../../ui/Toast";
 import { buildToday, type TodayRow } from "./model";
 import { TodayList } from "./TodayList";
@@ -18,7 +19,15 @@ export function TodayScreen() {
 	const [showUpcoming, setShowUpcoming] = useState(() =>
 		readFlag(UPCOMING_KEY, false),
 	);
+	const [celebratingKey, setCelebratingKey] = useState<string | null>(null);
 	const inFlight = useRef(new Set<string>());
+	const celebrationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	useEffect(
+		() => () => {
+			if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
+		},
+		[],
+	);
 	const tasks = useLiveQuery(
 		() =>
 			store.tasks
@@ -71,6 +80,15 @@ export function TodayScreen() {
 				taskId: row.task.id,
 				occurrenceKey: row.key,
 			});
+			fireScreenConfettiCannon();
+			const nextCelebrationKey = `${row.task.id}:${row.key}`;
+			setCelebratingKey(nextCelebrationKey);
+			if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
+			celebrationTimer.current = setTimeout(() => {
+				setCelebratingKey((current) =>
+					current === nextCelebrationKey ? null : current,
+				);
+			}, 750);
 			toast.show({
 				message: `Done · ${row.task.title}`,
 				action: {
@@ -88,6 +106,7 @@ export function TodayScreen() {
 		<TodayList
 			view={view}
 			now={now}
+			celebratingKey={celebratingKey}
 			showUpcoming={showUpcoming}
 			onToggleUpcoming={() => {
 				setShowUpcoming((value) => {

@@ -7,8 +7,8 @@ import { SignInScreen } from "../features/auth/SignInScreen";
 import { SignUpScreen } from "../features/auth/SignUpScreen";
 import { GroupSwitcher } from "../features/groups/GroupSwitcher";
 import { WelcomeScreen } from "../features/groups/WelcomeScreen";
+import { HistoryScreen } from "../features/history/HistoryScreen";
 import { MeScreen } from "../features/me/MeScreen";
-import { ComingSoon } from "../features/placeholder/ComingSoon";
 import { TeamScreen } from "../features/team/TeamScreen";
 import { TodayScreen } from "../features/today/TodayScreen";
 import { SessionGate } from "../session/SessionGate";
@@ -76,7 +76,7 @@ export const router = createBrowserRouter([
 				children: [
 					{ index: true, element: <TodayScreen /> },
 					{ path: "team", element: <TeamScreen /> },
-					{ path: "history", element: <ComingSoon title="History" /> },
+					{ path: "history", element: <HistoryScreen /> },
 					{ path: "me", element: <MeScreen /> },
 				],
 			},

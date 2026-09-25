@@ -95,8 +95,6 @@ export function AddTaskSheet({
 					</label>
 					<input
 						id="task-title"
-						// biome-ignore lint/a11y/noAutofocus: the add-task title field must keep focus when the sheet opens
-						autoFocus
 						data-autofocus
 						enterKeyHint="done"
 						placeholder="Brush teeth"
@@ -104,7 +102,7 @@ export function AddTaskSheet({
 						onChange={(e) => update({ title: e.target.value })}
 						aria-invalid={errors.title ? true : undefined}
 						aria-describedby={errors.title ? "task-title-error" : undefined}
-						className="min-h-12 border-b-2 border-accent bg-transparent text-xl outline-none placeholder:text-text-3"
+						className="min-h-12 w-full rounded-xl bg-surface px-3.5 text-xl text-text ring-1 ring-line outline-none placeholder:text-text-3 focus:ring-2 focus:ring-accent aria-invalid:ring-danger"
 					/>
 					{errors.title ? (
 						<p id="task-title-error" className="text-[13px] text-danger">

@@ -39,7 +39,8 @@ Task 11 e2e covers account creation, group setup, task creation, offline complet
 |---|---|
 | Team | Implemented member progress, inline task lists, overdue nudges, and invite code create/share/copy/revoke. Typecheck and 375 × 812 visual review passed. |
 | Me passkey status | Shows registered passkey count and offers “Add another passkey”. Typecheck and visual review passed. |
-| Remaining | Task detail/history, activity History feed, profile editing, and swipe-to-complete. |
+| History | Implemented newest-first group activity by day with member filtering, completion status, misses, nudges, and new tasks. Typecheck and 375 × 812 visual review passed. |
+| Remaining | Task detail/history, profile editing, and swipe-to-complete. |
 
 Per-task execution ledger (rulings, review findings, deferred minors) lives in the git-ignored
 `.superpowers/sdd/2026-09-25-05-app-foundation-today/progress.md` in the working checkout. The
@@ -48,7 +49,7 @@ decisions that matter are summarised below.
 ## Next plans
 
 - **Plan 6 — remaining screens:** task detail/history (calendar dots, stats, edit schedule/archive),
-  History activity feed, profile editing, and swipe-to-complete. Mockups agreed in brainstorming; spec §6.
+  profile editing, and swipe-to-complete. Mockups agreed in brainstorming; spec §6.
 - **Plan 7 — push notifications:** web-push subscriptions, due/overdue scheduler, nudges as push.
 
 ## Decisions to know (made during execution)

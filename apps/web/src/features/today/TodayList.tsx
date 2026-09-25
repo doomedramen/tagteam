@@ -1,15 +1,18 @@
 import { Check, Repeat } from "lucide-react";
 import { cx } from "../../lib/cx";
 import { Button } from "../../ui/Button";
+import { ConfettiBurst } from "../../ui/ConfettiBurst";
 import { rowLabel } from "./labels";
 import type { TodayRow, TodayView } from "./model";
 
 function CheckCircle({
 	row,
 	onToggle,
+	celebrating,
 }: {
 	row: TodayRow;
 	onToggle: (row: TodayRow) => void;
+	celebrating: boolean;
 }) {
 	const done = row.kind === "done";
 	return (
@@ -20,8 +23,9 @@ function CheckCircle({
 			}
 			aria-pressed={done}
 			onClick={() => onToggle(row)}
-			className="-m-2 flex size-11 shrink-0 items-center justify-center rounded-full active:scale-90 transition-transform duration-150"
+			className="-m-2 relative flex size-11 shrink-0 items-center justify-center rounded-full transition-transform duration-150 active:scale-90"
 		>
+			{done && celebrating ? <ConfettiBurst /> : null}
 			<span
 				className={cx(
 					"flex size-[26px] items-center justify-center rounded-full border-[1.5px] transition-colors duration-150",
@@ -41,14 +45,16 @@ function Row({
 	row,
 	now,
 	onToggle,
+	celebrating,
 }: {
 	row: TodayRow;
 	now: number;
 	onToggle: (row: TodayRow) => void;
+	celebrating: boolean;
 }) {
 	return (
 		<li className="flex items-center gap-3 border-b border-line py-3 last:border-0">
-			<CheckCircle row={row} onToggle={onToggle} />
+			<CheckCircle row={row} onToggle={onToggle} celebrating={celebrating} />
 			<div className="min-w-0 flex-1">
 				<p
 					className={cx(
@@ -84,11 +90,13 @@ function Section({
 	rows,
 	now,
 	onToggle,
+	celebratingKey,
 }: {
 	title: string;
 	rows: TodayRow[];
 	now: number;
 	onToggle: (row: TodayRow) => void;
+	celebratingKey: string | null;
 }) {
 	if (rows.length === 0) return null;
 	return (
@@ -101,6 +109,7 @@ function Section({
 						row={row}
 						now={now}
 						onToggle={onToggle}
+						celebrating={celebratingKey === `${row.task.id}:${row.key}`}
 					/>
 				))}
 			</ul>
@@ -114,6 +123,7 @@ export function TodayList({
 	showUpcoming,
 	onToggleUpcoming,
 	onToggle,
+	celebratingKey,
 	onAdd,
 }: {
 	view: TodayView;
@@ -121,6 +131,7 @@ export function TodayList({
 	showUpcoming: boolean;
 	onToggleUpcoming: () => void;
 	onToggle: (row: TodayRow) => void;
+	celebratingKey: string | null;
 	onAdd: () => void;
 }) {
 	if (!view.hasTasks) {
@@ -139,15 +150,19 @@ export function TodayList({
 	const percent =
 		view.total === 0 ? 100 : Math.round((view.done / view.total) * 100);
 	const allDone =
-		view.overdue.length === 0 && view.today.every((r) => r.kind === "done");
+		view.total > 0 &&
+		view.overdue.length === 0 &&
+		view.today.every((r) => r.kind === "done");
 	return (
 		<div>
 			<div className="mt-2">
 				<h1 className="text-[26px] font-semibold tracking-tight">
 					{new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(now)}
 				</h1>
-				<p className="text-[14px] text-text-2">
-					{view.done} of {view.total} done today
+				<p className="min-h-5 text-[14px] text-text-2">
+					{allDone
+						? "All done for today"
+						: `${view.done} of ${view.total} done today`}
 				</p>
 				<div
 					role="progressbar"
@@ -163,18 +178,20 @@ export function TodayList({
 					/>
 				</div>
 			</div>
-			{allDone ? (
-				<p className="mt-6 text-center text-[14px] text-text-2">
-					All done for today
-				</p>
-			) : null}
 			<Section
 				title="Overdue"
 				rows={view.overdue}
 				now={now}
 				onToggle={onToggle}
+				celebratingKey={celebratingKey}
 			/>
-			<Section title="Today" rows={view.today} now={now} onToggle={onToggle} />
+			<Section
+				title="Today"
+				rows={view.today}
+				now={now}
+				onToggle={onToggle}
+				celebratingKey={celebratingKey}
+			/>
 			{view.upcoming.length > 0 ? (
 				<div className="mt-4 flex justify-center">
 					<Button variant="ghost" onClick={onToggleUpcoming}>
@@ -190,6 +207,7 @@ export function TodayList({
 					rows={view.upcoming}
 					now={now}
 					onToggle={onToggle}
+					celebratingKey={celebratingKey}
 				/>
 			) : null}
 		</div>
