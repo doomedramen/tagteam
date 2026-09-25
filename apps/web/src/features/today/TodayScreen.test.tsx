@@ -1,5 +1,5 @@
 import type { TaskDto } from "@tagteam/core";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { TagTeamDb } from "../../store/db";
@@ -63,6 +63,24 @@ describe("TodayScreen", () => {
 				taskId: "t1",
 				refEventId: completionId,
 			}),
+		);
+	});
+
+	it("ignores a second tap while the first completion is still in flight", async () => {
+		await store.tasks.put(brushTeeth);
+		const engine = fakeEngine();
+		renderWithSession(<TodayScreen />, { store, engine });
+
+		const button = await screen.findByRole("button", {
+			name: "Complete Brush teeth",
+		});
+		fireEvent.click(button);
+		fireEvent.click(button);
+
+		await waitFor(() => expect(engine.enqueue).toHaveBeenCalled());
+		expect(engine.enqueue).toHaveBeenCalledTimes(1);
+		expect(engine.enqueue).toHaveBeenCalledWith(
+			expect.objectContaining({ type: "task.complete", taskId: "t1" }),
 		);
 	});
 

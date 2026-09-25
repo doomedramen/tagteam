@@ -69,7 +69,11 @@ function Row({
 				</p>
 			</div>
 			{row.recurring ? (
-				<Repeat aria-label="Repeats" className="size-4 shrink-0 text-text-3" />
+				<Repeat
+					role="img"
+					aria-label="Repeats"
+					className="size-4 shrink-0 text-text-3"
+				/>
 			) : null}
 		</li>
 	);

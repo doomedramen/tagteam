@@ -1,5 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useOutletContext } from "react-router";
 import { readFlag, writeFlag } from "../../lib/storage";
 import { dayBounds, useNow } from "../../lib/time";
@@ -18,6 +18,7 @@ export function TodayScreen() {
 	const [showUpcoming, setShowUpcoming] = useState(() =>
 		readFlag(UPCOMING_KEY, false),
 	);
+	const inFlight = useRef(new Set<string>());
 	const tasks = useLiveQuery(
 		() =>
 			store.tasks
@@ -53,27 +54,34 @@ export function TodayScreen() {
 		});
 
 	const onToggle = async (row: TodayRow) => {
-		if (row.kind === "done") {
-			if (row.completionId) await uncomplete(row.task.id, row.completionId);
-			return;
+		const key = `${row.task.id}:${row.key}:${row.kind}`;
+		if (inFlight.current.has(key)) return;
+		inFlight.current.add(key);
+		try {
+			if (row.kind === "done") {
+				if (row.completionId) await uncomplete(row.task.id, row.completionId);
+				return;
+			}
+			const id = crypto.randomUUID();
+			navigator.vibrate?.(10);
+			await engine.enqueue({
+				id,
+				at: Date.now(),
+				type: "task.complete",
+				taskId: row.task.id,
+				occurrenceKey: row.key,
+			});
+			toast.show({
+				message: `Done · ${row.task.title}`,
+				action: {
+					label: "Undo",
+					onClick: () => void uncomplete(row.task.id, id),
+				},
+				durationMs: 5000,
+			});
+		} finally {
+			inFlight.current.delete(key);
 		}
-		const id = crypto.randomUUID();
-		navigator.vibrate?.(10);
-		await engine.enqueue({
-			id,
-			at: Date.now(),
-			type: "task.complete",
-			taskId: row.task.id,
-			occurrenceKey: row.key,
-		});
-		toast.show({
-			message: `Done · ${row.task.title}`,
-			action: {
-				label: "Undo",
-				onClick: () => void uncomplete(row.task.id, id),
-			},
-			durationMs: 5000,
-		});
 	};
 
 	return (

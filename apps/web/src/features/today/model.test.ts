@@ -45,6 +45,12 @@ const done = (
 	at: when,
 });
 
+const first = <T>(rows: T[]): T => {
+	const r = rows[0];
+	if (!r) throw new Error("expected a row");
+	return r;
+};
+
 describe("buildToday", () => {
 	it("puts an old open occurrence under overdue with its missed count", () => {
 		const now = at("2026-09-23", "09:00");
@@ -59,7 +65,7 @@ describe("buildToday", () => {
 		expect(view.overdue.map((r) => [r.task.id, r.key, r.missed])).toEqual([
 			["teeth", "2026-09-21", 2],
 		]);
-		expect(rowLabel(view.overdue[0]!, now, opts)).toBe(
+		expect(rowLabel(first(view.overdue), now, opts)).toBe(
 			"Since Mon 08:00 · 2 missed",
 		);
 		expect(view.total).toBe(1);
@@ -78,9 +84,9 @@ describe("buildToday", () => {
 		expect(view.today.map((r) => [r.kind, r.key, r.completionId])).toEqual([
 			["done", "2026-09-21", "teeth-2026-09-21"],
 		]);
-		expect(rowLabel(view.today[0]!, now, opts)).toBe("Done 07:42");
+		expect(rowLabel(first(view.today), now, opts)).toBe("Done 07:42");
 		expect(view.upcoming.map((r) => r.key)).toEqual(["2026-09-22"]);
-		expect(rowLabel(view.upcoming[0]!, now, opts)).toBe("Tomorrow 08:00");
+		expect(rowLabel(first(view.upcoming), now, opts)).toBe("Tomorrow 08:00");
 		expect([view.done, view.total]).toEqual([1, 1]);
 	});
 
