@@ -1,0 +1,21 @@
+{
+	"name": "@tagteam/core",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsc -p ."
+	},
+	"dependencies": {
+		"luxon": "^3.7.2"
+	},
+	"devDependencies": {
+		"@types/luxon": "^3.7.5",
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.2"
+	}
+}
