@@ -190,11 +190,22 @@
 	);
 }
 
+.sheet-header {
+	position: relative;
+	display: flex;
+	min-height: 2.75rem;
+	flex: none;
+	align-items: center;
+	justify-content: flex-end;
+	margin-bottom: 0.25rem;
+}
+
 .sheet-handle {
+	position: absolute;
+	left: 50%;
 	width: 2.25rem;
 	height: 0.25rem;
-	flex: none;
-	margin: 0 auto 0.75rem;
+	transform: translateX(-50%);
 	border-radius: 9999px;
 	background: var(--line);
 }
@@ -202,18 +213,17 @@
 .sheet-scroll {
 	min-height: 0;
 	flex: 1;
+	padding-top: 0.25rem;
 	overflow-y: auto;
 	overscroll-behavior: contain;
 	-webkit-overflow-scrolling: touch;
 }
 
 .sheet-close {
-	position: absolute;
-	top: 0.5rem;
-	right: 1rem;
 	display: flex;
-	width: 2rem;
-	height: 2rem;
+	width: 2.75rem;
+	height: 2.75rem;
+	flex: none;
 	align-items: center;
 	justify-content: center;
 	border-radius: 9999px;

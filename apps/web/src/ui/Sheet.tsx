@@ -93,18 +93,20 @@ export function Sheet({
 							initialFocus={false}
 							onKeyDown={trapTab}
 						>
-							<div aria-hidden className="sheet-handle" />
+							<div className="sheet-header">
+								<div aria-hidden className="sheet-handle" />
+								<Drawer.Close
+									aria-label="Close"
+									tabIndex={-1}
+									className="sheet-close"
+								>
+									<X aria-hidden className="size-4" />
+								</Drawer.Close>
+							</div>
 							<Drawer.Title className="sr-only">{label}</Drawer.Title>
 							<Drawer.Content className="sheet-scroll">
 								{children}
 							</Drawer.Content>
-							<Drawer.Close
-								aria-label="Close"
-								tabIndex={-1}
-								className="sheet-close"
-							>
-								<X aria-hidden className="size-4" />
-							</Drawer.Close>
 						</Drawer.Popup>
 					</Drawer.Viewport>
 				</Drawer.Portal>
