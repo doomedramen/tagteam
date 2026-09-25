@@ -82,13 +82,16 @@ export function deriveTask(
 
 		let next = open + 1;
 		for (let i = slots.length - 1; i > open; i--) {
-			if ((slots[i] as Slot).periodStart <= c.at) {
+			const later = slots[i];
+			if (later && later.periodStart <= c.at) {
 				next = i;
 				break;
 			}
 		}
-		for (let i = open + 1; i < next; i++)
-			entries.push(missed(slots[i] as Slot, slot.key));
+		for (let i = open + 1; i < next; i++) {
+			const later = slots[i];
+			if (later) entries.push(missed(later, slot.key));
+		}
 		open = next;
 	}
 

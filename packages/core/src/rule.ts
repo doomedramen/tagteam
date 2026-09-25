@@ -1,4 +1,4 @@
-import type { Weekday } from "./localDate";
+import type { LocalDate, Weekday } from "./localDate";
 
 export type Rule =
 	| { freq: "day"; interval: number }
@@ -7,7 +7,7 @@ export type Rule =
 
 /** Schedule in force from `effectiveFrom`. `rule: null` means a one-off occurrence on that date. */
 export interface RuleVersion {
-	effectiveFrom: string;
+	effectiveFrom: LocalDate;
 	rule: Rule | null;
 }
 
