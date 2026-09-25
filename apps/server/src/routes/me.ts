@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import type { Db } from "../db/client";
 import { fail } from "../http/errors";
 import type { AppEnv, SessionUser } from "../http/session";
+import type { LiveHub } from "../live";
+import { pokeGroups } from "../live";
 import { listMyGroups, type MyGroup } from "../services/groups";
 import {
 	type ProfileDto,
@@ -16,7 +18,7 @@ export interface MeResponse {
 	groups: MyGroup[];
 }
 
-export function meRoutes(deps: { db: Db; now: () => number }) {
+export function meRoutes(deps: { db: Db; now: () => number; live: LiveHub }) {
 	const routes = new Hono<AppEnv>();
 	routes.get("/", (c) => {
 		const body: MeResponse = {
@@ -42,6 +44,12 @@ export function meRoutes(deps: { db: Db; now: () => number }) {
 				errors,
 			);
 		const updated = updateProfile(deps.db, c.var.user.id, patch, deps.now());
+		pokeGroups(
+			deps.db,
+			deps.live,
+			listMyGroups(deps.db, c.var.user.id).map((g) => g.id),
+			[c.var.user.id],
+		);
 		return c.json({ profile: toProfileDto(updated) });
 	});
 	return routes;

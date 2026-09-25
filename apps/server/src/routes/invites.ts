@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import type { Db } from "../db/client";
 import { fail } from "../http/errors";
 import type { AppEnv } from "../http/session";
+import type { LiveHub } from "../live";
+import { pokeGroups } from "../live";
 import { createRateLimiter, REDEEM_LIMITS } from "../rate-limit";
 import { isActiveMember } from "../services/groups";
 import {
@@ -11,7 +13,11 @@ import {
 	revokeInvite,
 } from "../services/invites";
 
-export function inviteRoutes(deps: { db: Db; now: () => number }) {
+export function inviteRoutes(deps: {
+	db: Db;
+	now: () => number;
+	live: LiveHub;
+}) {
 	const routes = new Hono<AppEnv>();
 	const limiter = createRateLimiter(REDEEM_LIMITS);
 
@@ -76,6 +82,7 @@ export function inviteRoutes(deps: { db: Db; now: () => number }) {
 		}
 		if (!result.ok)
 			return fail(c, 409, "already_member", "You're already in this group.");
+		pokeGroups(deps.db, deps.live, [result.group.id]);
 		return c.json({ group: result.group });
 	});
 

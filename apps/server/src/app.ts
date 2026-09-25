@@ -5,8 +5,10 @@ import type { Db } from "./db/client";
 import { fail } from "./http/errors";
 import { rejectUntrustedOrigin } from "./http/origin";
 import { type AppEnv, requireSession } from "./http/session";
+import { createLiveHub, type LiveHub, pokeGroups } from "./live";
 import { groupRoutes } from "./routes/groups";
 import { inviteRoutes } from "./routes/invites";
+import { liveRoutes } from "./routes/live";
 import { meRoutes } from "./routes/me";
 import { syncRoutes } from "./routes/sync";
 
@@ -16,6 +18,7 @@ export interface AppDeps {
 	/** The app's public origin (Config.baseUrl). */
 	trustedOrigin: string;
 	now?: () => number;
+	live?: LiveHub;
 }
 
 export function createApp({
@@ -23,6 +26,7 @@ export function createApp({
 	auth,
 	trustedOrigin,
 	now = Date.now,
+	live = createLiveHub(),
 }: AppDeps) {
 	const app = new Hono();
 
@@ -34,10 +38,18 @@ export function createApp({
 
 	const api = new Hono<AppEnv>();
 	api.use("*", requireSession({ db, auth, now }));
-	api.route("/me", meRoutes({ db, now }));
-	api.route("/groups", groupRoutes({ db, now }));
-	api.route("/", inviteRoutes({ db, now }));
-	api.route("/sync", syncRoutes({ db, now }));
+	api.route("/me", meRoutes({ db, now, live }));
+	api.route("/groups", groupRoutes({ db, now, live }));
+	api.route("/", inviteRoutes({ db, now, live }));
+	api.route(
+		"/sync",
+		syncRoutes({
+			db,
+			now,
+			onChange: (groupIds) => pokeGroups(db, live, groupIds),
+		}),
+	);
+	api.route("/live", liveRoutes({ hub: live }));
 	app.route("/api", api);
 
 	app.onError((err, c) => {
