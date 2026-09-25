@@ -1,8 +1,14 @@
 import { Hono } from "hono";
 import type { Db } from "../db/client";
+import { fail } from "../http/errors";
 import type { AppEnv, SessionUser } from "../http/session";
 import { listMyGroups, type MyGroup } from "../services/groups";
-import { type ProfileDto, toProfileDto } from "../services/profiles";
+import {
+	type ProfileDto,
+	toProfileDto,
+	updateProfile,
+	validateProfilePatch,
+} from "../services/profiles";
 
 export interface MeResponse {
 	user: SessionUser;
@@ -19,6 +25,24 @@ export function meRoutes(deps: { db: Db; now: () => number }) {
 			groups: listMyGroups(deps.db, c.var.user.id),
 		};
 		return c.json(body);
+	});
+	routes.patch("/", async (c) => {
+		const input: unknown = await c.req.json().catch(() => undefined);
+		const { patch, errors } = validateProfilePatch(
+			deps.db,
+			c.var.user.id,
+			input,
+		);
+		if (errors.length > 0)
+			return fail(
+				c,
+				400,
+				"invalid_request",
+				"Check the highlighted fields.",
+				errors,
+			);
+		const updated = updateProfile(deps.db, c.var.user.id, patch, deps.now());
+		return c.json({ profile: toProfileDto(updated) });
 	});
 	return routes;
 }
