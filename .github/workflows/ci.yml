@@ -53,7 +53,14 @@ jobs:
           # shellcheck disable=SC2034
           for i in $(seq 30); do curl -fs http://127.0.0.1:3000/api/health && break; sleep 1; done
           node apps/server/scripts/smoke.mjs http://localhost:3000
-          docker rm -f smoke
+
+      - name: Show smoke container logs
+        if: failure()
+        run: docker logs smoke
+
+      - name: Remove smoke container
+        if: always()
+        run: docker rm -f smoke || true
 
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
