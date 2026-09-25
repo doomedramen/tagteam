@@ -2,7 +2,7 @@
 
 _Last updated: 2026-09-25 (during Plan 6)._
 
-## Done (on `main`; CI green through Plan 5)
+## Done (on `main`; CI green through Plan 6)
 
 | Plan | Scope | Notes |
 |---|---|---|
