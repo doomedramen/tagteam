@@ -8,6 +8,7 @@ import { type AppEnv, requireSession } from "./http/session";
 import { groupRoutes } from "./routes/groups";
 import { inviteRoutes } from "./routes/invites";
 import { meRoutes } from "./routes/me";
+import { syncRoutes } from "./routes/sync";
 
 export interface AppDeps {
 	db: Db;
@@ -36,6 +37,7 @@ export function createApp({
 	api.route("/me", meRoutes({ db, now }));
 	api.route("/groups", groupRoutes({ db, now }));
 	api.route("/", inviteRoutes({ db, now }));
+	api.route("/sync", syncRoutes({ db, now }));
 	app.route("/api", api);
 
 	app.onError((err, c) => {
