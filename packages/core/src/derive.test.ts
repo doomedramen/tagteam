@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type DerivedTask, deriveTask, type TaskEvent } from "./derive";
 import { atTime, type LocalDate } from "./localDate";
+import type { RuleVersion } from "./rule";
 import type { TaskSchedule } from "./schedule";
 
 const TZ = "Europe/London";
@@ -9,9 +10,14 @@ const HOUR = 3_600_000;
 
 const daily08: TaskSchedule = {
 	startDate: "2026-09-21", // Monday
-	dueTime: "08:00",
 	timezone: TZ,
-	rules: [{ effectiveFrom: "2026-09-21", rule: { freq: "day", interval: 1 } }],
+	rules: [
+		{
+			effectiveFrom: "2026-09-21",
+			rule: { freq: "day", interval: 1 },
+			dueTime: "08:00",
+		},
+	],
 };
 
 const done = (
@@ -121,7 +127,10 @@ describe("deriveTask", () => {
 	});
 
 	it("treats an untimed occurrence as due by the end of its period", () => {
-		const untimed = { ...daily08, dueTime: null };
+		const untimed = {
+			...daily08,
+			rules: [{ ...daily08.rules[0], dueTime: null } as RuleVersion],
+		};
 		const d = deriveTask(
 			untimed,
 			[done("c1", "2026-09-21", "2026-09-21", "23:00")],
@@ -133,8 +142,7 @@ describe("deriveTask", () => {
 	it("handles one-off tasks", () => {
 		const once: TaskSchedule = {
 			...daily08,
-			dueTime: null,
-			rules: [{ effectiveFrom: "2026-09-21", rule: null }],
+			rules: [{ effectiveFrom: "2026-09-21", rule: null, dueTime: null }],
 		};
 		expect(lines(deriveTask(once, [], at("2026-09-22", "09:00")))).toEqual([
 			"2026-09-21 overdue",
@@ -152,10 +160,15 @@ describe("deriveTask", () => {
 		const changed: TaskSchedule = {
 			...daily08,
 			rules: [
-				{ effectiveFrom: "2026-09-21", rule: { freq: "day", interval: 1 } },
+				{
+					effectiveFrom: "2026-09-21",
+					rule: { freq: "day", interval: 1 },
+					dueTime: "08:00",
+				},
 				{
 					effectiveFrom: "2026-09-24",
 					rule: { freq: "week", interval: 1, weekdays: [5] },
+					dueTime: "08:00",
 				},
 			],
 		};

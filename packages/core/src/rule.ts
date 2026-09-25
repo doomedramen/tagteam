@@ -9,6 +9,8 @@ export type Rule =
 export interface RuleVersion {
 	effectiveFrom: LocalDate;
 	rule: Rule | null;
+	/** `HH:MM` in the task timezone, or null = due by the end of each period. */
+	dueTime: string | null;
 }
 
 export const MAX_INTERVAL = 366;

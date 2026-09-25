@@ -12,12 +12,14 @@ import {
 const schedule = (
 	startDate: LocalDate,
 	rule: Rule | null,
-	extra: Partial<TaskSchedule> = {},
+	{
+		dueTime = null,
+		...extra
+	}: Partial<TaskSchedule> & { dueTime?: string | null } = {},
 ): TaskSchedule => ({
 	startDate,
-	dueTime: null,
 	timezone: "Europe/London",
-	rules: [{ effectiveFrom: startDate, rule }],
+	rules: [{ effectiveFrom: startDate, rule, dueTime }],
 	...extra,
 });
 
@@ -83,10 +85,15 @@ describe("occurrenceKeys", () => {
 		const s: TaskSchedule = {
 			...schedule("2026-09-21", { freq: "day", interval: 1 }),
 			rules: [
-				{ effectiveFrom: "2026-09-21", rule: { freq: "day", interval: 1 } },
+				{
+					effectiveFrom: "2026-09-21",
+					rule: { freq: "day", interval: 1 },
+					dueTime: null,
+				},
 				{
 					effectiveFrom: "2026-09-24",
 					rule: { freq: "week", interval: 1, weekdays: [5] },
+					dueTime: null,
 				},
 			],
 		};
@@ -103,9 +110,17 @@ describe("occurrenceKeys", () => {
 		const s: TaskSchedule = {
 			...schedule("2026-09-21", { freq: "day", interval: 1 }),
 			rules: [
-				{ effectiveFrom: "2026-09-21", rule: { freq: "day", interval: 1 } },
-				{ effectiveFrom: "2026-09-24", rule: null },
-				{ effectiveFrom: "2026-09-26", rule: { freq: "day", interval: 1 } },
+				{
+					effectiveFrom: "2026-09-21",
+					rule: { freq: "day", interval: 1 },
+					dueTime: null,
+				},
+				{ effectiveFrom: "2026-09-24", rule: null, dueTime: null },
+				{
+					effectiveFrom: "2026-09-26",
+					rule: { freq: "day", interval: 1 },
+					dueTime: null,
+				},
 			],
 		};
 		expect(take(s, 7)).toEqual([
@@ -136,15 +151,18 @@ describe("scheduleErrors", () => {
 	it("reports each problem", () => {
 		const bad: TaskSchedule = {
 			startDate: "2026-09-21",
-			dueTime: "8am",
 			timezone: "Mars/Base",
 			rules: [
-				{ effectiveFrom: "2026-09-22", rule: { freq: "day", interval: 0 } },
-				{ effectiveFrom: "2026-09-22", rule: null },
+				{
+					effectiveFrom: "2026-09-22",
+					rule: { freq: "day", interval: 0 },
+					dueTime: "8am",
+				},
+				{ effectiveFrom: "2026-09-22", rule: null, dueTime: null },
 			],
 		};
 		const errors = scheduleErrors(bad);
-		expect(errors).toContain("dueTime must be HH:MM or null");
+		expect(errors).toContain("rules[0].dueTime must be HH:MM or null");
 		expect(errors).toContain("timezone must be an IANA zone");
 		expect(errors).toContain("rules[0].effectiveFrom must equal startDate");
 		expect(errors).toContain(
@@ -253,5 +271,31 @@ describe("expandSlots", () => {
 		};
 		const slots = expandSlots(archived, london("2026-09-27", "12:00"));
 		expect(slots.map((s) => s.key)).toEqual(["2026-09-26"]);
+	});
+
+	it("applies a due-time change only from its effective date", () => {
+		const changed: TaskSchedule = {
+			startDate: "2026-09-21",
+			timezone: "Europe/London",
+			rules: [
+				{
+					effectiveFrom: "2026-09-21",
+					rule: { freq: "day", interval: 1 },
+					dueTime: "08:00",
+				},
+				{
+					effectiveFrom: "2026-09-23",
+					rule: { freq: "day", interval: 1 },
+					dueTime: "20:00",
+				},
+			],
+		};
+		const slots = expandSlots(changed, london("2026-09-23", "21:00"));
+		expect(slots.map((s) => [s.key, s.dueAt])).toEqual([
+			["2026-09-21", london("2026-09-21", "08:00")],
+			["2026-09-22", london("2026-09-22", "08:00")],
+			["2026-09-23", london("2026-09-23", "20:00")],
+			["2026-09-24", london("2026-09-24", "20:00")],
+		]);
 	});
 });
