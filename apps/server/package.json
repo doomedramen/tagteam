@@ -6,6 +6,9 @@
 	"scripts": {
 		"dev": "tsx watch src/index.ts",
 		"start": "tsx src/index.ts",
+		"build": "node build.mjs",
+		"start:prod": "node dist/index.js",
+		"smoke": "node scripts/smoke.mjs",
 		"test": "vitest run",
 		"typecheck": "tsc -p .",
 		"db:generate": "drizzle-kit generate",
@@ -24,6 +27,7 @@
 		"@types/better-sqlite3": "^9.6.0",
 		"@types/node": "^26.6.2",
 		"drizzle-kit": "^0.31.11",
+		"esbuild": "^0.28.2",
 		"tsx": "^4.23.15",
 		"typescript": "^7.0.2",
 		"vitest": "^5.0.2"

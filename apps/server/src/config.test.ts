@@ -24,6 +24,14 @@ describe("loadConfig", () => {
 		expect(config.rpId).toBe("tagteam.example.com");
 	});
 
+	it("passes MIGRATIONS_DIR through", () => {
+		expect(
+			loadConfig({ AUTH_SECRET: secret, MIGRATIONS_DIR: "/app/drizzle" })
+				.migrationsDir,
+		).toBe("/app/drizzle");
+		expect(loadConfig({ AUTH_SECRET: secret }).migrationsDir).toBeUndefined();
+	});
+
 	it("reports every invalid value", () => {
 		expect(() =>
 			loadConfig({

@@ -10,7 +10,7 @@ export interface RunningServer {
 }
 
 export function startServer(config: Config): Promise<RunningServer> {
-	const { db, close } = openDb(config.databasePath);
+	const { db, close } = openDb(config.databasePath, config.migrationsDir);
 	const app = createApp({
 		db,
 		auth: createAuth(db, config),

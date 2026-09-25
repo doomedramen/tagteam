@@ -7,6 +7,8 @@ export interface Config {
 	/** WebAuthn relying-party id (the host name). */
 	rpId: string;
 	rpName: string;
+	/** Folder of drizzle SQL migrations; defaults to the source tree's drizzle/ (set in the Docker image). */
+	migrationsDir?: string;
 }
 
 export function loadConfig(env: Record<string, string | undefined>): Config {
@@ -29,5 +31,6 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 		authSecret,
 		rpId: env.RP_ID ?? url.hostname,
 		rpName: env.RP_NAME ?? "TagTeam",
+		migrationsDir: env.MIGRATIONS_DIR,
 	};
 }
