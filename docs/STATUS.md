@@ -33,15 +33,16 @@ PWA foundation + the first real screens (Today, Add task). Executed task-by-task
 Task 8 wires real routes and screens into the app. Unit tests for Tasks 8–10 remain follow-up work.
 Task 11 e2e covers account creation, group setup, task creation, offline completion, and online sync.
 
-## In progress — Plan 6
+## Complete — Plan 6
 
 | Slice | Status |
 |---|---|
 | Team | Implemented member progress, inline task lists, overdue nudges, and invite code create/share/copy/revoke. Typecheck and 375 × 812 visual review passed. |
 | Me passkey status | Shows registered passkey count and offers “Add another passkey”. Typecheck and visual review passed. |
 | History | Implemented newest-first group activity by day with member filtering, completion status, misses, nudges, and new tasks. Typecheck and 375 × 812 visual review passed. |
-| Task detail/history | Implemented stats, month calendar, occurrence history, completion undo, overdue nudges, and archive/restore. |
-| Remaining | Task schedule editing, profile editing, and swipe-to-complete. |
+| Task detail/history | Shows stats, a color-coded month grid, occurrence history, completion undo, overdue nudges, and owner actions. Owners can edit task title, repeat schedule, effective date, and due time. |
+| Profile editing | Members can edit their display name and avatar color from Me. |
+| Swipe-to-complete | Swipe a Today row right to complete it; the existing button remains available. |
 
 Per-task execution ledger (rulings, review findings, deferred minors) lives in the git-ignored
 `.superpowers/sdd/2026-09-25-05-app-foundation-today/progress.md` in the working checkout. The
@@ -49,8 +50,7 @@ decisions that matter are summarised below.
 
 ## Next plans
 
-- **Plan 6 — remaining screens:** task schedule editing, profile editing, and swipe-to-complete.
-  Task detail/history is implemented from spec §6.5.
+- **Plan 6 — remaining screens:** complete. Task detail/history follows spec §6.5 with the supplied color-grid reference.
 - **Plan 7 — push notifications:** web-push subscriptions, due/overdue scheduler, nudges as push.
 
 ## Decisions to know (made during execution)

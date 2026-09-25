@@ -1,6 +1,6 @@
-import type { Weekday } from "@tagteam/core";
+import type { TaskDto, Weekday } from "@tagteam/core";
 import { CalendarDays, Clock } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { browserTimeZone, formatWhen, localDate } from "../../lib/time";
 import { useSession } from "../../session/session";
 import { Button } from "../../ui/Button";
@@ -10,9 +10,11 @@ import { useToast } from "../../ui/Toast";
 import {
 	draftErrors,
 	draftMutation,
+	draftScheduleMutation,
 	newDraft,
 	type Repeat,
 	type TaskDraft,
+	taskDraft,
 	type Unit,
 } from "./draft";
 
@@ -38,17 +40,27 @@ const selectClass =
 export function AddTaskSheet({
 	open,
 	onClose,
+	task,
 }: {
 	open: boolean;
 	onClose: () => void;
+	task?: TaskDto;
 }) {
-	const { engine, activeGroupId } = useSession();
+	const { engine, activeGroupId, me } = useSession();
 	const toast = useToast();
-	const today = localDate(Date.now());
+	const today = localDate(Date.now(), task?.timezone);
 	const [draft, setDraft] = useState<TaskDraft>(() => newDraft(today));
 	const [errors, setErrors] = useState<ReturnType<typeof draftErrors>>({});
 	const [showDate, setShowDate] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
+	useEffect(() => {
+		if (!open) return;
+		const effectiveFrom =
+			task && today < task.startDate ? task.startDate : today;
+		setDraft(task ? taskDraft(task, effectiveFrom) : newDraft(today));
+		setErrors({});
+		setShowDate(false);
+	}, [open, task, today]);
 	const update = (patch: Partial<TaskDraft>) =>
 		setDraft((d) => ({ ...d, ...patch }));
 	const close = () => {
@@ -64,30 +76,62 @@ export function AddTaskSheet({
 		if (submitting) return;
 		const problems = draftErrors(draft);
 		setErrors(problems);
-		if (Object.keys(problems).length > 0 || !activeGroupId) return;
+		if (Object.keys(problems).length > 0) return;
+		if (task && task.ownerId !== me.user.id) return;
+		if (!task && !activeGroupId) return;
 		setSubmitting(true);
 		try {
-			await engine.enqueue(
-				draftMutation(draft, {
-					groupId: activeGroupId,
-					timezone: browserTimeZone(),
-					at: Date.now(),
-				}),
-			);
-			toast.show({ message: `Added · ${draft.title.trim()}` });
+			if (task) {
+				const at = Date.now();
+				const title = draft.title.trim();
+				const schedule = draftScheduleMutation(draft, task, at);
+				const titleChanged = title !== task.title;
+				if (titleChanged) {
+					await engine.enqueue({
+						id: crypto.randomUUID(),
+						at,
+						type: "task.update",
+						taskId: task.id,
+						title,
+					});
+				}
+				if (schedule) await engine.enqueue(schedule);
+				toast.show({
+					message:
+						titleChanged || schedule ? "Task updated" : "No changes to save",
+				});
+			} else {
+				await engine.enqueue(
+					draftMutation(draft, {
+						groupId: activeGroupId as string,
+						timezone: browserTimeZone(),
+						at: Date.now(),
+					}),
+				);
+				toast.show({ message: `Added · ${draft.title.trim()}` });
+			}
 			close();
+		} catch {
+			toast.show({
+				message: task
+					? "Could not update task. Try again."
+					: "Could not add task. Try again.",
+			});
 		} finally {
 			setSubmitting(false);
 		}
 	};
 
-	const startLabel =
-		draft.startDate === today
+	const startLabel = task
+		? draft.startDate === today
+			? "Changes today"
+			: `Changes ${formatWhen(Date.parse(`${draft.startDate}T12:00:00`), Date.now()).toLowerCase()}`
+		: draft.startDate === today
 			? "Starts today"
 			: `Starts ${formatWhen(Date.parse(`${draft.startDate}T12:00:00`), Date.now()).toLowerCase()}`;
 
 	return (
-		<Sheet open={open} onClose={close} label="Add task">
+		<Sheet open={open} onClose={close} label={task ? "Edit task" : "Add task"}>
 			<form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
 				<div className="flex flex-col gap-1">
 					<label htmlFor="task-title" className="sr-only">
@@ -276,11 +320,18 @@ export function AddTaskSheet({
 				{showDate ? (
 					<div className="flex items-center gap-2">
 						<label htmlFor="start-date" className="text-[14px] text-text-2">
-							Start date
+							{task ? "Effective date" : "Start date"}
 						</label>
 						<input
 							id="start-date"
 							type="date"
+							min={
+								task
+									? task.startDate > today
+										? task.startDate
+										: today
+									: undefined
+							}
 							value={draft.startDate}
 							onChange={(e) =>
 								e.target.value &&
@@ -295,7 +346,7 @@ export function AddTaskSheet({
 				) : null}
 
 				<Button type="submit" variant="primary" block busy={submitting}>
-					Add task
+					{task ? "Save changes" : "Add task"}
 				</Button>
 			</form>
 		</Sheet>

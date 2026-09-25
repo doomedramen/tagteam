@@ -23,6 +23,8 @@ import {
 	ChevronRight,
 	CircleAlert,
 	Clock3,
+	MoreHorizontal,
+	Pencil,
 	Undo2,
 } from "lucide-react";
 import { type TouchEvent, useRef, useState } from "react";
@@ -31,6 +33,7 @@ import { formatTime, formatWhen, localDate, useNow } from "../../lib/time";
 import { useSession } from "../../session/session";
 import { Button } from "../../ui/Button";
 import { useToast } from "../../ui/Toast";
+import { AddTaskSheet } from "../add-task/AddTaskSheet";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAYS = [
@@ -167,26 +170,27 @@ function StatusIcon({ status }: { status: EntryStatus }) {
 	return <CalendarDays aria-hidden className="size-4 text-text-3" />;
 }
 
-function CalendarStatus({ status }: { status: EntryStatus }) {
-	if (status === "on_time")
-		return <Check aria-hidden className="size-3 text-success" />;
-	if (status === "late")
-		return <Clock3 aria-hidden className="size-3 text-warning" />;
-	if (status === "missed")
-		return <CircleAlert aria-hidden className="size-3 text-danger" />;
-	return (
-		<span
-			aria-hidden
-			className={`size-2 rounded-full border border-dashed ${status === "upcoming" ? "border-text-3" : "border-danger"}`}
-		/>
-	);
+function calendarDotClass(status: EntryStatus): string {
+	switch (status) {
+		case "on_time":
+			return "bg-success";
+		case "late":
+			return "bg-warning";
+		case "missed":
+			return "bg-danger";
+		case "overdue":
+		case "open":
+			return "border-2 border-dashed border-danger";
+		case "upcoming":
+			return "border-2 border-dashed border-text-3";
+	}
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
 	return (
-		<div className="rounded-2xl bg-surface px-3 py-3 ring-1 ring-line">
-			<p className="text-[20px] font-semibold tracking-tight">{value}</p>
-			<p className="mt-1 text-[12px] text-text-2">{label}</p>
+		<div className="flex flex-col rounded-2xl bg-surface px-3 py-3 ring-1 ring-line">
+			<p className="text-[12px] font-medium text-text-2">{label}</p>
+			<p className="mt-1 text-[20px] font-semibold tracking-tight">{value}</p>
 		</div>
 	);
 }
@@ -214,6 +218,8 @@ export function TaskDetailScreen() {
 		month: string;
 	} | null>(null);
 	const [busyAction, setBusyAction] = useState<string | null>(null);
+	const [editing, setEditing] = useState(false);
+	const [actionsOpen, setActionsOpen] = useState(false);
 	const touchStart = useRef<{ x: number; y: number } | null>(null);
 	const task = useLiveQuery(
 		async () => (taskId ? await store.tasks.get(taskId) : undefined),
@@ -364,7 +370,7 @@ export function TaskDetailScreen() {
 
 	return (
 		<div className="mt-3 flex flex-col gap-5">
-			<div className="flex items-start gap-3">
+			<div className="flex items-center justify-between">
 				<Button
 					aria-label="Back"
 					className="size-11 shrink-0 px-0"
@@ -372,6 +378,57 @@ export function TaskDetailScreen() {
 				>
 					<ArrowLeft aria-hidden className="size-5" />
 				</Button>
+				{owner ? (
+					<div className="relative">
+						<Button
+							aria-label="Task actions"
+							aria-expanded={actionsOpen}
+							aria-haspopup="menu"
+							className="size-11 px-0"
+							onClick={() => setActionsOpen((value) => !value)}
+						>
+							<MoreHorizontal aria-hidden className="size-5" />
+						</Button>
+						{actionsOpen ? (
+							<div
+								role="menu"
+								className="absolute right-0 top-12 z-10 min-w-44 rounded-xl bg-surface p-1 shadow-xl ring-1 ring-line"
+							>
+								<button
+									role="menuitem"
+									type="button"
+									className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-[14px] hover:bg-surface-2"
+									onClick={() => {
+										setActionsOpen(false);
+										setEditing(true);
+									}}
+								>
+									<Pencil aria-hidden className="size-4" />
+									Edit task
+								</button>
+								<button
+									role="menuitem"
+									type="button"
+									className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-[14px] hover:bg-surface-2"
+									disabled={busyAction !== null}
+									onClick={() => {
+										setActionsOpen(false);
+										void toggleArchive();
+									}}
+								>
+									{task.archivedAt === null ? (
+										<Archive aria-hidden className="size-4" />
+									) : (
+										<ArchiveRestore aria-hidden className="size-4" />
+									)}
+									{task.archivedAt === null ? "Archive task" : "Restore task"}
+								</button>
+							</div>
+						) : null}
+					</div>
+				) : null}
+			</div>
+			<div className="min-w-0">
 				<div className="min-w-0 flex-1">
 					<div className="flex flex-wrap items-center gap-2">
 						<h1 className="min-w-0 break-words text-[25px] font-semibold tracking-tight">
@@ -384,9 +441,9 @@ export function TaskDetailScreen() {
 						) : null}
 					</div>
 					<p className="text-[14px] text-text-2">{ruleSummary(task, now)}</p>
-					<p className="mt-1 text-[12px] text-text-3">
-						{owner ? "Your task" : `Owned by ${ownerName}`}
-					</p>
+					{!owner ? (
+						<p className="mt-1 text-[12px] text-text-3">Owned by {ownerName}</p>
+					) : null}
 					{canNudge ? (
 						<Button
 							className="mt-2 min-h-10 rounded-full px-3 text-[13px]"
@@ -400,22 +457,6 @@ export function TaskDetailScreen() {
 						<p className="mt-2 text-[13px] text-text-2">
 							{nudgeLabel(myNudgeAt, now)}
 						</p>
-					) : null}
-					{owner ? (
-						<Button
-							variant="ghost"
-							className="mt-1 min-h-10 px-2 text-[13px]"
-							busy={busyAction === "archive"}
-							disabled={busyAction !== null && busyAction !== "archive"}
-							onClick={() => void toggleArchive()}
-						>
-							{task.archivedAt === null ? (
-								<Archive aria-hidden className="size-4" />
-							) : (
-								<ArchiveRestore aria-hidden className="size-4" />
-							)}
-							{task.archivedAt === null ? "Archive task" : "Restore task"}
-						</Button>
 					) : null}
 				</div>
 			</div>
@@ -500,18 +541,10 @@ export function TaskDetailScreen() {
 											return (
 												<td key={cell.date} className="p-0.5">
 													<div
-														className={`mx-auto flex min-h-10 w-full max-w-10 flex-col items-center justify-center gap-0.5 rounded-xl text-[13px] ${today ? "bg-accent-soft font-semibold text-accent" : "text-text"}`}
-													>
-														<time dateTime={cell.date}>{cell.day}</time>
-														{entry ? (
-															<>
-																<CalendarStatus status={entry.status} />
-																<span className="sr-only">
-																	{statusLabel(entry, now, task.timezone)}
-																</span>
-															</>
-														) : null}
-													</div>
+														role="img"
+														aria-label={`${formatDate(cell.date, { weekday: "long", month: "long", day: "numeric" })}${entry ? ` · ${statusLabel(entry, now, task.timezone)}` : " · No occurrence"}`}
+														className={`mx-auto size-10 rounded-full ${entry ? calendarDotClass(entry.status) : ""} ${today ? "ring-2 ring-accent ring-offset-2 ring-offset-surface" : ""}`}
+													/>
 												</td>
 											);
 										})}
@@ -520,18 +553,19 @@ export function TaskDetailScreen() {
 							})}
 						</tbody>
 					</table>
-					<div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-line pt-3 text-[11px] text-text-2">
+					<div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-line pt-3 text-[12px] text-text-2">
 						{(
 							[
 								["on_time", "On time"],
 								["late", "Late"],
 								["missed", "Missed"],
-								["open", "Open"],
-								["upcoming", "Upcoming"],
 							] as const
 						).map(([status, label]) => (
 							<span key={status} className="flex items-center gap-1.5">
-								<CalendarStatus status={status} />
+								<span
+									aria-hidden
+									className={`size-3 rounded-full ${calendarDotClass(status)}`}
+								/>
 								{label}
 							</span>
 						))}
@@ -592,6 +626,13 @@ export function TaskDetailScreen() {
 					</p>
 				)}
 			</section>
+			{owner ? (
+				<AddTaskSheet
+					open={editing}
+					onClose={() => setEditing(false)}
+					task={task}
+				/>
+			) : null}
 		</div>
 	);
 }

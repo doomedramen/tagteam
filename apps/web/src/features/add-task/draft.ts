@@ -5,8 +5,10 @@ import {
 	MAX_TITLE,
 	type Mutation,
 	type Rule,
+	type TaskDto,
 	type Weekday,
 	weekdayOf,
+	withScheduleVersion,
 } from "@tagteam/core";
 
 export type Repeat = "once" | "daily" | "weekly" | "monthly" | "custom";
@@ -34,6 +36,37 @@ export const newDraft = (today: LocalDate): TaskDraft => ({
 	dueTime: null,
 });
 
+export function taskDraft(task: TaskDto, effectiveFrom: LocalDate): TaskDraft {
+	const activeVersion =
+		[...task.rules]
+			.sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))
+			.filter((version) => version.effectiveFrom <= effectiveFrom)
+			.at(-1) ?? task.rules[0];
+	const draft = newDraft(effectiveFrom);
+	draft.title = task.title;
+	if (!activeVersion) return draft;
+	draft.dueTime = activeVersion.dueTime;
+	const rule = activeVersion.rule;
+	if (rule === null) {
+		draft.repeat = "once";
+	} else if (rule.freq === "day" && rule.interval === 1) {
+		draft.repeat = "daily";
+	} else {
+		draft.repeat = "custom";
+		draft.every = rule.interval;
+		if (rule.freq === "day") {
+			draft.unit = "day";
+		} else if (rule.freq === "week") {
+			draft.unit = "week";
+			draft.weekdays = [...rule.weekdays];
+		} else {
+			draft.unit = "month";
+			draft.monthDay = rule.monthDay;
+		}
+	}
+	return draft;
+}
+
 export function draftRule(d: TaskDraft): Rule | null {
 	const startWeekday = weekdayOf(d.startDate);
 	switch (d.repeat) {
@@ -60,6 +93,20 @@ export function draftRule(d: TaskDraft): Rule | null {
 			}
 			return { freq: "month", interval: d.every, monthDay: d.monthDay };
 	}
+}
+
+function sameRule(a: Rule | null, b: Rule | null): boolean {
+	if (a === null || b === null) return a === b;
+	if (a.freq !== b.freq || a.interval !== b.interval) return false;
+	if (a.freq === "day" || b.freq === "day") return a.freq === b.freq;
+	if (a.freq === "week" && b.freq === "week")
+		return (
+			[...a.weekdays].sort((x, y) => x - y).join(",") ===
+			[...b.weekdays].sort((x, y) => x - y).join(",")
+		);
+	if (a.freq === "month" && b.freq === "month")
+		return a.monthDay === b.monthDay;
+	return false;
 }
 
 export function draftErrors(d: TaskDraft): {
@@ -98,5 +145,42 @@ export function draftMutation(
 		startDate: d.startDate,
 		dueTime: d.dueTime,
 		rule: draftRule(d),
+	};
+}
+
+export function draftScheduleMutation(
+	d: TaskDraft,
+	task: TaskDto,
+	at: number,
+): Mutation | null {
+	const version = {
+		effectiveFrom: d.startDate,
+		rule: draftRule(d),
+		dueTime: d.dueTime,
+	};
+	const activeVersion = [...task.rules]
+		.sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))
+		.filter((item) => item.effectiveFrom <= version.effectiveFrom)
+		.at(-1);
+	if (
+		activeVersion &&
+		sameRule(activeVersion.rule, version.rule) &&
+		activeVersion.dueTime === version.dueTime
+	)
+		return null;
+	const nextRules = withScheduleVersion(
+		task.startDate as LocalDate,
+		task.rules,
+		version,
+	);
+	if (JSON.stringify(nextRules) === JSON.stringify(task.rules)) return null;
+	return {
+		id: crypto.randomUUID(),
+		at,
+		type: "task.schedule",
+		taskId: task.id,
+		effectiveFrom: version.effectiveFrom,
+		rule: version.rule,
+		dueTime: version.dueTime,
 	};
 }

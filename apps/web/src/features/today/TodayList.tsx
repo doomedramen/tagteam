@@ -1,4 +1,11 @@
 import { Check, Repeat } from "lucide-react";
+import {
+	type MouseEvent as ReactMouseEvent,
+	type TouchEvent,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { Link } from "react-router";
 import { cx } from "../../lib/cx";
 import { Button } from "../../ui/Button";
@@ -53,38 +60,112 @@ function Row({
 	onToggle: (row: TodayRow) => void;
 	celebrating: boolean;
 }) {
+	const done = row.kind === "done";
+	const touchStart = useRef<{ x: number; y: number } | null>(null);
+	const suppressClick = useRef(false);
+	const suppressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const [swipeOffset, setSwipeOffset] = useState(0);
+	useEffect(
+		() => () => {
+			if (suppressTimer.current) clearTimeout(suppressTimer.current);
+		},
+		[],
+	);
+	const onTouchStart = (event: TouchEvent<HTMLLIElement>) => {
+		const touch = event.touches[0];
+		if (!touch) return;
+		touchStart.current = { x: touch.clientX, y: touch.clientY };
+		suppressClick.current = false;
+	};
+	const onTouchMove = (event: TouchEvent<HTMLLIElement>) => {
+		const origin = touchStart.current;
+		const touch = event.touches[0];
+		if (!origin || !touch) return;
+		const dx = touch.clientX - origin.x;
+		const dy = touch.clientY - origin.y;
+		if (!done && dx > 8 && Math.abs(dx) > Math.abs(dy))
+			setSwipeOffset(Math.min(dx, 96));
+		else if (!done && dx <= 8) setSwipeOffset(0);
+	};
+	const onTouchEnd = (event: TouchEvent<HTMLLIElement>) => {
+		const origin = touchStart.current;
+		const touch = event.changedTouches[0];
+		touchStart.current = null;
+		setSwipeOffset(0);
+		if (!origin || !touch || done) return;
+		const dx = touch.clientX - origin.x;
+		const dy = touch.clientY - origin.y;
+		if (dx < 72 || Math.abs(dx) <= Math.abs(dy)) return;
+		suppressClick.current = true;
+		if (suppressTimer.current) clearTimeout(suppressTimer.current);
+		suppressTimer.current = setTimeout(() => {
+			suppressClick.current = false;
+		}, 500);
+		onToggle(row);
+	};
+	const onClickCapture = (event: ReactMouseEvent<HTMLLIElement>) => {
+		if (!suppressClick.current) return;
+		event.preventDefault();
+		event.stopPropagation();
+		suppressClick.current = false;
+		if (suppressTimer.current) clearTimeout(suppressTimer.current);
+	};
 	return (
-		<li className="flex items-center gap-3 border-b border-line py-3 last:border-0">
-			<CheckCircle row={row} onToggle={onToggle} celebrating={celebrating} />
-			<Link
-				to={`/tasks/${row.task.id}`}
-				className="min-w-0 flex-1 rounded-lg focus-visible:outline-2 focus-visible:outline-accent"
-			>
-				<p
-					className={cx(
-						"truncate text-[15px]",
-						row.kind === "done" && "text-text-3 line-through",
-						row.kind === "upcoming" && "text-text-2",
-					)}
+		<li
+			className="relative overflow-hidden touch-pan-y"
+			onTouchStart={onTouchStart}
+			onTouchMove={onTouchMove}
+			onTouchEnd={onTouchEnd}
+			onTouchCancel={() => {
+				touchStart.current = null;
+				setSwipeOffset(0);
+			}}
+			onClickCapture={onClickCapture}
+		>
+			{swipeOffset > 0 ? (
+				<span
+					aria-hidden
+					className="absolute inset-y-0 left-0 flex items-center gap-2 pl-4 text-[13px] font-medium text-success"
 				>
-					{row.task.title}
-				</p>
-				<p
-					className={cx(
-						"text-[13px]",
-						row.kind === "overdue" ? "text-danger" : "text-text-2",
-					)}
-				>
-					{rowLabel(row, now)}
-				</p>
-			</Link>
-			{row.recurring ? (
-				<Repeat
-					role="img"
-					aria-label="Repeats"
-					className="size-4 shrink-0 text-text-3"
-				/>
+					<Check className="size-4" />
+					Done
+				</span>
 			) : null}
+			<div
+				className="relative flex items-center gap-3 border-b border-line bg-surface py-3 transition-transform duration-150 last:border-0"
+				style={{ transform: `translateX(${swipeOffset}px)` }}
+			>
+				<CheckCircle row={row} onToggle={onToggle} celebrating={celebrating} />
+				<Link
+					to={`/tasks/${row.task.id}`}
+					className="min-w-0 flex-1 rounded-lg focus-visible:outline-2 focus-visible:outline-accent"
+				>
+					<p
+						className={cx(
+							"truncate text-[15px]",
+							row.kind === "done" && "text-text-3 line-through",
+							row.kind === "upcoming" && "text-text-2",
+						)}
+					>
+						{row.task.title}
+					</p>
+					<p
+						className={cx(
+							"text-[13px]",
+							row.kind === "overdue" ? "text-danger" : "text-text-2",
+						)}
+					>
+						{rowLabel(row, now)}
+					</p>
+				</Link>
+				{row.recurring ? (
+					<Repeat
+						role="img"
+						aria-label="Repeats"
+						className="size-4 shrink-0 text-text-3"
+					/>
+				) : null}
+			</div>
 		</li>
 	);
 }
