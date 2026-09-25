@@ -32,6 +32,14 @@
 - From Plan 1 (for Plan 4, not this plan): clamp far-future event `at`; move `dueTime` into `RuleVersion`.
 - **To Plan 3 (container):** (a) the migrations folder is resolved relative to `src/db/client.ts`; a bundled build must pass `openDb(path, migrationsFolder)` explicitly or copy `drizzle/` alongside; (b) configure Better Auth's client-IP detection to use `cf-connecting-ip` behind `cloudflared` (verify the option name against the installed version) so its built-in auth rate limiting keys on real client IPs; (c) `better-sqlite3` is native — the image needs a matching build or prebuilt binary.
 
+## Carry-over from Plan 2 execution (add to Plan 3)
+
+- Rate limiter state is per-process memory — fine for the single-container target; revisit if ever scaled out.
+- Better Auth only checks Origin on cookie-bearing requests; cookie-less cross-site sign-in/up (login CSRF) is
+  mitigated by Cloudflare Access. Plan 3 hardening: evaluate Better Auth options to validate Origin on all
+  state-changing auth requests. `advanced.disableOriginCheck: false` is set explicitly because Better Auth
+  disables origin checks when it detects a test environment.
+
 ## API summary (built by this plan)
 
 | Method | Path | Auth | Result |
