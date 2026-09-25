@@ -1,0 +1,21 @@
+import { expect, it } from "vitest";
+import * as core from "./index";
+
+it("exposes the public API", () => {
+	for (const name of [
+		"addDays",
+		"atTime",
+		"startOfDay",
+		"isLocalDate",
+		"isTimeOfDay",
+		"isTimeZone",
+		"ruleErrors",
+		"scheduleErrors",
+		"occurrenceKeys",
+		"expandSlots",
+		"deriveTask",
+		"summarize",
+	]) {
+		expect(typeof (core as Record<string, unknown>)[name]).toBe("function");
+	}
+});
