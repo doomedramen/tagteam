@@ -48,7 +48,7 @@ jobs:
           path: apps/web/test-results
 
   image:
-    needs: test
+    needs: [test, e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: read

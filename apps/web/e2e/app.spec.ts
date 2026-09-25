@@ -57,5 +57,5 @@ test("sign up, create a group, add and complete tasks, keep working offline", as
 
 	// A fresh server-backed load shows the offline completion was saved.
 	await page.reload();
-	await expect(page.getByText("1 of 1 done today")).toBeVisible();
+	await expect(page.getByText("All done for today")).toBeVisible();
 });
