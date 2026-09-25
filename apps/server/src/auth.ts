@@ -16,6 +16,8 @@ export function createAuth(
 		baseURL: config.baseUrl,
 		basePath: "/api/auth",
 		trustedOrigins: [config.baseUrl],
+		// Better Auth defaults origin/CSRF checks to disabled when isTest() is true; force them on in every environment.
+		advanced: { disableOriginCheck: false },
 		emailAndPassword: { enabled: true, minPasswordLength: 10 },
 		rateLimit: { enabled: options.rateLimit ?? true },
 		// Keep in sync with scripts/auth-schema.config.ts.
