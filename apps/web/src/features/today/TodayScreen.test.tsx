@@ -1,10 +1,14 @@
 import type { TaskDto } from "@tagteam/core";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TagTeamDb } from "../../store/db";
 import { fakeEngine, ME, renderWithSession } from "../../test/fakes";
 import { TodayScreen } from "./TodayScreen";
+
+vi.mock("../../ui/confetti", () => ({
+	fireScreenConfettiCannon: vi.fn(),
+}));
 
 const today = new Date();
 const iso = (d: Date) => d.toLocaleDateString("en-CA");
@@ -97,7 +101,7 @@ describe("TodayScreen", () => {
 		});
 		renderWithSession(<TodayScreen />, { store });
 
-		expect(await screen.findByText("1 of 1 done today")).toBeInTheDocument();
+		expect(await screen.findByText("All done for today")).toBeInTheDocument();
 		expect(screen.getByRole("progressbar")).toHaveAttribute(
 			"aria-valuenow",
 			"100",
