@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { LocalDate } from "./localDate";
+import { atTime, startOfDay } from "./localDate";
 import type { Rule } from "./rule";
-import { occurrenceKeys, scheduleErrors, type TaskSchedule } from "./schedule";
+import {
+	expandSlots,
+	occurrenceKeys,
+	scheduleErrors,
+	type TaskSchedule,
+} from "./schedule";
 
 const schedule = (
 	startDate: LocalDate,
@@ -131,5 +137,85 @@ describe("scheduleErrors", () => {
 		expect(
 			scheduleErrors({ ...schedule("2026-09-21", null), rules: [] }),
 		).toContain("rules must not be empty");
+	});
+});
+
+describe("expandSlots", () => {
+	const london = (date: LocalDate, time: string) =>
+		atTime(date, time, "Europe/London");
+	const daily08 = schedule(
+		"2026-09-21",
+		{ freq: "day", interval: 1 },
+		{ dueTime: "08:00" },
+	);
+
+	it("returns started slots plus one upcoming", () => {
+		const slots = expandSlots(daily08, london("2026-09-23", "09:00"));
+		expect(slots.map((s) => s.key)).toEqual([
+			"2026-09-21",
+			"2026-09-22",
+			"2026-09-23",
+			"2026-09-24",
+		]);
+		expect(slots[0]).toEqual({
+			key: "2026-09-21",
+			periodStart: Date.UTC(2026, 8, 20, 23),
+			dueAt: london("2026-09-21", "08:00"),
+		});
+	});
+
+	it("returns more upcoming slots on request", () => {
+		const slots = expandSlots(daily08, london("2026-09-21", "09:00"), 3);
+		expect(slots.map((s) => s.key)).toEqual([
+			"2026-09-21",
+			"2026-09-22",
+			"2026-09-23",
+			"2026-09-24",
+		]);
+	});
+
+	it("makes untimed occurrences due at the start of the next occurrence day", () => {
+		const weekly = schedule("2026-09-26", {
+			freq: "week",
+			interval: 1,
+			weekdays: [6],
+		});
+		const slots = expandSlots(weekly, london("2026-09-26", "12:00"));
+		expect(slots.map((s) => s.key)).toEqual(["2026-09-26", "2026-10-03"]);
+		expect(slots[0]?.dueAt).toBe(startOfDay("2026-10-03", "Europe/London"));
+		expect(slots[1]?.dueAt).toBe(startOfDay("2026-10-10", "Europe/London"));
+	});
+
+	it("makes an untimed one-off due at the end of its day", () => {
+		const slots = expandSlots(
+			schedule("2026-09-21", null),
+			london("2026-09-25", "12:00"),
+		);
+		expect(slots).toEqual([
+			{
+				key: "2026-09-21",
+				periodStart: startOfDay("2026-09-21", "Europe/London"),
+				dueAt: startOfDay("2026-09-22", "Europe/London"),
+			},
+		]);
+	});
+
+	it("keeps wall-clock due times across DST", () => {
+		const ny = schedule(
+			"2026-10-31",
+			{ freq: "day", interval: 1 },
+			{ dueTime: "08:00", timezone: "America/New_York" },
+		);
+		const slots = expandSlots(ny, Date.UTC(2026, 10, 1, 14));
+		expect(slots.slice(0, 2).map((s) => s.dueAt)).toEqual([
+			Date.UTC(2026, 9, 31, 12),
+			Date.UTC(2026, 10, 1, 13),
+		]);
+	});
+
+	it("stops at archivedAt with no upcoming slot", () => {
+		const archived = { ...daily08, archivedAt: london("2026-09-22", "12:00") };
+		const slots = expandSlots(archived, london("2026-09-25", "12:00"));
+		expect(slots.map((s) => s.key)).toEqual(["2026-09-21", "2026-09-22"]);
 	});
 });

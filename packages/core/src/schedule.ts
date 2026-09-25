@@ -1,5 +1,6 @@
 import {
 	addDays,
+	atTime,
 	daysInMonth,
 	firstOfMonth,
 	isLocalDate,
@@ -7,6 +8,7 @@ import {
 	isTimeOfDay,
 	isTimeZone,
 	type LocalDate,
+	startOfDay,
 } from "./localDate";
 import { type Rule, type RuleVersion, ruleErrors } from "./rule";
 
@@ -87,4 +89,48 @@ export function* occurrenceKeys(s: TaskSchedule): Generator<LocalDate> {
 			yield key;
 		}
 	}
+}
+
+export interface Slot {
+	key: LocalDate;
+	/** Epoch ms when this occurrence becomes current: start of `key` in the task timezone. */
+	periodStart: number;
+	/** Epoch ms deadline: `key` at `dueTime`, or the start of the next occurrence's day. */
+	dueAt: number;
+}
+
+/**
+ * Slots whose period has started by `until` (capped at `archivedAt`), plus the next
+ * `lookahead` slots — unless the task was archived by `until`, then none after.
+ */
+export function expandSlots(
+	s: TaskSchedule,
+	until: number,
+	lookahead = 1,
+): Slot[] {
+	const limit = Math.min(until, s.archivedAt ?? Number.POSITIVE_INFINITY);
+	const keys: LocalDate[] = [];
+	let beyond = 0;
+	// One extra key past the lookahead so the last returned slot knows its period end.
+	for (const key of occurrenceKeys(s)) {
+		keys.push(key);
+		if (startOfDay(key, s.timezone) > limit && ++beyond === lookahead + 1)
+			break;
+	}
+	const slots = keys.map((key, i): Slot => {
+		const periodEnd = keys[i + 1] ?? addDays(key, 1);
+		return {
+			key,
+			periodStart: startOfDay(key, s.timezone),
+			dueAt: s.dueTime
+				? atTime(key, s.dueTime, s.timezone)
+				: startOfDay(periodEnd, s.timezone),
+		};
+	});
+	const started = slots.filter((slot) => slot.periodStart <= limit);
+	if (s.archivedAt != null && s.archivedAt <= until) return started;
+	return [
+		...started,
+		...slots.filter((slot) => slot.periodStart > limit).slice(0, lookahead),
+	];
 }
