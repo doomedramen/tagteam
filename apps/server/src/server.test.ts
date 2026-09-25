@@ -59,3 +59,56 @@ it("serves the API over HTTP with a file database and rejects cookie-bearing aut
 		rmSync(dir, { recursive: true, force: true });
 	}
 });
+
+it("stops promptly even with an open /api/live SSE stream", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "tagteam-"));
+	const databasePath = join(dir, "data", "tagteam.db");
+	const server = await startServer({ ...TEST_CONFIG, port: 0, databasePath });
+	try {
+		const base = `http://localhost:${server.port}`;
+
+		const signUpRes = await fetch(`${base}/api/auth/sign-up/email`, {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				origin: TEST_CONFIG.baseUrl,
+			},
+			body: JSON.stringify({
+				email: "jo@example.com",
+				password: "correct-horse-battery",
+				name: "Jo",
+			}),
+		});
+		expect(signUpRes.status).toBe(200);
+		const cookie = signUpRes.headers
+			.getSetCookie()
+			.find((c) => c.startsWith("better-auth.session_token="));
+		expect(cookie).toBeDefined();
+		if (!cookie) throw new Error("expected a session cookie");
+
+		const liveRes = await fetch(`${base}/api/live`, { headers: { cookie } });
+		expect(liveRes.status).toBe(200);
+		const reader = (liveRes.body as ReadableStream<Uint8Array>).getReader();
+		const decoder = new TextDecoder();
+		let text = "";
+		while (!text.includes("event: ready")) {
+			const chunk = await reader.read();
+			if (chunk.done) throw new Error("stream ended before ready event");
+			text += decoder.decode(chunk.value, { stream: true });
+		}
+
+		await Promise.race([
+			server.stop(),
+			new Promise<never>((_, reject) =>
+				setTimeout(
+					() => reject(new Error("server.stop() did not resolve within 2s")),
+					2000,
+				),
+			),
+		]);
+
+		await reader.cancel().catch(() => {});
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});

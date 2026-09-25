@@ -27,6 +27,9 @@ export function startServer(config: Config): Promise<RunningServer> {
 							if (err) reject(err);
 							else done();
 						});
+						// Long-lived connections (e.g. SSE streams) would otherwise keep
+						// `close()` pending indefinitely; force them closed now.
+						if ("closeAllConnections" in server) server.closeAllConnections();
 					}),
 			});
 		});
