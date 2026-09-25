@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { profile } from "./db/schema";
 import type { ErrorBody } from "./http/errors";
 import type { MeResponse } from "./routes/me";
@@ -70,5 +70,24 @@ describe("server foundation", () => {
 		);
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual([]);
+	});
+
+	it("returns JSON error for unhandled exceptions in routes", async () => {
+		const cookie = await signUp(ctx.app);
+		// Close the database to force an exception when the route tries to query
+		ctx.close();
+		// Spy on console.error to keep test output clean, verify it was called
+		const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const res = await api(ctx.app, cookie, "GET", "/api/me");
+		expect(res.status).toBe(500);
+		expect(await readJson<ErrorBody>(res)).toEqual({
+			error: {
+				code: "internal_error",
+				message: "Something went wrong. Try again.",
+			},
+		});
+		expect(spy).toHaveBeenCalled();
+		spy.mockRestore();
+		// Do not call ctx.close() again in afterEach since we already closed it
 	});
 });

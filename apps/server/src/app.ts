@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import type { Auth } from "./auth";
 import type { Db } from "./db/client";
 import { fail } from "./http/errors";
@@ -28,6 +29,11 @@ export function createApp({ db, auth, now = Date.now }: AppDeps) {
 	api.route("/", inviteRoutes({ db, now }));
 	app.route("/api", api);
 
+	app.onError((err, c) => {
+		if (err instanceof HTTPException) return err.getResponse();
+		console.error(err);
+		return fail(c, 500, "internal_error", "Something went wrong. Try again.");
+	});
 	app.notFound((c) => fail(c, 404, "not_found", "Not found."));
 	return app;
 }
