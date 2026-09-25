@@ -13,7 +13,10 @@ import { groupRoutes } from "./routes/groups";
 import { inviteRoutes } from "./routes/invites";
 import { liveRoutes } from "./routes/live";
 import { meRoutes } from "./routes/me";
+import { pushRoutes } from "./routes/push";
 import { syncRoutes } from "./routes/sync";
+import { sendNudgeNotification } from "./services/notifications";
+import type { PushTransport } from "./services/push";
 
 export const MAX_BODY_BYTES = 1024 * 1024;
 
@@ -25,6 +28,7 @@ export interface AppDeps {
 	now?: () => number;
 	live?: LiveHub;
 	webDir?: string;
+	push?: PushTransport;
 }
 
 export function createApp({
@@ -34,6 +38,7 @@ export function createApp({
 	now = Date.now,
 	live = createLiveHub(),
 	webDir,
+	push,
 }: AppDeps) {
 	const app = new Hono();
 
@@ -54,6 +59,7 @@ export function createApp({
 	const api = new Hono<AppEnv>();
 	api.use("*", requireSession({ db, auth, now }));
 	api.route("/me", meRoutes({ db, now, live }));
+	api.route("/push", pushRoutes({ db, now, push }));
 	api.route("/groups", groupRoutes({ db, now, live }));
 	api.route("/", inviteRoutes({ db, now, live }));
 	api.route(
@@ -61,6 +67,9 @@ export function createApp({
 		syncRoutes({
 			db,
 			now,
+			onNudge: push
+				? (input) => sendNudgeNotification(db, push, input, now())
+				: undefined,
 			onChange: (groupIds) => pokeGroups(db, live, groupIds),
 		}),
 	);

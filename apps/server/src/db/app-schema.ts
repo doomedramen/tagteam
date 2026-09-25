@@ -5,6 +5,7 @@ import {
 	primaryKey,
 	sqliteTable,
 	text,
+	uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { user } from "./auth-schema";
 
@@ -153,3 +154,92 @@ export const appliedMutation = sqliteTable("applied_mutation", {
 	userId: text("user_id").notNull(),
 	appliedAt: epochMs("applied_at").notNull(),
 });
+
+export const pushSubscription = sqliteTable(
+	"push_subscription",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		endpoint: text("endpoint").notNull(),
+		p256dh: text("p256dh").notNull(),
+		auth: text("auth").notNull(),
+		deviceLabel: text("device_label").notNull(),
+		createdAt: epochMs("created_at").notNull(),
+	},
+	(t) => [
+		uniqueIndex("push_subscription_endpoint_unique").on(t.endpoint),
+		index("push_subscription_user_idx").on(t.userId),
+	],
+);
+
+export const notificationSettings = sqliteTable("notification_settings", {
+	userId: text("user_id")
+		.primaryKey()
+		.references(() => user.id, { onDelete: "cascade" }),
+	remindersEnabled: integer("reminders_enabled", { mode: "boolean" })
+		.notNull()
+		.default(true),
+	nudgesEnabled: integer("nudges_enabled", { mode: "boolean" })
+		.notNull()
+		.default(true),
+	quietHoursStart: text("quiet_hours_start").notNull().default("22:00"),
+	quietHoursEnd: text("quiet_hours_end").notNull().default("08:00"),
+	updatedAt: epochMs("updated_at").notNull(),
+});
+
+export const notificationLog = sqliteTable(
+	"notification_log",
+	{
+		id: text("id").primaryKey(),
+		taskId: text("task_id")
+			.notNull()
+			.references(() => task.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		/** Occurrence date for reminders; source event id for nudges. */
+		occurrenceKey: text("occurrence_key").notNull(),
+		kind: text("kind", { enum: ["due", "overdue", "nudge"] }).notNull(),
+		title: text("title").notNull(),
+		body: text("body").notNull(),
+		url: text("url").notNull(),
+		createdAt: epochMs("created_at").notNull(),
+		sentAt: epochMs("sent_at"),
+	},
+	(t) => [
+		uniqueIndex("notification_log_dedupe_unique").on(
+			t.taskId,
+			t.occurrenceKey,
+			t.kind,
+		),
+		index("notification_log_pending_idx").on(t.sentAt, t.createdAt),
+	],
+);
+
+export const notificationDelivery = sqliteTable(
+	"notification_delivery",
+	{
+		id: text("id").primaryKey(),
+		notificationId: text("notification_id")
+			.notNull()
+			.references(() => notificationLog.id, { onDelete: "cascade" }),
+		/** Snapshot endpoint lets retry work after a subscription row changes. */
+		endpoint: text("endpoint").notNull(),
+		status: text("status", { enum: ["pending", "sent", "gone"] })
+			.notNull()
+			.default("pending"),
+		attempts: integer("attempts").notNull().default(0),
+		nextAttemptAt: epochMs("next_attempt_at").notNull(),
+		lastError: text("last_error"),
+		sentAt: epochMs("sent_at"),
+	},
+	(t) => [
+		uniqueIndex("notification_delivery_notification_endpoint_unique").on(
+			t.notificationId,
+			t.endpoint,
+		),
+		index("notification_delivery_pending_idx").on(t.status, t.nextAttemptAt),
+	],
+);

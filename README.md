@@ -6,7 +6,7 @@ In a TagTeam group, everyone can see each other's tasks and send a supportive nu
 
 Tasks can repeat daily, weekly, monthly, or on a custom schedule. TagTeam keeps a history of what was done on time, late, or missed. It is an offline-first, mobile-first PWA.
 
-> Status: accounts, groups, recurring tasks, offline sync, and the Today screen are implemented.
+> Status: accounts, groups, recurring tasks, task history, offline sync, and push notifications are implemented. Push needs VAPID configuration.
 
 ## Run it with Docker Compose
 
@@ -26,6 +26,9 @@ services:
     environment:
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env}
       BASE_URL: ${BASE_URL:?Set BASE_URL in .env}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
     volumes:
       - tagteam-data:/data
 
@@ -50,6 +53,10 @@ AUTH_SECRET=
 # The public URL people open (must match the tunnel hostname)
 BASE_URL=https://tagteam.example.com
 TUNNEL_TOKEN=
+# Generate once with: pnpm --filter @tagteam/server exec web-push generate-vapid-keys
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=https://tagteam.example.com
 ```
 
 ### Try it locally without Cloudflare
@@ -84,6 +91,16 @@ Passkeys need the browser to see the exact `BASE_URL` host, so use `http://local
 | `WEB_DIR` | no | `/app/web` | Built PWA directory; set by the image. |
 | `RP_ID` | no | host of `BASE_URL` | Passkey relying-party id. |
 | `RP_NAME` | no | `TagTeam` | Name shown in passkey prompts. |
+| `VAPID_PUBLIC_KEY` | no | — | Enables web push when set with the private key and subject. |
+| `VAPID_PRIVATE_KEY` | no | — | Keep this secret and stable so existing devices stay subscribed. |
+| `VAPID_SUBJECT` | with VAPID keys | — | Contact URL (`https://…`) or email (`mailto:…`) sent to push services. |
+
+Generate a VAPID key pair once with `pnpm --filter @tagteam/server exec web-push generate-vapid-keys`.
+Set all three VAPID variables in `.env`; keep the private key backed up. Users enable push and
+choose reminders, nudges, and quiet hours from **Me → Notifications**. Due reminders use each
+task's timezone; quiet hours use the profile timezone. Untimed tasks remind at 09:00, and overdue
+alerts arrive at 09:00 on the next period boundary. Tasks with a due time remind at that time and again
+after one hour if still open. Nudges send immediately.
 
 ### Security notes
 

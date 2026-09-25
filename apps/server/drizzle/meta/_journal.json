@@ -15,6 +15,13 @@
       "when": 1790348484531,
       "tag": "0001_fantastic_prowler",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790374496605,
+      "tag": "0002_thankful_living_tribunal",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-09-25 (during Plan 6)._
+_Last updated: 2026-09-25 (after Plan 7)._
 
 ## Done (on `main`; CI green through Plan 6)
 
@@ -11,6 +11,8 @@ _Last updated: 2026-09-25 (during Plan 6)._
 | 03 container + CI | esbuild bundle, backup CLI, non-root Docker image, GitHub Actions → `ghcr.io/doomedramen/tagteam` (amd64), README compose | IP rate limits dropped by owner decision |
 | 04 sync | per-version due times, Mutation vocabulary, tasks/events tables, push/pull with global seq, SSE `/api/live`, e2e convergence test | |
 | 05 app foundation + Today | sign-in, groups, Today, offline sync, PWA, Docker hosting | Local e2e flow and hosted CI passed |
+| 06 remaining screens | Team, task history/editing, profile editing, swipe-to-complete | CI passed |
+| 07 push notifications | per-device web-push, due/overdue reminders, team nudges, quiet hours | Requires VAPID environment values to send push |
 
 ## Complete — Plan 5: `docs/superpowers/plans/2026-09-25-05-app-foundation-today.md`
 
@@ -48,10 +50,24 @@ Per-task execution ledger (rulings, review findings, deferred minors) lives in t
 `.superpowers/sdd/2026-09-25-05-app-foundation-today/progress.md` in the working checkout. The
 decisions that matter are summarised below.
 
+## Complete — Plan 7: push notifications
+
+- VAPID configuration enables push for a self-hosted instance; missing keys leave push disabled.
+- Authenticated routes register and remove per-device subscriptions and save account-level
+  reminder, nudge, and quiet-hour preferences.
+- A minute scheduler uses `deriveTask` to send one due and one overdue reminder per occurrence.
+  Timed tasks notify at their due time and again one hour later if still open. Untimed tasks notify
+  at 09:00 local time and again at 09:00 on the next period boundary. Quiet hours use profile zone.
+- Successful task nudges queue push for the owner immediately; sender/task limit stays in sync core.
+- Notification logs dedupe by task, occurrence, and kind. Failed deliveries retry with backoff;
+  expired push endpoints are removed.
+- Me screen provides device opt-in, reminders and nudge toggles, quiet hours, and timezone update.
+  Service worker displays notifications and opens Today or Team when tapped.
+- Typecheck, lint, server bundle, and PWA build pass.
+
 ## Next plans
 
-- **Plan 6 — remaining screens:** complete. Task detail/history follows spec §6.5 with the supplied color-grid reference.
-- **Plan 7 — push notifications:** web-push subscriptions, due/overdue scheduler, nudges as push.
+- All currently planned work is complete.
 
 ## Decisions to know (made during execution)
 

@@ -7,6 +7,7 @@ import { useSession } from "../../session/session";
 import { Avatar } from "../../ui/Avatar";
 import { Button } from "../../ui/Button";
 import { useToast } from "../../ui/Toast";
+import { NotificationSettings } from "./NotificationSettings";
 
 export function MeScreen() {
 	const { me, signOut, refreshMe } = useSession();
@@ -155,6 +156,7 @@ export function MeScreen() {
 					</div>
 				</form>
 			) : null}
+			<NotificationSettings />
 			<div className="flex flex-col gap-3">
 				{passkeyQuery.isPending ? (
 					<p role="status" className="text-[14px] text-text-2">

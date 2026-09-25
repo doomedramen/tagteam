@@ -11,6 +11,11 @@ export interface SyncDeps {
 	now: () => number;
 	/** Called after a push that changed data, with the affected group ids. */
 	onChange?: (groupIds: Set<string>) => void;
+	onNudge?: (input: {
+		taskId: string;
+		eventId: string;
+		senderId: string;
+	}) => void | Promise<void>;
 }
 
 export function syncRoutes(deps: SyncDeps) {
@@ -35,6 +40,28 @@ export function syncRoutes(deps: SyncDeps) {
 			mutations,
 			deps.now(),
 		);
+		for (const [index, input] of mutations.entries()) {
+			const mutation = input as {
+				id?: unknown;
+				taskId?: unknown;
+				type?: unknown;
+			} | null;
+			if (
+				results[index]?.status === "applied" &&
+				mutation?.type === "task.nudge" &&
+				typeof mutation.id === "string" &&
+				typeof mutation.taskId === "string"
+			) {
+				const nudge = {
+					taskId: mutation.taskId,
+					eventId: mutation.id,
+					senderId: c.var.user.id,
+				};
+				void Promise.resolve()
+					.then(() => deps.onNudge?.(nudge))
+					.catch((error: unknown) => console.error("Nudge push failed", error));
+			}
+		}
 		if (groupIds.size > 0) deps.onChange?.(groupIds);
 		return c.json({ results });
 	});
