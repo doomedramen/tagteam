@@ -1,6 +1,10 @@
 # TagTeam
 
-Shared habits and chores for small groups. Everyone in a group sees each other's tasks — daily, weekly, monthly or every N days/weeks/months — with a full history of what was done on time, late, or missed. Built as an offline-first, mobile-first PWA.
+TagTeam is a shared todo app I made for me and my partner. It is for people who struggle with task blindness and demand avoidance. Tasks can slip out of sight, and pressure to do them can make it harder to get started.
+
+In a TagTeam group, everyone can see each other's tasks and send a supportive nudge. Each person manages their own tasks, so a team can help without taking over. The goal is to make everyday tasks easier to face together.
+
+Tasks can repeat daily, weekly, monthly, or on a custom schedule. TagTeam keeps a history of what was done on time, late, or missed. It is an offline-first, mobile-first PWA.
 
 > Status: accounts, groups, recurring tasks, offline sync, and the Today screen are implemented.
 
