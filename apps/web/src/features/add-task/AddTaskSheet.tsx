@@ -48,29 +48,37 @@ export function AddTaskSheet({
 	const [draft, setDraft] = useState<TaskDraft>(() => newDraft(today));
 	const [errors, setErrors] = useState<ReturnType<typeof draftErrors>>({});
 	const [showDate, setShowDate] = useState(false);
+	const [submitting, setSubmitting] = useState(false);
 	const update = (patch: Partial<TaskDraft>) =>
 		setDraft((d) => ({ ...d, ...patch }));
 	const close = () => {
 		setDraft(newDraft(today));
 		setErrors({});
 		setShowDate(false);
+		setSubmitting(false);
 		onClose();
 	};
 
 	const submit = async (e: FormEvent) => {
 		e.preventDefault();
+		if (submitting) return;
 		const problems = draftErrors(draft);
 		setErrors(problems);
 		if (Object.keys(problems).length > 0 || !activeGroupId) return;
-		await engine.enqueue(
-			draftMutation(draft, {
-				groupId: activeGroupId,
-				timezone: browserTimeZone(),
-				at: Date.now(),
-			}),
-		);
-		toast.show({ message: `Added · ${draft.title.trim()}` });
-		close();
+		setSubmitting(true);
+		try {
+			await engine.enqueue(
+				draftMutation(draft, {
+					groupId: activeGroupId,
+					timezone: browserTimeZone(),
+					at: Date.now(),
+				}),
+			);
+			toast.show({ message: `Added · ${draft.title.trim()}` });
+			close();
+		} finally {
+			setSubmitting(false);
+		}
 	};
 
 	const startLabel =
@@ -236,20 +244,34 @@ export function AddTaskSheet({
 							Add time
 						</Button>
 					) : (
-						<div className="flex items-center gap-2">
-							<label htmlFor="due-time" className="text-[14px] text-text-2">
-								Due by
-							</label>
-							<input
-								id="due-time"
-								type="time"
-								value={draft.dueTime}
-								onChange={(e) => update({ dueTime: e.target.value })}
-								className={selectClass}
-							/>
-							<Button variant="ghost" onClick={() => update({ dueTime: null })}>
-								Remove time
-							</Button>
+						<div className="flex flex-col gap-1">
+							<div className="flex items-center gap-2">
+								<label htmlFor="due-time" className="text-[14px] text-text-2">
+									Due by
+								</label>
+								<input
+									id="due-time"
+									type="time"
+									value={draft.dueTime}
+									onChange={(e) => update({ dueTime: e.target.value })}
+									aria-invalid={errors.dueTime ? true : undefined}
+									aria-describedby={
+										errors.dueTime ? "due-time-error" : undefined
+									}
+									className={selectClass}
+								/>
+								<Button
+									variant="ghost"
+									onClick={() => update({ dueTime: null })}
+								>
+									Remove time
+								</Button>
+							</div>
+							{errors.dueTime ? (
+								<p id="due-time-error" className="text-[13px] text-danger">
+									{errors.dueTime}
+								</p>
+							) : null}
 						</div>
 					)}
 				</div>
@@ -274,7 +296,7 @@ export function AddTaskSheet({
 					</div>
 				) : null}
 
-				<Button type="submit" variant="primary" block>
+				<Button type="submit" variant="primary" block busy={submitting}>
 					Add task
 				</Button>
 			</form>

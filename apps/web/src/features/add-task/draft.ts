@@ -1,4 +1,5 @@
 import {
+	isTimeOfDay,
 	type LocalDate,
 	MAX_INTERVAL,
 	MAX_TITLE,
@@ -61,8 +62,12 @@ export function draftRule(d: TaskDraft): Rule | null {
 	}
 }
 
-export function draftErrors(d: TaskDraft): { title?: string; every?: string } {
-	const errors: { title?: string; every?: string } = {};
+export function draftErrors(d: TaskDraft): {
+	title?: string;
+	every?: string;
+	dueTime?: string;
+} {
+	const errors: { title?: string; every?: string; dueTime?: string } = {};
 	const length = d.title.trim().length;
 	if (length < 1 || length > MAX_TITLE) errors.title = "Give it a name";
 	if (
@@ -70,6 +75,9 @@ export function draftErrors(d: TaskDraft): { title?: string; every?: string } {
 		(!Number.isInteger(d.every) || d.every < 1 || d.every > MAX_INTERVAL)
 	) {
 		errors.every = `Enter a number from 1 to ${MAX_INTERVAL}`;
+	}
+	if (d.dueTime !== null && !isTimeOfDay(d.dueTime)) {
+		errors.dueTime = "Enter a time like 08:00";
 	}
 	return errors;
 }
