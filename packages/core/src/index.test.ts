@@ -9,6 +9,8 @@ it("exposes the public API", () => {
 		"isLocalDate",
 		"isTimeOfDay",
 		"isTimeZone",
+		"isId",
+		"mutationErrors",
 		"ruleErrors",
 		"scheduleErrors",
 		"occurrenceKeys",
