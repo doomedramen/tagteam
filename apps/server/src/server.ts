@@ -11,7 +11,11 @@ export interface RunningServer {
 
 export function startServer(config: Config): Promise<RunningServer> {
 	const { db, close } = openDb(config.databasePath);
-	const app = createApp({ db, auth: createAuth(db, config) });
+	const app = createApp({
+		db,
+		auth: createAuth(db, config),
+		trustedOrigin: config.baseUrl,
+	});
 	return new Promise((resolve) => {
 		const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
 			resolve({

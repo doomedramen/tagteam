@@ -24,8 +24,13 @@ export interface TestContext {
 export function createTestContext(): TestContext {
 	const clock = { now: Date.UTC(2026, 8, 25, 12) };
 	const { db, close } = openDb(":memory:");
-	const auth = createAuth(db, TEST_CONFIG, { rateLimit: false });
-	const app = createApp({ db, auth, now: () => clock.now });
+	const auth = createAuth(db, TEST_CONFIG);
+	const app = createApp({
+		db,
+		auth,
+		trustedOrigin: TEST_CONFIG.baseUrl,
+		now: () => clock.now,
+	});
 	return { db, app, clock, close };
 }
 

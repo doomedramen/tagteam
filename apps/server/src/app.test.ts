@@ -90,4 +90,43 @@ describe("server foundation", () => {
 		spy.mockRestore();
 		// Do not call ctx.close() again in afterEach since we already closed it
 	});
+
+	const signUpFrom = (origin: string | null) =>
+		ctx.app.request("/api/auth/sign-up/email", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				...(origin ? { origin } : {}),
+			},
+			body: JSON.stringify({
+				email: "kim@example.com",
+				password: "correct-horse-battery",
+				name: "Kim",
+			}),
+		});
+
+	it("rejects auth requests from an untrusted browser origin", async () => {
+		const res = await signUpFrom("https://evil.example.com");
+		expect(res.status).toBe(403);
+		expect(await readJson<ErrorBody>(res)).toEqual({
+			error: {
+				code: "invalid_origin",
+				message: "This request came from an untrusted site.",
+			},
+		});
+	});
+
+	it("accepts auth requests from the app's own origin or without an Origin header", async () => {
+		expect((await signUpFrom("http://localhost:3000")).status).toBe(200);
+		const other = await ctx.app.request("/api/auth/sign-up/email", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				email: "lee@example.com",
+				password: "correct-horse-battery",
+				name: "Lee",
+			}),
+		});
+		expect(other.status).toBe(200);
+	});
 });

@@ -144,15 +144,19 @@ describe("invites", () => {
 		expect((await redeem(jo, code)).status).toBe(200);
 	});
 
-	it("rate limits redeem attempts per IP across users", async () => {
+	it("ignores client IP headers when rate limiting", async () => {
 		const { code } = await invite();
-		const kim = await signUp(ctx.app, "kim@example.com", "Kim");
-		const ip = { "cf-connecting-ip": "203.0.113.7" };
-		for (let i = 0; i < 3; i++) await redeem(jo, "nope", ip);
-		for (let i = 0; i < 2; i++) await redeem(kim, "nope", ip);
-		expect((await redeem(kim, code, ip)).status).toBe(429);
+		for (let i = 0; i < 5; i++) {
+			await redeem(jo, "nope", {
+				"cf-connecting-ip": `203.0.113.${i}`,
+				"x-forwarded-for": `198.51.100.${i}`,
+			});
+		}
 		expect(
-			(await redeem(kim, code, { "cf-connecting-ip": "203.0.113.8" })).status,
-		).toBe(200);
+			(await redeem(jo, code, { "cf-connecting-ip": "203.0.113.99" })).status,
+		).toBe(429);
+
+		const kim = await signUp(ctx.app, "kim@example.com", "Kim");
+		expect((await redeem(kim, code)).status).toBe(200);
 	});
 });

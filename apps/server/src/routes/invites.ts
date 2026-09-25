@@ -1,4 +1,4 @@
-import { type Context, Hono } from "hono";
+import { Hono } from "hono";
 import type { Db } from "../db/client";
 import { fail } from "../http/errors";
 import type { AppEnv } from "../http/session";
@@ -10,11 +10,6 @@ import {
 	redeemInvite,
 	revokeInvite,
 } from "../services/invites";
-
-const clientIp = (c: Context) =>
-	c.req.header("cf-connecting-ip") ??
-	c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
-	"unknown";
 
 export function inviteRoutes(deps: { db: Db; now: () => number }) {
 	const routes = new Hono<AppEnv>();
@@ -55,15 +50,14 @@ export function inviteRoutes(deps: { db: Db; now: () => number }) {
 
 	routes.post("/invites/redeem", async (c) => {
 		const now = deps.now();
-		const byUser = limiter.attempt(`user:${c.var.user.id}`, now);
-		const byIp = limiter.attempt(`ip:${clientIp(c)}`, now);
-		if (!byUser || !byIp)
+		if (!limiter.attempt(c.var.user.id, now)) {
 			return fail(
 				c,
 				429,
 				"rate_limited",
 				"Too many attempts. Try again in a minute.",
 			);
+		}
 
 		const input = (await c.req.json().catch(() => undefined)) as
 			| { code?: unknown }

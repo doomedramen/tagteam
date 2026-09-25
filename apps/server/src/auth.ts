@@ -5,11 +5,7 @@ import type { Config } from "./config";
 import type { Db } from "./db/client";
 import * as schema from "./db/schema";
 
-export function createAuth(
-	db: Db,
-	config: Config,
-	options: { rateLimit?: boolean } = {},
-) {
+export function createAuth(db: Db, config: Config) {
 	return betterAuth({
 		database: drizzleAdapter(db, { provider: "sqlite", schema }),
 		secret: config.authSecret,
@@ -19,7 +15,9 @@ export function createAuth(
 		// Better Auth defaults origin/CSRF checks to disabled when isTest() is true; force them on in every environment.
 		advanced: { disableOriginCheck: false },
 		emailAndPassword: { enabled: true, minPasswordLength: 10 },
-		rateLimit: { enabled: options.rateLimit ?? true },
+		// Better Auth's limiter keys on client IP; behind cloudflared every request shares one IP,
+		// so it would throttle all users together. Sign-in brute force is stopped by Cloudflare Access.
+		rateLimit: { enabled: false },
 		// Keep in sync with scripts/auth-schema.config.ts.
 		plugins: [
 			passkey({

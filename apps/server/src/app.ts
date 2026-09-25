@@ -3,6 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import type { Auth } from "./auth";
 import type { Db } from "./db/client";
 import { fail } from "./http/errors";
+import { rejectUntrustedOrigin } from "./http/origin";
 import { type AppEnv, requireSession } from "./http/session";
 import { groupRoutes } from "./routes/groups";
 import { inviteRoutes } from "./routes/invites";
@@ -11,15 +12,23 @@ import { meRoutes } from "./routes/me";
 export interface AppDeps {
 	db: Db;
 	auth: Auth;
+	/** The app's public origin (Config.baseUrl). */
+	trustedOrigin: string;
 	now?: () => number;
 }
 
-export function createApp({ db, auth, now = Date.now }: AppDeps) {
+export function createApp({
+	db,
+	auth,
+	trustedOrigin,
+	now = Date.now,
+}: AppDeps) {
 	const app = new Hono();
 
 	// Public routes are registered first: they respond without calling next(),
 	// so the session middleware of the /api sub-app never runs for them.
 	app.get("/api/health", (c) => c.json({ ok: true }));
+	app.use("/api/auth/*", rejectUntrustedOrigin(trustedOrigin));
 	app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 	const api = new Hono<AppEnv>();
