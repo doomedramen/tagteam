@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { Button } from "./Button";
 import { Chip } from "./Chip";
@@ -48,6 +49,58 @@ describe("UI kit", () => {
 		await userEvent.keyboard("{Escape}");
 		await userEvent.click(screen.getByRole("button", { name: "Close" }));
 		expect(onClose).toHaveBeenCalledTimes(2);
+	});
+
+	it("keeps focus on an autofocused child when the sheet opens", () => {
+		render(
+			<Sheet open onClose={vi.fn()} label="Add task">
+				{/* biome-ignore lint/a11y/noAutofocus: the add-task title field must keep focus when the sheet opens */}
+				<input autoFocus aria-label="Title" />
+			</Sheet>,
+		);
+		expect(screen.getByLabelText("Title")).toHaveFocus();
+	});
+
+	it("moves focus into the dialog when no child is autofocused", () => {
+		render(
+			<Sheet open onClose={vi.fn()} label="Add task">
+				<button type="button">Do a thing</button>
+			</Sheet>,
+		);
+		expect(screen.getByRole("button", { name: "Do a thing" })).toHaveFocus();
+	});
+
+	it("restores focus to the trigger after the sheet closes", async () => {
+		function Harness() {
+			const [open, setOpen] = useState(false);
+			return (
+				<div>
+					<button type="button" onClick={() => setOpen(true)}>
+						Open
+					</button>
+					<Sheet open={open} onClose={() => setOpen(false)} label="Add task">
+						<button type="button">Inside</button>
+					</Sheet>
+				</div>
+			);
+		}
+		render(<Harness />);
+		await userEvent.click(screen.getByRole("button", { name: "Open" }));
+		expect(screen.getByRole("button", { name: "Inside" })).toHaveFocus();
+		await userEvent.keyboard("{Escape}");
+		expect(screen.getByRole("button", { name: "Open" })).toHaveFocus();
+	});
+
+	it("traps Tab focus, wrapping from the last focusable element to the first", async () => {
+		render(
+			<Sheet open onClose={vi.fn()} label="Add task">
+				<button type="button">First</button>
+				<button type="button">Last</button>
+			</Sheet>,
+		);
+		screen.getByRole("button", { name: "Last" }).focus();
+		await userEvent.tab();
+		expect(screen.getByRole("button", { name: "First" })).toHaveFocus();
 	});
 
 	it("toasts show a message with an action", async () => {
