@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" aria-labelledby="title" role="img" version="1.1" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:xlink="http://www.w3.org/1999/xlink">
+ <title id="title">TagTeam</title>
+ <defs>
+  <!-- Tile -->
+  <linearGradient id="bg" x2="0" y2="1">
+   <stop stop-color="#FFE270" offset="0"/>
+   <stop stop-color="#FACB3C" offset="1"/>
+  </linearGradient>
+  <radialGradient id="bgGlow" cx=".3" cy=".18" r=".85">
+   <stop stop-color="#FFF6C4" stop-opacity=".75" offset="0"/>
+   <stop stop-color="#FFF6C4" stop-opacity="0" offset=".6"/>
+  </radialGradient>
+  <linearGradient id="rim" x2="0" y2="1">
+   <stop stop-color="#fff" stop-opacity=".7" offset="0"/>
+   <stop stop-color="#fff" stop-opacity=".1" offset="1"/>
+  </linearGradient>
+  <filter id="tileShadow" x="-.046552" y="-.046552" width="1.0931" height="1.1082" color-interpolation-filters="sRGB">
+   <feGaussianBlur in="SourceAlpha" stdDeviation="18"/>
+   <feOffset dx="0" dy="14" result="off"/>
+   <feFlood flood-color="#6B4A00" flood-opacity=".2"/>
+   <feComposite in2="off" operator="in" result="shadow"/>
+   <feMerge>
+    <feMergeNode in="shadow"/>
+    <feMergeNode in="SourceGraphic"/>
+   </feMerge>
+  </filter>
+  <!-- Letter fills -->
+  <linearGradient id="blue" x1=".2" x2=".5" y2="1">
+   <stop stop-color="#4CC0FF" offset="0"/>
+   <stop stop-color="#2F8CFA" offset=".35"/>
+   <stop stop-color="#1C52E3" offset="1"/>
+  </linearGradient>
+  <linearGradient id="orange" x1=".2" x2=".5" y2="1">
+   <stop stop-color="#FF9F58" offset="0"/>
+   <stop stop-color="#FA7A3C" offset=".45"/>
+   <stop stop-color="#EC4B24" offset="1"/>
+  </linearGradient>
+  <!-- Soft-clay shading: light rim top-left, dark rim bottom-right -->
+  <filter id="clay" x="-.052093" y="-.05173" width="1.0972" height="1.0944" color-interpolation-filters="sRGB">
+   <feGaussianBlur in="SourceAlpha" result="blur" stdDeviation="6"/>
+   <feOffset dx="5" dy="9" in="blur" result="offLight"/>
+   <feComposite in="SourceAlpha" in2="offLight" operator="out" result="edgeLight"/>
+   <feFlood flood-color="#FFFFFF" flood-opacity=".45" result="lightColor"/>
+   <feComposite in="lightColor" in2="edgeLight" operator="in" result="light"/>
+   <feOffset dx="-8" dy="-14" in="blur" result="offDark"/>
+   <feComposite in="SourceAlpha" in2="offDark" operator="out" result="edgeDark"/>
+   <feFlood flood-color="#3A0A00" flood-opacity=".22" result="darkColor"/>
+   <feComposite in="darkColor" in2="edgeDark" operator="in" result="dark"/>
+   <feMerge>
+    <feMergeNode in="SourceGraphic"/>
+    <feMergeNode in="dark"/>
+    <feMergeNode in="light"/>
+   </feMerge>
+  </filter>
+  <filter id="drop" x="-.16372" y="-.13916" width="1.3205" height="1.3056" color-interpolation-filters="sRGB">
+   <feGaussianBlur in="SourceAlpha" stdDeviation="20"/>
+   <feOffset dx="0" dy="20" result="off"/>
+   <feFlood flood-color="#A66A00" flood-opacity=".35"/>
+   <feComposite in2="off" operator="in" result="shadow"/>
+   <feMerge>
+    <feMergeNode in="shadow"/>
+    <feMergeNode in="SourceGraphic"/>
+   </feMerge>
+  </filter>
+  <filter id="contact" x="-.20837" y="-.17413" width="1.4237" height="1.3829" color-interpolation-filters="sRGB">
+   <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+   <feOffset dx="6" dy="4" result="off"/>
+   <feFlood flood-color="#7A2A00" flood-opacity=".35"/>
+   <feComposite in2="off" operator="in" result="shadow"/>
+   <feMerge>
+    <feMergeNode in="shadow"/>
+    <feMergeNode in="SourceGraphic"/>
+   </feMerge>
+  </filter>
+  <!-- T glyph, origin at stem centre / bar middle -->
+  <path id="T" d="m-127.5-110h255a87.5 87.5 0 0 1 0 175q-27.5 0-27.5 30l-6 250a94 94 0 0 1-188 0l-6-250q0-30-27.5-30a87.5 87.5 0 0 1 0-175z"/>
+ </defs>
+ <!-- Tile -->
+ <g filter="url(#tileShadow)">
+  <rect x="48" y="40" width="928" height="928" rx="215" fill="url(#bg)"/>
+ </g>
+ <rect x="48" y="40" width="928" height="928" rx="215" fill="url(#bgGlow)"/>
+ <rect x="50" y="42" width="924" height="924" rx="213" fill="none" stroke="url(#rim)" stroke-width="4"/>
+ <!-- Spark ticks -->
+ <g stroke="#F2A640" stroke-linecap="round" stroke-width="38">
+  <line x1="364" x2="412" y1="214" y2="272"/>
+  <line x1="507" x2="507" y1="160" y2="240"/>
+  <line x1="650" x2="602" y1="214" y2="272"/>
+ </g>
+ <!-- Orange T (behind) -->
+ <g transform="translate(684 460) rotate(9) scale(.95)">
+  <g filter="url(#drop)">
+   <g filter="url(#clay)">
+    <use fill="url(#orange)" href="#T" xlink:href="#T"/>
+   </g>
+  </g>
+ </g>
+ <!-- Blue T (front) -->
+ <g transform="translate(312 448) rotate(-8) scale(.95)">
+  <g filter="url(#contact)">
+   <g filter="url(#drop)">
+    <g filter="url(#clay)">
+     <use fill="url(#blue)" href="#T" xlink:href="#T"/>
+    </g>
+   </g>
+  </g>
+ </g>
+ <metadata>
+  <rdf:RDF>
+   <cc:Work rdf:about="">
+    <dc:title>TagTeam</dc:title>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+</svg>
