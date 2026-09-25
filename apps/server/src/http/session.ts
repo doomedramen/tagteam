@@ -1,14 +1,11 @@
+import type { SessionUser } from "@tagteam/core";
 import { createMiddleware } from "hono/factory";
 import type { Auth } from "../auth";
 import type { Db } from "../db/client";
 import { ensureProfile, type Profile } from "../services/profiles";
 import { fail } from "./errors";
 
-export interface SessionUser {
-	id: string;
-	email: string;
-	name: string;
-}
+export type { SessionUser };
 
 export type AppEnv = { Variables: { user: SessionUser; profile: Profile } };
 

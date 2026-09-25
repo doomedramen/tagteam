@@ -15,6 +15,7 @@ it("exposes the public API", () => {
 		"scheduleErrors",
 		"occurrenceKeys",
 		"expandSlots",
+		"withScheduleVersion",
 		"deriveTask",
 		"summarize",
 	]) {

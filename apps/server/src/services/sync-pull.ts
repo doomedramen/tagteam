@@ -1,52 +1,17 @@
-import type { RuleVersion } from "@tagteam/core";
+import type {
+	EventDto,
+	GroupDto,
+	MemberDto,
+	PullResponse,
+	TaskDto,
+} from "@tagteam/core";
 import { and, eq, gt, inArray, or, type SQL } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { Db } from "../db/client";
 import { groups, membership, profile, task, taskEvent } from "../db/schema";
 import { currentSeq } from "../db/seq";
 
-export interface GroupDto {
-	id: string;
-	name: string;
-}
-export interface MemberDto {
-	groupId: string;
-	userId: string;
-	displayName: string;
-	avatarColor: string;
-	role: "admin" | "member";
-	joinedAt: number;
-	leftAt: number | null;
-}
-export interface TaskDto {
-	id: string;
-	groupId: string;
-	ownerId: string;
-	title: string;
-	notes: string | null;
-	timezone: string;
-	startDate: string;
-	rules: RuleVersion[];
-	archivedAt: number | null;
-	createdAt: number;
-}
-export interface EventDto {
-	id: string;
-	taskId: string;
-	userId: string;
-	type: "completed" | "uncompleted" | "nudged";
-	occurrenceKey: string | null;
-	refEventId: string | null;
-	at: number;
-}
-export interface PullResponse {
-	cursor: number;
-	groups: GroupDto[];
-	members: MemberDto[];
-	tasks: TaskDto[];
-	events: EventDto[];
-	removedGroupIds: string[];
-}
+export type { EventDto, GroupDto, MemberDto, PullResponse, TaskDto };
 
 /** Everything visible to `userId` that changed after `cursor`, plus full snapshots of newly joined groups. */
 export function pull(db: Db, userId: string, cursor: number): PullResponse {

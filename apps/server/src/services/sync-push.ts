@@ -1,9 +1,11 @@
 import {
 	MAX_CLOCK_SKEW_MS,
 	type Mutation,
+	type MutationResult,
 	mutationErrors,
 	NUDGE_INTERVAL_MS,
 	type RuleVersion,
+	withScheduleVersion,
 } from "@tagteam/core";
 import { and, eq, gt } from "drizzle-orm";
 import type { Db } from "../db/client";
@@ -11,11 +13,7 @@ import { appliedMutation, task, taskEvent } from "../db/schema";
 import { nextSeq } from "../db/seq";
 import { isActiveMember } from "./groups";
 
-export interface MutationResult {
-	id: string;
-	status: "applied" | "duplicate" | "rejected";
-	reason?: string;
-}
+export type { MutationResult };
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 type Outcome = { groupId: string } | { reason: string } | { groupId: null };
@@ -172,13 +170,11 @@ function applyOne(
 				rule: m.rule,
 				dueTime: m.dueTime,
 			};
-			const rules =
-				m.effectiveFrom === current.startDate
-					? [version]
-					: [
-							...current.rules.filter((v) => v.effectiveFrom < m.effectiveFrom),
-							version,
-						];
+			const rules = withScheduleVersion(
+				current.startDate,
+				current.rules,
+				version,
+			);
 			clocks.schedule = at;
 			return writeTask({ rules });
 		}

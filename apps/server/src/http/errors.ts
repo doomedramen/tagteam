@@ -1,9 +1,8 @@
+import type { ErrorBody } from "@tagteam/core";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
-export interface ErrorBody {
-	error: { code: string; message: string; details?: string[] };
-}
+export type { ErrorBody };
 
 export function fail(
 	c: Context,

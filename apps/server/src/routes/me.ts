@@ -1,22 +1,18 @@
+import type { MeResponse } from "@tagteam/core";
 import { Hono } from "hono";
 import type { Db } from "../db/client";
 import { fail } from "../http/errors";
-import type { AppEnv, SessionUser } from "../http/session";
+import type { AppEnv } from "../http/session";
 import type { LiveHub } from "../live";
 import { pokeGroups } from "../live";
-import { listMyGroups, type MyGroup } from "../services/groups";
+import { listMyGroups } from "../services/groups";
 import {
-	type ProfileDto,
 	toProfileDto,
 	updateProfile,
 	validateProfilePatch,
 } from "../services/profiles";
 
-export interface MeResponse {
-	user: SessionUser;
-	profile: ProfileDto;
-	groups: MyGroup[];
-}
+export type { MeResponse };
 
 export function meRoutes(deps: { db: Db; now: () => number; live: LiveHub }) {
 	const routes = new Hono<AppEnv>();

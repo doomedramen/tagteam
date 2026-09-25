@@ -154,3 +154,19 @@ export function expandSlots(
 			.slice(0, lookahead),
 	];
 }
+
+/**
+ * Rule versions after a schedule edit effective from `version.effectiveFrom`:
+ * earlier versions are kept, the edit replaces everything from its date onward.
+ */
+export function withScheduleVersion(
+	startDate: LocalDate,
+	rules: RuleVersion[],
+	version: RuleVersion,
+): RuleVersion[] {
+	if (version.effectiveFrom === startDate) return [version];
+	return [
+		...rules.filter((v) => v.effectiveFrom < version.effectiveFrom),
+		version,
+	];
+}

@@ -1,4 +1,4 @@
-import { isTimeZone } from "@tagteam/core";
+import { isTimeZone, type ProfileDto } from "@tagteam/core";
 import { eq } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { profile } from "../db/schema";
@@ -19,12 +19,7 @@ export type AvatarColor = (typeof AVATAR_COLORS)[number];
 
 export type Profile = typeof profile.$inferSelect;
 
-export interface ProfileDto {
-	displayName: string;
-	avatarColor: string;
-	timezone: string;
-	activeGroupId: string | null;
-}
+export type { ProfileDto };
 
 /** Stable default colour so a new user's avatar doesn't change between devices. */
 function defaultAvatarColor(userId: string): AvatarColor {

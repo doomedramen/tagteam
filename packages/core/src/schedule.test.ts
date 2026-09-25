@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { LocalDate } from "./localDate";
 import { atTime, startOfDay } from "./localDate";
-import type { Rule } from "./rule";
+import type { Rule, RuleVersion } from "./rule";
 import {
 	expandSlots,
 	occurrenceKeys,
 	scheduleErrors,
 	type TaskSchedule,
+	withScheduleVersion,
 } from "./schedule";
 
 const schedule = (
@@ -296,6 +297,42 @@ describe("expandSlots", () => {
 			["2026-09-22", london("2026-09-22", "08:00")],
 			["2026-09-23", london("2026-09-23", "20:00")],
 			["2026-09-24", london("2026-09-24", "20:00")],
+		]);
+	});
+});
+
+describe("withScheduleVersion", () => {
+	const daily: RuleVersion = {
+		effectiveFrom: "2026-09-21",
+		rule: { freq: "day", interval: 1 },
+		dueTime: "08:00",
+	};
+	const weekly: RuleVersion = {
+		effectiveFrom: "2026-10-05",
+		rule: { freq: "week", interval: 1, weekdays: [1] },
+		dueTime: null,
+	};
+
+	it("replaces everything when the edit starts on the start date", () => {
+		const once: RuleVersion = {
+			effectiveFrom: "2026-09-21",
+			rule: null,
+			dueTime: null,
+		};
+		expect(withScheduleVersion("2026-09-21", [daily, weekly], once)).toEqual([
+			once,
+		]);
+	});
+
+	it("keeps earlier versions and drops later ones", () => {
+		const edit: RuleVersion = {
+			effectiveFrom: "2026-10-01",
+			rule: { freq: "day", interval: 2 },
+			dueTime: "20:00",
+		};
+		expect(withScheduleVersion("2026-09-21", [daily, weekly], edit)).toEqual([
+			daily,
+			edit,
 		]);
 	});
 });

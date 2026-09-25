@@ -1,15 +1,11 @@
 import { randomUUID } from "node:crypto";
+import type { MyGroup } from "@tagteam/core";
 import { and, asc, eq, isNull, ne } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { groups, membership, profile } from "../db/schema";
 import { nextSeq } from "../db/seq";
 
-export interface MyGroup {
-	id: string;
-	name: string;
-	role: "admin" | "member";
-	joinedAt: number;
-}
+export type { MyGroup };
 
 export function listMyGroups(db: Db, userId: string): MyGroup[] {
 	return db
