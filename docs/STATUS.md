@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-09-25 (during Plan 5, Task 10)._
+_Last updated: 2026-09-25 (during Plan 6)._
 
 ## Done (on `main`; CI green through Plan 5)
 
@@ -33,15 +33,22 @@ PWA foundation + the first real screens (Today, Add task). Executed task-by-task
 Task 8 wires real routes and screens into the app. Unit tests for Tasks 8–10 remain follow-up work.
 Task 11 e2e covers account creation, group setup, task creation, offline completion, and online sync.
 
+## In progress — Plan 6
+
+| Slice | Status |
+|---|---|
+| Team | Implemented member progress, inline task lists, overdue nudges, and invite code create/share/copy/revoke. Typecheck and 375 × 812 visual review passed. |
+| Me passkey status | Shows registered passkey count and offers “Add another passkey”. Typecheck and visual review passed. |
+| Remaining | Task detail/history, activity History feed, profile editing, and swipe-to-complete. |
+
 Per-task execution ledger (rulings, review findings, deferred minors) lives in the git-ignored
 `.superpowers/sdd/2026-09-25-05-app-foundation-today/progress.md` in the working checkout. The
 decisions that matter are summarised below.
 
 ## Next plans
 
-- **Plan 6 — remaining screens:** Team (members, progress, Nudge), task detail/history (calendar dots,
-  stats, edit schedule/archive), History activity feed, full Me (profile, passkeys, invite codes UI),
-  swipe-to-complete. Mockups agreed in brainstorming; spec §6.
+- **Plan 6 — remaining screens:** task detail/history (calendar dots, stats, edit schedule/archive),
+  History activity feed, profile editing, and swipe-to-complete. Mockups agreed in brainstorming; spec §6.
 - **Plan 7 — push notifications:** web-push subscriptions, due/overdue scheduler, nudges as push.
 
 ## Decisions to know (made during execution)

@@ -9,6 +9,7 @@ import { GroupSwitcher } from "../features/groups/GroupSwitcher";
 import { WelcomeScreen } from "../features/groups/WelcomeScreen";
 import { MeScreen } from "../features/me/MeScreen";
 import { ComingSoon } from "../features/placeholder/ComingSoon";
+import { TeamScreen } from "../features/team/TeamScreen";
 import { TodayScreen } from "../features/today/TodayScreen";
 import { SessionGate } from "../session/SessionGate";
 import { useSession } from "../session/session";
@@ -74,7 +75,7 @@ export const router = createBrowserRouter([
 				element: <MainLayout />,
 				children: [
 					{ index: true, element: <TodayScreen /> },
-					{ path: "team", element: <ComingSoon title="Team" /> },
+					{ path: "team", element: <TeamScreen /> },
 					{ path: "history", element: <ComingSoon title="History" /> },
 					{ path: "me", element: <MeScreen /> },
 				],
