@@ -10,12 +10,16 @@ it("creates every table on a fresh database", () => {
 		.all() as { name: string }[];
 	expect(rows.map((r) => r.name).sort()).toEqual([
 		"account",
+		"applied_mutation",
 		"groups",
 		"invite_code",
 		"membership",
 		"passkey",
 		"profile",
 		"session",
+		"sync_state",
+		"task",
+		"task_event",
 		"user",
 		"verification",
 	]);

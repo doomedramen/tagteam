@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { membership } from "../db/schema";
 import type { ErrorBody } from "../http/errors";
 import { INVITE_TTL_MS } from "../services/invites";
 import {
@@ -80,6 +82,13 @@ describe("invites", () => {
 			{ id: groupId, name: "Smiths", role: "member", joinedAt: ctx.clock.now },
 		]);
 		expect(me.profile.activeGroupId).toBe(groupId);
+
+		const joined = ctx.db
+			.select()
+			.from(membership)
+			.where(eq(membership.groupId, groupId))
+			.all();
+		expect(joined.every((m) => m.seq > 0)).toBe(true);
 
 		const again = await redeem(jo, code);
 		expect(again.status).toBe(404);

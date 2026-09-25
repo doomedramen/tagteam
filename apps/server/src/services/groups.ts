@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, asc, eq, isNull, ne } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { groups, membership, profile } from "../db/schema";
+import { nextSeq } from "../db/seq";
 
 export interface MyGroup {
 	id: string;
@@ -57,14 +58,15 @@ export function createGroup(
 ): { id: string; name: string } {
 	const id = randomUUID();
 	db.transaction((tx) => {
+		const seq = nextSeq(tx);
 		tx.insert(groups)
-			.values({ id, name, createdBy: userId, createdAt: now })
+			.values({ id, name, createdBy: userId, createdAt: now, seq })
 			.run();
 		tx.insert(membership)
-			.values({ groupId: id, userId, role: "admin", joinedAt: now })
+			.values({ groupId: id, userId, role: "admin", joinedAt: now, seq })
 			.run();
 		tx.update(profile)
-			.set({ activeGroupId: id, updatedAt: now })
+			.set({ activeGroupId: id, updatedAt: now, seq })
 			.where(eq(profile.userId, userId))
 			.run();
 	});
@@ -103,8 +105,9 @@ export function leaveGroup(
 ): boolean {
 	if (!isActiveMember(db, groupId, userId)) return false;
 	db.transaction((tx) => {
+		const seq = nextSeq(tx);
 		tx.update(membership)
-			.set({ leftAt: now })
+			.set({ leftAt: now, seq })
 			.where(
 				and(eq(membership.groupId, groupId), eq(membership.userId, userId)),
 			)
@@ -128,7 +131,7 @@ export function leaveGroup(
 			.orderBy(asc(membership.joinedAt))
 			.get();
 		tx.update(profile)
-			.set({ activeGroupId: next?.groupId ?? null, updatedAt: now })
+			.set({ activeGroupId: next?.groupId ?? null, updatedAt: now, seq })
 			.where(eq(profile.userId, userId))
 			.run();
 	});

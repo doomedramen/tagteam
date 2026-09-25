@@ -2,6 +2,7 @@ import { isTimeZone } from "@tagteam/core";
 import { eq } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { profile } from "../db/schema";
+import { nextSeq } from "../db/seq";
 import { isActiveMember } from "./groups";
 
 export const AVATAR_COLORS = [
@@ -37,27 +38,30 @@ export function ensureProfile(
 	user: { id: string; name: string },
 	now: number,
 ): Profile {
-	const existing = db
-		.select()
-		.from(profile)
-		.where(eq(profile.userId, user.id))
-		.get();
-	if (existing) return existing;
-	const created = db
-		.insert(profile)
-		.values({
-			userId: user.id,
-			displayName: user.name.trim().slice(0, 40) || "Me",
-			avatarColor: defaultAvatarColor(user.id),
-			timezone: "UTC",
-			activeGroupId: null,
-			createdAt: now,
-			updatedAt: now,
-		})
-		.returning()
-		.get();
-	if (!created) throw new Error(`failed to create profile for ${user.id}`);
-	return created;
+	return db.transaction((tx) => {
+		const existing = tx
+			.select()
+			.from(profile)
+			.where(eq(profile.userId, user.id))
+			.get();
+		if (existing) return existing;
+		const created = tx
+			.insert(profile)
+			.values({
+				userId: user.id,
+				displayName: user.name.trim().slice(0, 40) || "Me",
+				avatarColor: defaultAvatarColor(user.id),
+				timezone: "UTC",
+				activeGroupId: null,
+				createdAt: now,
+				updatedAt: now,
+				seq: nextSeq(tx),
+			})
+			.returning()
+			.get();
+		if (!created) throw new Error(`failed to create profile for ${user.id}`);
+		return created;
+	});
 }
 
 export const toProfileDto = (p: Profile): ProfileDto => ({
@@ -129,12 +133,14 @@ export function updateProfile(
 	patch: ProfilePatch,
 	now: number,
 ): Profile {
-	const updated = db
-		.update(profile)
-		.set({ ...patch, updatedAt: now })
-		.where(eq(profile.userId, userId))
-		.returning()
-		.get();
-	if (!updated) throw new Error(`profile missing for ${userId}`);
-	return updated;
+	return db.transaction((tx) => {
+		const updated = tx
+			.update(profile)
+			.set({ ...patch, updatedAt: now, seq: nextSeq(tx) })
+			.where(eq(profile.userId, userId))
+			.returning()
+			.get();
+		if (!updated) throw new Error(`profile missing for ${userId}`);
+		return updated;
+	});
 }

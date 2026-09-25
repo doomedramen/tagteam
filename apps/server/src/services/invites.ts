@@ -2,6 +2,7 @@ import { randomInt, randomUUID } from "node:crypto";
 import { and, count, desc, eq, gt, isNull } from "drizzle-orm";
 import type { Db } from "../db/client";
 import { groups, inviteCode, membership, profile } from "../db/schema";
+import { nextSeq } from "../db/seq";
 import { isActiveMember } from "./groups";
 
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -131,16 +132,18 @@ export function redeemInvite(
 		if (isActiveMember(tx, invite.groupId, userId))
 			return { ok: false, reason: "already_member" };
 
+		const seq = nextSeq(tx);
 		tx.insert(membership)
 			.values({
 				groupId: invite.groupId,
 				userId,
 				role: "member",
 				joinedAt: now,
+				seq,
 			})
 			.onConflictDoUpdate({
 				target: [membership.groupId, membership.userId],
-				set: { role: "member", joinedAt: now, leftAt: null },
+				set: { role: "member", joinedAt: now, leftAt: null, seq },
 			})
 			.run();
 		tx.update(inviteCode)
@@ -148,7 +151,7 @@ export function redeemInvite(
 			.where(eq(inviteCode.id, invite.id))
 			.run();
 		tx.update(profile)
-			.set({ activeGroupId: invite.groupId, updatedAt: now })
+			.set({ activeGroupId: invite.groupId, updatedAt: now, seq })
 			.where(eq(profile.userId, userId))
 			.run();
 		return { ok: true, group: { id: invite.groupId, name: invite.name } };

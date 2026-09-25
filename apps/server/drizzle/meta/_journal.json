@@ -8,6 +8,13 @@
       "when": 1790342819139,
       "tag": "0000_many_sandman",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790348484531,
+      "tag": "0001_fantastic_prowler",
+      "breakpoints": true
     }
   ]
 }
