@@ -1,8 +1,8 @@
 # Project status
 
-_Last updated: 2026-09-25 (after Plan 7)._
+_Last updated: 2026-09-26 (CI runtime and live-sync follow-ups)._
 
-## Done (on `main`; CI green through Plan 6)
+## Done (on `main`; CI green through Plan 7)
 
 | Plan | Scope | Notes |
 |---|---|---|
@@ -81,9 +81,7 @@ decisions that matter are summarised below.
   60 s timer, SSE poke) retry.
 - Today computes "done today" in the browser's timezone; tasks carry their own timezone.
 
-## Known follow-ups (deferred minors)
+## Remaining follow-ups
 
-- CI actions target Node 20 (deprecation warnings) — bump action majors.
-- Maskable icon uses an 80 % box rather than the circular safe zone.
-- `deriveTask` re-runs for every task on each 30 s tick; memoize if histories grow large.
-- EventSource has no error handler (session expiry still surfaces via push/pull).
+- Production push needs stable `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` values.
+- `deriveTask` re-runs for every task on each 30 s tick; measure before optimizing if histories grow.
