@@ -21,8 +21,14 @@ export function getNotificationSettings(
 		.where(eq(notificationSettings.userId, userId))
 		.get();
 	if (existing) return existing;
+	const now = Date.now();
 	db.insert(notificationSettings)
-		.values({ userId, updatedAt: Date.now() })
+		.values({
+			userId,
+			updatedAt: now,
+			remindersEnabledAt: now,
+			nudgesEnabledAt: now,
+		})
 		.onConflictDoNothing()
 		.run();
 	const created = db
@@ -70,10 +76,19 @@ export function updateNotificationSettings(
 	patch: NotificationSettingsPatch,
 	now: number,
 ): NotificationSettings {
-	getNotificationSettings(db, userId);
+	const current = getNotificationSettings(db, userId);
+	const reenabledReminders =
+		patch.remindersEnabled === true && !current.remindersEnabled;
+	const reenabledNudges =
+		patch.nudgesEnabled === true && !current.nudgesEnabled;
 	const updated = db
 		.update(notificationSettings)
-		.set({ ...patch, updatedAt: now })
+		.set({
+			...patch,
+			...(reenabledReminders ? { remindersEnabledAt: now } : {}),
+			...(reenabledNudges ? { nudgesEnabledAt: now } : {}),
+			updatedAt: now,
+		})
 		.where(eq(notificationSettings.userId, userId))
 		.returning()
 		.get();

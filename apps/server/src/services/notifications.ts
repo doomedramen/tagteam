@@ -99,9 +99,12 @@ function notificationEnabled(
 	db: Db,
 	userId: string,
 	kind: NotificationKind,
+	scheduledAt: number,
 ): boolean {
 	const settings = getNotificationSettings(db, userId);
-	return kind === "nudge" ? settings.nudgesEnabled : settings.remindersEnabled;
+	return kind === "nudge"
+		? settings.nudgesEnabled && scheduledAt >= settings.nudgesEnabledAt
+		: settings.remindersEnabled && scheduledAt >= settings.remindersEnabledAt;
 }
 
 async function deliverPending(db: Db, push: PushTransport, now: number) {
@@ -114,7 +117,30 @@ async function deliverPending(db: Db, push: PushTransport, now: number) {
 		.all();
 
 	for (const log of pendingLogs) {
-		if (!notificationEnabled(db, log.userId, log.kind)) continue;
+		const settings = getNotificationSettings(db, log.userId);
+		const enabled =
+			log.kind === "nudge" ? settings.nudgesEnabled : settings.remindersEnabled;
+		if (!enabled) continue;
+		const enabledAt =
+			log.kind === "nudge"
+				? settings.nudgesEnabledAt
+				: settings.remindersEnabledAt;
+		if (log.createdAt < enabledAt) {
+			db.update(notificationDelivery)
+				.set({ status: "gone", lastError: "Notification predates opt-in" })
+				.where(
+					and(
+						eq(notificationDelivery.notificationId, log.id),
+						eq(notificationDelivery.status, "pending"),
+					),
+				)
+				.run();
+			db.update(notificationLog)
+				.set({ sentAt: now })
+				.where(eq(notificationLog.id, log.id))
+				.run();
+			continue;
+		}
 		if (log.kind !== "nudge") {
 			const timezone =
 				db
@@ -132,23 +158,6 @@ async function deliverPending(db: Db, push: PushTransport, now: number) {
 				)
 			)
 				continue;
-		}
-
-		const subscriptions = db
-			.select({ endpoint: pushSubscription.endpoint })
-			.from(pushSubscription)
-			.where(eq(pushSubscription.userId, log.userId))
-			.all();
-		for (const subscription of subscriptions) {
-			db.insert(notificationDelivery)
-				.values({
-					id: randomUUID(),
-					notificationId: log.id,
-					endpoint: subscription.endpoint,
-					nextAttemptAt: now,
-				})
-				.onConflictDoNothing()
-				.run();
 		}
 
 		const deliveries = db
@@ -176,6 +185,16 @@ async function deliverPending(db: Db, push: PushTransport, now: number) {
 			if (!subscription) {
 				db.update(notificationDelivery)
 					.set({ status: "gone" })
+					.where(eq(notificationDelivery.id, delivery.id))
+					.run();
+				continue;
+			}
+			if (subscription.createdAt > log.createdAt) {
+				db.update(notificationDelivery)
+					.set({
+						status: "gone",
+						lastError: "Subscription postdates notification",
+					})
 					.where(eq(notificationDelivery.id, delivery.id))
 					.run();
 				continue;
@@ -226,10 +245,7 @@ async function deliverPending(db: Db, push: PushTransport, now: number) {
 			.from(notificationDelivery)
 			.where(eq(notificationDelivery.notificationId, log.id))
 			.all();
-		if (
-			unfinished.length > 0 &&
-			unfinished.every((delivery) => delivery.status !== "pending")
-		) {
+		if (unfinished.every((delivery) => delivery.status !== "pending")) {
 			db.update(notificationLog)
 				.set({ sentAt: now })
 				.where(eq(notificationLog.id, log.id))
@@ -245,23 +261,45 @@ function enqueueNotification(
 		userId: string;
 		occurrenceKey: string;
 		kind: NotificationKind;
+		scheduledAt: number;
 		title: string;
 		body: string;
 		url: string;
 	},
 	now: number,
 ) {
-	if (!notificationEnabled(db, input.userId, input.kind)) return;
+	const { scheduledAt, ...notification } = input;
+	if (!notificationEnabled(db, input.userId, input.kind, scheduledAt)) return;
 	const subscriptions = db
-		.select({ endpoint: pushSubscription.endpoint })
+		.select({
+			endpoint: pushSubscription.endpoint,
+			createdAt: pushSubscription.createdAt,
+		})
 		.from(pushSubscription)
 		.where(eq(pushSubscription.userId, input.userId))
-		.all();
+		.all()
+		.filter((subscription) => subscription.createdAt <= scheduledAt);
 	if (subscriptions.length === 0) return;
-	db.insert(notificationLog)
-		.values({ id: randomUUID(), ...input, createdAt: now })
-		.onConflictDoNothing()
-		.run();
+	db.transaction((tx) => {
+		const inserted = tx
+			.insert(notificationLog)
+			.values({ id: randomUUID(), ...notification, createdAt: scheduledAt })
+			.onConflictDoNothing()
+			.returning({ id: notificationLog.id })
+			.get();
+		if (!inserted) return;
+		tx.insert(notificationDelivery)
+			.values(
+				subscriptions.map((subscription) => ({
+					id: randomUUID(),
+					notificationId: inserted.id,
+					endpoint: subscription.endpoint,
+					nextAttemptAt: now,
+				})),
+			)
+			.onConflictDoNothing()
+			.run();
+	});
 }
 
 export async function sendNudgeNotification(
@@ -288,6 +326,7 @@ export async function sendNudgeNotification(
 			userId: target.ownerId,
 			occurrenceKey: input.eventId,
 			kind: "nudge",
+			scheduledAt: now,
 			title: `${sender?.displayName ?? "A teammate"} nudged you`,
 			body: `${target.title} is still open.`,
 			url: "/team",
@@ -368,7 +407,8 @@ export async function runNotificationSweep(
 					item.timezone,
 				);
 		const kind: NotificationKind = now >= overdueAt ? "overdue" : "due";
-		if (now < (kind === "overdue" ? overdueAt : remindAt)) continue;
+		const scheduledAt = kind === "overdue" ? overdueAt : remindAt;
+		if (now < scheduledAt) continue;
 		enqueueNotification(
 			db,
 			{
@@ -376,6 +416,7 @@ export async function runNotificationSweep(
 				userId: item.ownerId,
 				occurrenceKey: current.key,
 				kind,
+				scheduledAt,
 				title: kind === "overdue" ? "Task still open" : "Task due",
 				body:
 					kind === "overdue"

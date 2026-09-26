@@ -63,6 +63,8 @@ decisions that matter are summarised below.
   expired push endpoints are removed.
 - Me screen provides device opt-in, reminders and nudge toggles, quiet hours, and timezone update.
   Service worker displays notifications and opens Today or Team when tapped.
+- Reminder and nudge opt-in starts at enable time; older triggers and newly added devices receive
+  no catch-up notifications.
 - Typecheck, lint, server bundle, and PWA build pass.
 
 ## Next plans

@@ -181,9 +181,11 @@ export const notificationSettings = sqliteTable("notification_settings", {
 	remindersEnabled: integer("reminders_enabled", { mode: "boolean" })
 		.notNull()
 		.default(true),
+	remindersEnabledAt: epochMs("reminders_enabled_at").notNull().default(0),
 	nudgesEnabled: integer("nudges_enabled", { mode: "boolean" })
 		.notNull()
 		.default(true),
+	nudgesEnabledAt: epochMs("nudges_enabled_at").notNull().default(0),
 	quietHoursStart: text("quiet_hours_start").notNull().default("22:00"),
 	quietHoursEnd: text("quiet_hours_end").notNull().default("08:00"),
 	updatedAt: epochMs("updated_at").notNull(),
@@ -205,6 +207,7 @@ export const notificationLog = sqliteTable(
 		title: text("title").notNull(),
 		body: text("body").notNull(),
 		url: text("url").notNull(),
+		/** Scheduled trigger time for new reminders; action time for nudges. */
 		createdAt: epochMs("created_at").notNull(),
 		sentAt: epochMs("sent_at"),
 	},
