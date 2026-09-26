@@ -170,20 +170,20 @@ function StatusIcon({ status }: { status: EntryStatus }) {
 	return <CalendarDays aria-hidden className="size-4 text-text-3" />;
 }
 
-function calendarDotClass(status: EntryStatus): string {
+function calendarRingClass(status: EntryStatus): string {
 	switch (status) {
 		case "on_time":
-			return "bg-success";
+			return "border-2 border-success";
 		case "late":
-			return "bg-warning";
+			return "border-2 border-warning";
 		case "missed":
-			return "bg-danger";
+			return "border-2 border-danger";
 		case "open":
-			return "bg-surface border-2 border-dashed border-warning";
+			return "border-2 border-dashed border-warning";
 		case "overdue":
-			return "bg-surface border-2 border-dashed border-danger";
+			return "border-2 border-dashed border-danger";
 		case "upcoming":
-			return "bg-surface border-2 border-dashed border-text-3";
+			return "border-2 border-dashed border-text-3";
 	}
 }
 
@@ -371,7 +371,7 @@ export function TaskDetailScreen() {
 	};
 
 	return (
-		<div className="mt-3 flex flex-col gap-5">
+		<div className="mx-auto mt-3 flex w-full max-w-xl flex-col gap-5">
 			<div className="flex items-center justify-between">
 				<Button
 					aria-label="Back"
@@ -548,14 +548,14 @@ export function TaskDetailScreen() {
 												<td key={cell.date} className="p-0.5">
 													<div
 														role="img"
-														aria-label={`${formatDate(cell.date, { weekday: "long", month: "long", day: "numeric" })}${entry ? ` · ${statusLabel(entry, now, task.timezone)}` : " · No occurrence"}`}
-														className={`relative mx-auto flex size-10 items-center justify-center rounded-full text-[13px] font-medium text-text ${today ? "ring-2 ring-accent ring-offset-2 ring-offset-surface" : ""}`}
+														aria-label={`${formatDate(cell.date, { weekday: "long", month: "long", day: "numeric" })}${today ? " · Today" : ""}${entry ? ` · ${statusLabel(entry, now, task.timezone)}` : " · No occurrence"}`}
+														className={`relative mx-auto flex size-10 items-center justify-center rounded-full text-[13px] font-medium text-text ${entry ? calendarRingClass(entry.status) : ""}`}
 													>
 														{cell.day}
-														{entry ? (
+														{today ? (
 															<span
 																aria-hidden
-																className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-surface ${calendarDotClass(entry.status)}`}
+																className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-accent ring-2 ring-surface"
 															/>
 														) : null}
 													</div>
@@ -581,7 +581,7 @@ export function TaskDetailScreen() {
 							<span key={status} className="flex items-center gap-1.5">
 								<span
 									aria-hidden
-									className={`size-3 rounded-full ${calendarDotClass(status)}`}
+									className={`size-3 rounded-full ${calendarRingClass(status)}`}
 								/>
 								{label}
 							</span>
@@ -589,7 +589,7 @@ export function TaskDetailScreen() {
 						<span className="flex items-center gap-1.5">
 							<span
 								aria-hidden
-								className="size-3 rounded-full ring-2 ring-accent ring-offset-1 ring-offset-surface"
+								className="size-2 rounded-full bg-accent ring-2 ring-surface"
 							/>
 							Today
 						</span>
