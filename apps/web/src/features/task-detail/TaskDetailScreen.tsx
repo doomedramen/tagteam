@@ -139,6 +139,22 @@ function monthCells(
 	});
 }
 
+function carryoverRanges(
+	entries: HistoryEntry[],
+	today: string,
+	timezone: string,
+) {
+	return entries.flatMap((entry) => {
+		if (entry.status === "overdue" && entry.key < today)
+			return [{ start: entry.key, end: today, completed: false }];
+		if (entry.status === "late" && entry.completedAt !== undefined) {
+			const end = localDate(entry.completedAt, timezone);
+			if (end > entry.key) return [{ start: entry.key, end, completed: true }];
+		}
+		return [];
+	});
+}
+
 function statusLabel(
 	entry: HistoryEntry,
 	now: number,
@@ -263,7 +279,8 @@ export function TaskDetailScreen() {
 		now,
 	);
 	const stats = summarize(derived.entries, now - 30 * DAY_MS, now + 1);
-	const currentMonth = localDate(now, task.timezone).slice(0, 7);
+	const today = localDate(now, task.timezone);
+	const currentMonth = today.slice(0, 7);
 	const month =
 		monthSelection && monthSelection.taskId === task.id
 			? monthSelection.month
@@ -277,6 +294,7 @@ export function TaskDetailScreen() {
 	const entriesByDate = new Map(
 		derived.entries.map((entry) => [entry.key, entry]),
 	);
+	const carryovers = carryoverRanges(derived.entries, today, task.timezone);
 	const cells = monthCells(month);
 	const weeks = Array.from({ length: cells.length / 7 }, (_, index) =>
 		cells.slice(index * 7, index * 7 + 7),
@@ -543,21 +561,38 @@ export function TaskDetailScreen() {
 													/>
 												);
 											const entry = entriesByDate.get(cell.date);
-											const today = localDate(now, task.timezone) === cell.date;
+											const isToday = today === cell.date;
+											const carryover = carryovers.find(
+												(range) =>
+													range.start <= cell.date && cell.date <= range.end,
+											);
+											const carryoverLabel = carryover
+												? carryover.completed
+													? ` · Carried over from ${formatDate(carryover.start, { weekday: "short" })} until completed ${formatDate(carryover.end, { weekday: "short" })}`
+													: ` · Carried over from ${formatDate(carryover.start, { weekday: "short" })} through today`
+												: "";
 											return (
 												<td key={cell.date} className="p-0.5">
-													<div
-														role="img"
-														aria-label={`${formatDate(cell.date, { weekday: "long", month: "long", day: "numeric" })}${today ? " · Today" : ""}${entry ? ` · ${statusLabel(entry, now, task.timezone)}` : " · No occurrence"}`}
-														className={`relative mx-auto flex size-10 items-center justify-center rounded-full text-[13px] font-medium text-text ${entry ? calendarRingClass(entry.status) : ""}`}
-													>
-														{cell.day}
-														{today ? (
+													<div className="relative mx-auto flex size-10 items-center justify-center">
+														{carryover && carryover.start !== carryover.end ? (
 															<span
 																aria-hidden
-																className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-accent ring-2 ring-surface"
+																className={`pointer-events-none absolute top-1/2 z-0 h-1 bg-danger/35 ${carryover.start === cell.date ? "left-1/2" : "-left-1"} ${carryover.end === cell.date ? "right-1/2" : "-right-1"}`}
 															/>
 														) : null}
+														<div
+															role="img"
+															aria-label={`${formatDate(cell.date, { weekday: "long", month: "long", day: "numeric" })}${isToday ? " · Today" : ""}${entry ? ` · ${statusLabel(entry, now, task.timezone)}` : " · No occurrence"}${carryoverLabel}`}
+															className={`relative z-10 flex size-10 items-center justify-center rounded-full bg-surface text-[13px] font-medium text-text ${entry ? calendarRingClass(entry.status) : ""}`}
+														>
+															{cell.day}
+															{isToday ? (
+																<span
+																	aria-hidden
+																	className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-accent ring-2 ring-surface"
+																/>
+															) : null}
+														</div>
 													</div>
 												</td>
 											);
@@ -592,6 +627,10 @@ export function TaskDetailScreen() {
 								className="size-2 rounded-full bg-accent ring-2 ring-surface"
 							/>
 							Today
+						</span>
+						<span className="flex items-center gap-1.5">
+							<span aria-hidden className="h-1 w-5 rounded-full bg-danger/35" />
+							Carry-over
 						</span>
 					</div>
 				</div>

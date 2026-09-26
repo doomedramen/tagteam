@@ -32,7 +32,7 @@ export interface DerivedTask {
 	entries: HistoryEntry[];
 	/** The single open occurrence (`open`, `overdue` or `upcoming`), or null when nothing is left. */
 	current: HistoryEntry | null;
-	/** Occurrences that came due while `current` stayed open. */
+	/** Occurrences that started while `current` stayed open. */
 	missedWhileOpen: number;
 }
 
@@ -81,13 +81,8 @@ export function deriveTask(
 		closed.add(slot.key);
 
 		let next = open + 1;
-		for (let i = slots.length - 1; i > open; i--) {
-			const later = slots[i];
-			if (later && later.periodStart <= c.at) {
-				next = i;
-				break;
-			}
-		}
+		while (slots[next] && (slots[next]?.periodStart ?? Infinity) <= c.at)
+			next++;
 		for (let i = open + 1; i < next; i++) {
 			const later = slots[i];
 			if (later) entries.push(missed(later, slot.key));
@@ -103,7 +98,7 @@ export function deriveTask(
 	const current: HistoryEntry = { key: slot.key, dueAt: slot.dueAt, status };
 	const missedNow = slots
 		.slice(open + 1)
-		.filter((later) => later.dueAt <= now)
+		.filter((later) => later.periodStart <= now)
 		.map((later) => missed(later, slot.key));
 
 	return {

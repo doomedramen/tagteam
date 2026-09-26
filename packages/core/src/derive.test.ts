@@ -49,16 +49,17 @@ describe("deriveTask", () => {
 		expect(d.missedWhileOpen).toBe(2);
 	});
 
-	it("does not count an occurrence as missed before its due time", () => {
+	it("marks new occurrences missed when created behind an open occurrence", () => {
 		const d = deriveTask(daily08, [], at("2026-09-23", "07:00"));
 		expect(lines(d)).toEqual([
 			"2026-09-21 overdue",
 			"2026-09-22 missed <2026-09-21",
+			"2026-09-23 missed <2026-09-21",
 		]);
-		expect(d.missedWhileOpen).toBe(1);
+		expect(d.missedWhileOpen).toBe(2);
 	});
 
-	it("matches the spec example: late completion, gap missed, today overdue", () => {
+	it("keeps later occurrences missed after overdue occurrence completes", () => {
 		const d = deriveTask(
 			daily08,
 			[done("c1", "2026-09-21", "2026-09-23", "10:00")],
@@ -67,11 +68,12 @@ describe("deriveTask", () => {
 		expect(lines(d)).toEqual([
 			"2026-09-21 late",
 			"2026-09-22 missed <2026-09-21",
-			"2026-09-23 overdue",
+			"2026-09-23 missed <2026-09-21",
+			"2026-09-24 upcoming",
 		]);
 		expect(d.entries[0]?.lateByMs).toBe(50 * HOUR);
 		expect(d.entries[0]?.completionId).toBe("c1");
-		expect(d.current?.key).toBe("2026-09-23");
+		expect(d.current?.key).toBe("2026-09-24");
 		expect(d.missedWhileOpen).toBe(0);
 	});
 
