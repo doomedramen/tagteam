@@ -24,7 +24,7 @@ const serwist = new Serwist({
 		navigateFallback: "/index.html",
 		navigateFallbackDenylist: [/^\/api(?:\/|$)/],
 	},
-	skipWaiting: true,
+	skipWaiting: false,
 	clientsClaim: true,
 	navigationPreload: true,
 	runtimeCaching,

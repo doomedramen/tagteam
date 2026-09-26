@@ -2,6 +2,7 @@ import { CircleCheck, History, Plus, UserRound, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink } from "react-router";
 import { cx } from "../lib/cx";
+import { useAppUpdate } from "./AppUpdate";
 
 const TABS = [
 	{ to: "/", label: "Today", icon: CircleCheck, end: true },
@@ -41,9 +42,28 @@ export function AppShell({
 	onAdd?: () => void;
 	children: ReactNode;
 }) {
+	const { updateAvailable } = useAppUpdate();
+
 	return (
-		<div className="flex min-h-dvh flex-col">
-			<header className="sticky top-0 z-30 bg-bg/90 pt-[env(safe-area-inset-top)] backdrop-blur">
+		<div
+			className="flex flex-col"
+			style={{
+				minHeight: updateAvailable
+					? "calc(100dvh - 3.5rem - env(safe-area-inset-top))"
+					: "100dvh",
+			}}
+		>
+			<header
+				className={cx(
+					"sticky z-30 bg-bg/90 backdrop-blur",
+					updateAvailable ? "" : "top-0 pt-[env(safe-area-inset-top)]",
+				)}
+				style={{
+					top: updateAvailable
+						? "calc(3.5rem + env(safe-area-inset-top))"
+						: "0px",
+				}}
+			>
 				<div className="flex min-h-14 items-center justify-between gap-3 px-4">
 					<div className="min-w-0 flex-1">{title}</div>
 					{trailing}

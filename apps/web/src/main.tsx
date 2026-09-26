@@ -10,9 +10,3 @@ createRoot(root).render(
 		<App />
 	</StrictMode>,
 );
-
-if ("serviceWorker" in navigator && import.meta.env.PROD) {
-	void import("@serwist/window").then(({ Serwist }) =>
-		new Serwist("/sw.js", { type: "classic" }).register(),
-	);
-}
