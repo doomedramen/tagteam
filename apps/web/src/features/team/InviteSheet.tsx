@@ -128,7 +128,12 @@ export function InviteSheet({
 	);
 
 	return (
-		<Sheet open={open} onClose={onClose} label="Invite someone">
+		<Sheet
+			open={open}
+			onClose={onClose}
+			label="Invite someone"
+			showCloseButton={false}
+		>
 			<div className="mb-4 flex items-center justify-between">
 				<div>
 					<h2 className="text-xl font-semibold">Invite someone</h2>

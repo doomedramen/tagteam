@@ -37,13 +37,13 @@ import { AddTaskSheet } from "../add-task/AddTaskSheet";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAYS = [
-	{ key: "mon", label: "M" },
-	{ key: "tue", label: "T" },
-	{ key: "wed", label: "W" },
-	{ key: "thu", label: "T" },
-	{ key: "fri", label: "F" },
-	{ key: "sat", label: "S" },
-	{ key: "sun", label: "S" },
+	{ key: "mon", label: "Mo" },
+	{ key: "tue", label: "Tu" },
+	{ key: "wed", label: "We" },
+	{ key: "thu", label: "Th" },
+	{ key: "fri", label: "Fr" },
+	{ key: "sat", label: "Sa" },
+	{ key: "sun", label: "Su" },
 ];
 
 function formatDate(
@@ -178,11 +178,12 @@ function calendarDotClass(status: EntryStatus): string {
 			return "bg-warning";
 		case "missed":
 			return "bg-danger";
-		case "overdue":
 		case "open":
-			return "border-2 border-dashed border-danger";
+			return "bg-surface border-2 border-dashed border-warning";
+		case "overdue":
+			return "bg-surface border-2 border-dashed border-danger";
 		case "upcoming":
-			return "border-2 border-dashed border-text-3";
+			return "bg-surface border-2 border-dashed border-text-3";
 	}
 }
 
@@ -291,6 +292,7 @@ export function TaskDetailScreen() {
 	const entries = [...derived.entries].sort((a, b) =>
 		b.key.localeCompare(a.key),
 	);
+	const monthEntries = entries.filter((entry) => entry.key.startsWith(month));
 
 	const changeMonth = (amount: number) => {
 		setMonthSelection({ taskId: task.id, month: monthShift(month, amount) });
@@ -484,7 +486,11 @@ export function TaskDetailScreen() {
 
 			<section aria-labelledby="task-calendar-heading">
 				<div className="mb-2 flex min-h-11 items-center justify-between">
-					<h2 id="task-calendar-heading" className="text-[15px] font-semibold">
+					<h2
+						id="task-calendar-heading"
+						aria-live="polite"
+						className="text-[15px] font-semibold"
+					>
 						{monthLabel}
 					</h2>
 					<div className="flex gap-1">
@@ -543,8 +549,16 @@ export function TaskDetailScreen() {
 													<div
 														role="img"
 														aria-label={`${formatDate(cell.date, { weekday: "long", month: "long", day: "numeric" })}${entry ? ` · ${statusLabel(entry, now, task.timezone)}` : " · No occurrence"}`}
-														className={`mx-auto size-10 rounded-full ${entry ? calendarDotClass(entry.status) : ""} ${today ? "ring-2 ring-accent ring-offset-2 ring-offset-surface" : ""}`}
-													/>
+														className={`relative mx-auto flex size-10 items-center justify-center rounded-full text-[13px] font-medium text-text ${today ? "ring-2 ring-accent ring-offset-2 ring-offset-surface" : ""}`}
+													>
+														{cell.day}
+														{entry ? (
+															<span
+																aria-hidden
+																className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-surface ${calendarDotClass(entry.status)}`}
+															/>
+														) : null}
+													</div>
 												</td>
 											);
 										})}
@@ -559,6 +573,9 @@ export function TaskDetailScreen() {
 								["on_time", "On time"],
 								["late", "Late"],
 								["missed", "Missed"],
+								["open", "Open"],
+								["overdue", "Overdue"],
+								["upcoming", "Upcoming"],
 							] as const
 						).map(([status, label]) => (
 							<span key={status} className="flex items-center gap-1.5">
@@ -569,20 +586,27 @@ export function TaskDetailScreen() {
 								{label}
 							</span>
 						))}
+						<span className="flex items-center gap-1.5">
+							<span
+								aria-hidden
+								className="size-3 rounded-full ring-2 ring-accent ring-offset-1 ring-offset-surface"
+							/>
+							Today
+						</span>
 					</div>
 				</div>
 			</section>
 
-			<section aria-labelledby="task-occurrences-heading">
+			<section aria-labelledby="task-history-heading">
 				<h2
-					id="task-occurrences-heading"
+					id="task-history-heading"
 					className="mb-2 text-[15px] font-semibold"
 				>
-					Occurrences
+					History for {monthLabel}
 				</h2>
-				{entries.length > 0 ? (
+				{monthEntries.length > 0 ? (
 					<ul className="overflow-hidden rounded-2xl bg-surface px-4 ring-1 ring-line">
-						{entries.map((entry) => (
+						{monthEntries.map((entry) => (
 							<li
 								key={entry.key}
 								className="flex min-h-16 items-center gap-3 border-b border-line py-3 last:border-0"
@@ -622,7 +646,7 @@ export function TaskDetailScreen() {
 					</ul>
 				) : (
 					<p className="rounded-2xl bg-surface px-4 py-5 text-[14px] text-text-2 ring-1 ring-line">
-						No occurrences yet.
+						No history for {monthLabel}.
 					</p>
 				)}
 			</section>

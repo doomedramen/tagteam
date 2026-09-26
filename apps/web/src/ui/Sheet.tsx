@@ -16,11 +16,13 @@ export function Sheet({
 	open,
 	onClose,
 	label,
+	showCloseButton = true,
 	children,
 }: {
 	open: boolean;
 	onClose: () => void;
 	label: string;
+	showCloseButton?: boolean;
 	children: ReactNode;
 }) {
 	const popupRef = useRef<HTMLDivElement>(null);
@@ -95,13 +97,15 @@ export function Sheet({
 						>
 							<div className="sheet-header">
 								<div aria-hidden className="sheet-handle" />
-								<Drawer.Close
-									aria-label="Close"
-									tabIndex={-1}
-									className="sheet-close"
-								>
-									<X aria-hidden className="size-4" />
-								</Drawer.Close>
+								{showCloseButton ? (
+									<Drawer.Close
+										aria-label="Close"
+										tabIndex={-1}
+										className="sheet-close"
+									>
+										<X aria-hidden className="size-4" />
+									</Drawer.Close>
+								) : null}
 							</div>
 							<Drawer.Title className="sr-only">{label}</Drawer.Title>
 							<Drawer.Content className="sheet-scroll">
