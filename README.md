@@ -102,6 +102,9 @@ task's timezone; quiet hours use the profile timezone. Untimed tasks remind at 0
 alerts arrive at 09:00 on the next period boundary. Tasks with a due time remind at that time and again
 after one hour if still open. Nudges send immediately.
 
+Reminders begin from the time a user opts in or adds a device. TagTeam does not backfill reminders
+for due or overdue occurrences from before opt-in or device registration.
+
 ### Security notes
 
 - Keep the app behind Cloudflare Access. Sign-in attempts are not rate limited by IP (the tunnel hides client IPs), so Access is what keeps strangers from guessing passwords. Passkeys are recommended.
