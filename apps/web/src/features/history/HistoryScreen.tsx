@@ -82,11 +82,11 @@ function MemberFilter({
 	return (
 		<Field
 			orientation="horizontal"
-			className="min-h-11 w-full min-w-0 max-w-[180px] flex-1 items-center gap-2 rounded-xl bg-surface px-3 ring-1 ring-line focus-within:ring-2 focus-within:ring-accent"
+			className="min-h-11 w-full min-w-0 max-w-[210px] flex-1 items-center gap-2 rounded-xl bg-surface px-3 ring-1 ring-line focus-within:ring-2 focus-within:ring-accent"
 		>
 			<FieldLabel
 				htmlFor="history-member"
-				className="w-auto shrink-0 text-[13px] text-text-2"
+				className="w-auto flex-none! text-[13px] text-text-2"
 			>
 				Member
 			</FieldLabel>
