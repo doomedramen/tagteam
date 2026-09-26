@@ -1,4 +1,4 @@
-import type { LocalDate } from "./localDate";
+import { type LocalDate, localDate } from "./localDate";
 import { expandSlots, type Slot, type TaskSchedule } from "./schedule";
 
 export type TaskEvent =
@@ -36,11 +36,11 @@ export interface DerivedTask {
 	missedWhileOpen: number;
 }
 
-const missed = (slot: Slot, blockedBy: LocalDate): HistoryEntry => ({
+const missed = (slot: Slot, blockedBy?: LocalDate): HistoryEntry => ({
 	key: slot.key,
 	dueAt: slot.dueAt,
 	status: "missed",
-	blockedBy,
+	...(blockedBy ? { blockedBy } : {}),
 });
 
 /** Derive a task's full history and current state. Pure: same inputs, same output. */
@@ -65,9 +65,34 @@ export function deriveTask(
 	let open = 0;
 
 	for (const c of completions) {
-		const slot = slots[open];
-		if (!slot) break;
-		if (closed.has(c.occurrenceKey)) continue;
+		const completedOn = localDate(c.at, schedule.timezone);
+		const completedOnIndex = slots.findIndex(
+			(slot) => slot.key === completedOn,
+		);
+		const targetKey =
+			c.occurrenceKey < completedOn && completedOnIndex >= 0
+				? completedOn
+				: c.occurrenceKey;
+		const requestedIndex = slots.findIndex((slot) => slot.key === targetKey);
+		if (closed.has(targetKey)) continue;
+		if (requestedIndex >= 0 && requestedIndex < open) continue;
+
+		// A late action counts for a scheduled occurrence on its completion day.
+		// Keep legacy or stale keys usable after a schedule edit by using current open slot.
+		let targetIndex = requestedIndex >= 0 ? requestedIndex : open;
+		const currentOpen = slots[open];
+		// An early completion cannot skip an occurrence that is still in progress.
+		if (targetIndex > open && currentOpen && currentOpen.dueAt > c.at)
+			targetIndex = open;
+		const slot = slots[targetIndex];
+		if (!slot || closed.has(slot.key)) continue;
+
+		const firstOpenKey = slots[open]?.key;
+		for (let i = open; i < targetIndex; i++) {
+			const skipped = slots[i];
+			if (skipped)
+				entries.push(missed(skipped, i === open ? undefined : firstOpenKey));
+		}
 
 		const entry: HistoryEntry = {
 			key: slot.key,
@@ -80,15 +105,15 @@ export function deriveTask(
 		entries.push(entry);
 		closed.add(slot.key);
 
-		let next = open + 1;
-		for (let i = slots.length - 1; i > open; i--) {
+		let next = targetIndex + 1;
+		for (let i = slots.length - 1; i > targetIndex; i--) {
 			const later = slots[i];
 			if (later && later.periodStart <= c.at) {
 				next = i;
 				break;
 			}
 		}
-		for (let i = open + 1; i < next; i++) {
+		for (let i = targetIndex + 1; i < next; i++) {
 			const later = slots[i];
 			if (later) entries.push(missed(later, slot.key));
 		}

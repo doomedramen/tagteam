@@ -150,7 +150,9 @@ function statusLabel(
 		case "late":
 			return `Done late · ${formatStamp(entry.completedAt ?? entry.dueAt, timezone)} (+${formatDuration(entry.lateByMs ?? 0)})`;
 		case "missed":
-			return `Missed · ${formatDate(entry.blockedBy ?? entry.key, { weekday: "short" })} still open`;
+			return entry.blockedBy
+				? `Missed · ${formatDate(entry.blockedBy, { weekday: "short" })} still open`
+				: "Missed";
 		case "overdue":
 			return `Overdue · ${formatDuration(now - entry.dueAt)}`;
 		case "open":

@@ -1,8 +1,9 @@
+import { expandSlots } from "@tagteam/core";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router";
 import { readFlag, writeFlag } from "../../lib/storage";
-import { dayBounds, useNow } from "../../lib/time";
+import { dayBounds, localDate, useNow } from "../../lib/time";
 import { useSession } from "../../session/session";
 import { fireScreenConfettiCannon } from "../../ui/confetti";
 import { useToast } from "../../ui/Toast";
@@ -10,6 +11,21 @@ import { buildToday, type TodayRow } from "./model";
 import { TodayList } from "./TodayList";
 
 const UPCOMING_KEY = "tagteam.showUpcoming";
+
+function completionKey(row: TodayRow, at: number): string {
+	if (row.kind !== "overdue") return row.key;
+	const { task } = row;
+	const today = localDate(at, task.timezone);
+	const schedule = {
+		startDate: task.startDate,
+		timezone: task.timezone,
+		rules: task.rules,
+		archivedAt: task.archivedAt,
+	};
+	return expandSlots(schedule, at, 0).some((slot) => slot.key === today)
+		? today
+		: row.key;
+}
 
 export function TodayScreen() {
 	const { store, engine, me, activeGroupId } = useSession();
@@ -72,13 +88,14 @@ export function TodayScreen() {
 				return;
 			}
 			const id = crypto.randomUUID();
+			const at = Date.now();
 			navigator.vibrate?.(10);
 			await engine.enqueue({
 				id,
-				at: Date.now(),
+				at,
 				type: "task.complete",
 				taskId: row.task.id,
-				occurrenceKey: row.key,
+				occurrenceKey: completionKey(row, at),
 			});
 			fireScreenConfettiCannon();
 			const nextCelebrationKey = `${row.task.id}:${row.key}`;
