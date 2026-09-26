@@ -143,10 +143,9 @@ Chosen behaviour: **one open instance, gaps logged.**
 Example — "Brush teeth", daily 08:00; not done Mon or Tue, done Wed 10:00:
 
 ```
-Mon  ○ missed
+Mon  ● done LATE   (Wed 10:00, +2d 2h)
 Tue  ○ missed     (Mon still open)
-Wed  ● done late  (10:00, +2h)
-Thu  ◐ upcoming
+Wed  ◐ open, due 08:00 → overdue
 ```
 
 History is **derived, never generated** — a pure function of rules + events + now. No cron needed
@@ -155,13 +154,12 @@ for history; identical result offline and online.
 - **Slot:** each scheduled occurrence has a key (local date), a period start, and a due instant
   (dueTime or end of period).
 - **Open instance:** the earliest slot (≥ startDate) not yet closed.
-- **Completion at t:** closes the occurrence scheduled for that local date, when one exists.
-  Earlier open occurrences become missed. If no occurrence is scheduled that day, completion closes
-  the earliest open slot. A completion is *on time* if t ≤ due, else *late* by (t − due).
+- **Completion at t:** records the open slot's `occurrenceKey` explicitly (stable on replay).
+  Closes that slot: *on time* if t ≤ due, else *late* by (t − due).
 - **Next open after completion:** latest slot whose period has started by t, if it is after the
   closed slot; otherwise the next slot after the closed one.
-- **Missed:** earlier uncompleted slots become missed when a later slot is completed. Slots that
-  become due while the current slot stays open also become missed, shown as "missed (X still open)".
+- **Missed:** slots strictly between a closed slot and the next open slot → shown as
+  "missed (X still open)".
 - **Overdue card:** while open slot's due < now, card shows "Overdue since <day> · N missed".
 - **Uncompleted:** cancels a referenced completion; derivation re-runs.
 - **One-off tasks:** single slot; stays open (overdue) until done.

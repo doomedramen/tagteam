@@ -58,21 +58,20 @@ describe("deriveTask", () => {
 		expect(d.missedWhileOpen).toBe(1);
 	});
 
-	it("completes today's slot and marks older open slots missed", () => {
+	it("matches the spec example: late completion, gap missed, today overdue", () => {
 		const d = deriveTask(
 			daily08,
 			[done("c1", "2026-09-21", "2026-09-23", "10:00")],
 			at("2026-09-23", "10:05"),
 		);
 		expect(lines(d)).toEqual([
-			"2026-09-21 missed",
+			"2026-09-21 late",
 			"2026-09-22 missed <2026-09-21",
-			"2026-09-23 late",
-			"2026-09-24 upcoming",
+			"2026-09-23 overdue",
 		]);
-		expect(d.entries[2]?.lateByMs).toBe(2 * HOUR);
-		expect(d.entries[2]?.completionId).toBe("c1");
-		expect(d.current?.key).toBe("2026-09-24");
+		expect(d.entries[0]?.lateByMs).toBe(50 * HOUR);
+		expect(d.entries[0]?.completionId).toBe("c1");
+		expect(d.current?.key).toBe("2026-09-23");
 		expect(d.missedWhileOpen).toBe(0);
 	});
 
