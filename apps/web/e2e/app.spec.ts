@@ -32,7 +32,7 @@ test("sign up, create a group, add and complete tasks, keep working offline", as
 
 	await page.getByRole("button", { name: "Add task" }).first().click();
 	await page.getByRole("textbox", { name: "Task" }).fill("Brush teeth");
-	await page.getByRole("radio", { name: "Daily" }).click();
+	await page.getByRole("button", { name: "Daily" }).click();
 	await page.getByRole("button", { name: "Add task" }).last().click();
 	await expect(
 		page.getByRole("button", { name: "Complete Brush teeth" }),
