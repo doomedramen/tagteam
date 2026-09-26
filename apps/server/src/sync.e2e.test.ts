@@ -116,11 +116,12 @@ it("converges two offline devices and reproduces the spec's history example", as
 	expect(phoneView.tasks[0]?.title).toBe("Brush teeth (2 min)");
 	expect(laptopDelta.tasks[0]?.title).toBe("Brush teeth (2 min)");
 
-	// Same history on both, matching the spec: Mon late, Tue missed, Wed overdue.
+	// Same history on both, matching the spec: Mon late; Tue and Wed missed; Thu upcoming.
 	const expected = [
 		"2026-09-21 late",
 		"2026-09-22 missed",
-		"2026-09-23 overdue",
+		"2026-09-23 missed",
+		"2026-09-24 upcoming",
 	];
 	expect(
 		history(phoneView.tasks[0] as TaskDto, phoneView.events, ctx.clock.now),
