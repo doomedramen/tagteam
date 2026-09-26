@@ -306,7 +306,7 @@ describe("TodayScreen", () => {
 		expect(engine.enqueue).not.toHaveBeenCalled();
 	});
 
-	it("requires a 5-second hold and fades haptics to uncomplete", async () => {
+	it("requires a 2-second hold and fades haptics to uncomplete", async () => {
 		await store.tasks.put(brushTeeth);
 		await store.events.put({
 			id: "e1",
@@ -342,7 +342,7 @@ describe("TodayScreen", () => {
 			expect(fill?.closest("svg")).not.toHaveClass("hidden");
 			expect(fill).not.toHaveStyle({ opacity: "0" });
 			expect(engine.enqueue).not.toHaveBeenCalled();
-			expect(startTaskHoldHapticRamp).toHaveBeenCalledWith("undo", 5000);
+			expect(startTaskHoldHapticRamp).toHaveBeenCalledWith("undo", 2000);
 
 			await act(async () => {
 				vi.advanceTimersByTime(150);
@@ -350,7 +350,7 @@ describe("TodayScreen", () => {
 			expect(fill).toHaveAttribute("d", expect.stringContaining("M 0 0"));
 
 			await act(async () => {
-				vi.advanceTimersByTime(2350);
+				vi.advanceTimersByTime(850);
 			});
 			const drainingPath = fill?.getAttribute("d");
 			expect(drainingPath).not.toContain("M 0 0 C");
@@ -358,7 +358,12 @@ describe("TodayScreen", () => {
 			expect(engine.enqueue).not.toHaveBeenCalled();
 
 			await act(async () => {
-				vi.advanceTimersByTime(2500);
+				vi.advanceTimersByTime(999);
+			});
+			expect(engine.enqueue).not.toHaveBeenCalled();
+
+			await act(async () => {
+				vi.advanceTimersByTime(1);
 			});
 			expect(engine.enqueue).toHaveBeenCalledWith(
 				expect.objectContaining({

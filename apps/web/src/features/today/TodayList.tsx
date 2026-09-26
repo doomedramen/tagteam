@@ -27,7 +27,7 @@ import { rowLabel } from "./labels";
 import type { TodayRow, TodayView } from "./model";
 
 const COMPLETE_HOLD_MS = 2000;
-const UNCOMPLETE_HOLD_MS = 5000;
+const UNCOMPLETE_HOLD_MS = COMPLETE_HOLD_MS;
 const HOLD_PROGRESS_INTERVAL_MS = 25;
 const REDUCED_MOTION_PROGRESS_INTERVAL_MS = 100;
 const HOLD_MOVEMENT_TOLERANCE_PX = 20;
@@ -123,7 +123,7 @@ function CheckCircle({
 				done ? `Undo ${row.task.title}` : `Complete ${row.task.title}`
 			}
 			aria-description={
-				done ? "Hold for 5 seconds to undo" : "Hold for 2 seconds to complete"
+				done ? "Hold for 2 seconds to undo" : "Hold for 2 seconds to complete"
 			}
 			aria-pressed={done}
 			onClick={onClick}

@@ -114,13 +114,13 @@ test("sign up, create a group, add and complete tasks, keep working offline", as
 		undoBox.y + undoBox.height / 2,
 	);
 	await page.mouse.down();
-	await page.waitForTimeout(2500);
+	await page.waitForTimeout(1000);
 	const undoRow = undoButton.locator("xpath=ancestor::li");
 	await expectOpaqueReadableFill(undoRow, "rgb(58, 28, 28)");
 	await page.emulateMedia({ colorScheme: "light" });
 	await expectOpaqueReadableFill(undoRow, "rgb(251, 233, 233)");
 	await expect(undoButton).toBeVisible();
-	await page.waitForTimeout(2600);
+	await page.waitForTimeout(1100);
 	await page.mouse.up();
 	await expect(completeButton).toBeVisible();
 	await expect(page.getByText("Offline · 2 queued")).toBeVisible();
