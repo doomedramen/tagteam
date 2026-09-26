@@ -1,3 +1,5 @@
-/** Joins truthy class names. */
+import { cn } from "cn";
+
+/** Joins conditional classes and resolves Tailwind conflicts. */
 export const cx = (...classes: (string | false | null | undefined)[]): string =>
-	classes.filter(Boolean).join(" ");
+	cn(...classes);

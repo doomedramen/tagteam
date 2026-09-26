@@ -7,6 +7,15 @@ import {
 	useState,
 } from "react";
 import { Link } from "react-router";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+	Empty,
+	EmptyContent,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyTitle,
+} from "@/components/ui/empty";
+import { Progress } from "@/components/ui/progress";
 import { cx } from "../../lib/cx";
 import { Button } from "../../ui/Button";
 import { ConfettiBurst } from "../../ui/ConfettiBurst";
@@ -24,14 +33,14 @@ function CheckCircle({
 }) {
 	const done = row.kind === "done";
 	return (
-		<button
-			type="button"
+		<Button
+			variant="ghost"
 			aria-label={
 				done ? `Undo ${row.task.title}` : `Complete ${row.task.title}`
 			}
 			aria-pressed={done}
 			onClick={() => onToggle(row)}
-			className="-m-2 relative flex size-11 shrink-0 items-center justify-center rounded-full transition-transform duration-150 active:scale-90"
+			className="-m-2 relative size-11 shrink-0 rounded-full p-0 text-text-2 hover:bg-surface-2 active:scale-90"
 		>
 			{done && celebrating ? <ConfettiBurst /> : null}
 			<span
@@ -45,7 +54,7 @@ function CheckCircle({
 			>
 				{done ? <Check aria-hidden className="size-4" strokeWidth={3} /> : null}
 			</span>
-		</button>
+		</Button>
 	);
 }
 
@@ -187,17 +196,21 @@ function Section({
 	return (
 		<section aria-label={title} className="mt-5">
 			<h2 className="mb-1 text-[13px] font-medium text-text-2">{title}</h2>
-			<ul className="rounded-2xl bg-surface px-4 ring-1 ring-line">
-				{rows.map((row) => (
-					<Row
-						key={`${row.kind}-${row.task.id}-${row.key}`}
-						row={row}
-						now={now}
-						onToggle={onToggle}
-						celebrating={celebratingKey === `${row.task.id}:${row.key}`}
-					/>
-				))}
-			</ul>
+			<Card className="gap-0 rounded-2xl p-0 ring-line">
+				<CardContent className="px-4 py-0">
+					<ul>
+						{rows.map((row) => (
+							<Row
+								key={`${row.kind}-${row.task.id}-${row.key}`}
+								row={row}
+								now={now}
+								onToggle={onToggle}
+								celebrating={celebratingKey === `${row.task.id}:${row.key}`}
+							/>
+						))}
+					</ul>
+				</CardContent>
+			</Card>
 		</section>
 	);
 }
@@ -221,15 +234,21 @@ export function TodayList({
 }) {
 	if (!view.hasTasks) {
 		return (
-			<div className="mt-20 flex flex-col items-center gap-3 text-center">
-				<p className="text-lg font-semibold">Add your first task</p>
-				<p className="max-w-64 text-[14px] text-text-2">
-					Things you want to do every day, week or month — or just once.
-				</p>
-				<Button variant="primary" onClick={onAdd}>
-					Add task
-				</Button>
-			</div>
+			<Empty className="mt-20 gap-3 border-0 p-0">
+				<EmptyHeader>
+					<EmptyTitle className="text-lg font-semibold">
+						Add your first task
+					</EmptyTitle>
+					<EmptyDescription className="max-w-64 text-[14px] text-text-2">
+						Things you want to do every day, week or month — or just once.
+					</EmptyDescription>
+				</EmptyHeader>
+				<EmptyContent className="w-auto">
+					<Button variant="primary" onClick={onAdd}>
+						Add task
+					</Button>
+				</EmptyContent>
+			</Empty>
 		);
 	}
 	const percent =
@@ -249,19 +268,13 @@ export function TodayList({
 						? "All done for today"
 						: `${view.done} of ${view.total} done today`}
 				</p>
-				<div
-					role="progressbar"
+				<Progress
+					value={percent}
 					aria-label="Done today"
-					aria-valuemin={0}
-					aria-valuemax={100}
-					aria-valuenow={percent}
-					className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2"
-				>
-					<div
-						className="h-full rounded-full bg-success transition-[width] duration-300"
-						style={{ width: `${percent}%` }}
-					/>
-				</div>
+					className="mt-2 gap-0"
+					trackClassName="h-1.5"
+					indicatorClassName="bg-success transition-[width] duration-300"
+				/>
 			</div>
 			<Section
 				title="Overdue"

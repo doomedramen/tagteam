@@ -2,6 +2,7 @@ import { CircleCheck, History, Plus, UserRound, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink } from "react-router";
 import { cx } from "../lib/cx";
+import { Button } from "../ui/Button";
 import { useAppUpdate } from "./AppUpdate";
 
 const TABS = [
@@ -81,14 +82,14 @@ export function AppShell({
 					<Tab {...TABS[0]} />
 					<Tab {...TABS[1]} />
 					{onAdd ? (
-						<button
-							type="button"
+						<Button
+							variant="primary"
 							aria-label="Add task"
 							onClick={onAdd}
-							className="flex size-12 items-center justify-center rounded-full bg-accent text-on-accent shadow-md transition-transform duration-150 active:scale-95"
+							className="size-12 rounded-full p-0 shadow-md transition-transform duration-150 active:scale-95 [&_svg]:size-6"
 						>
-							<Plus aria-hidden className="size-6" strokeWidth={2.25} />
-						</button>
+							<Plus aria-hidden strokeWidth={2.25} />
+						</Button>
 					) : null}
 					<Tab {...TABS[2]} />
 					<Tab {...TABS[3]} />

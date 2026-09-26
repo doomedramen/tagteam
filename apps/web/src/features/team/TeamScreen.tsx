@@ -4,6 +4,10 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { BellRing, ChevronDown, UserRoundPlus } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
 import { Link } from "react-router";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Progress } from "@/components/ui/progress";
 import { dayBounds, useNow } from "../../lib/time";
 import { useSession } from "../../session/session";
 import { Avatar } from "../../ui/Avatar";
@@ -128,12 +132,12 @@ function MemberRow({
 	const id = `member-${member.userId}-tasks`;
 	return (
 		<li className="border-b border-line last:border-0">
-			<button
-				type="button"
+			<Button
+				variant="ghost"
 				aria-expanded={expanded}
 				aria-controls={id}
 				onClick={onToggle}
-				className="flex min-h-20 w-full items-center gap-3 py-3 text-left"
+				className="min-h-20 w-full justify-start gap-3 rounded-none px-0 py-3 text-left text-text hover:bg-transparent active:bg-transparent"
 			>
 				<Avatar name={member.displayName} color={member.avatarColor} />
 				<span className="min-w-0 flex-1">
@@ -152,32 +156,29 @@ function MemberRow({
 								: "No tasks today"}
 						</span>
 						{today.overdue.length > 0 ? (
-							<span className="rounded-full bg-danger-soft px-2 py-0.5 font-medium text-danger">
+							<Badge
+								variant="destructive"
+								className="h-auto rounded-full border-0 bg-danger-soft px-2 py-0.5 text-danger"
+							>
 								{today.overdue.length} overdue
-							</span>
+							</Badge>
 						) : null}
 					</span>
 					{todayTotal > 0 ? (
-						<span
-							role="progressbar"
+						<Progress
+							value={progress}
 							aria-label={`${member.displayName} tasks completed today`}
-							aria-valuemin={0}
-							aria-valuemax={100}
-							aria-valuenow={progress}
-							className="mt-2 flex h-1 overflow-hidden rounded-full bg-surface-2"
-						>
-							<span
-								className="h-full rounded-full bg-success transition-[width] duration-200"
-								style={{ width: `${progress}%` }}
-							/>
-						</span>
+							className="mt-2 gap-0"
+							trackClassName="h-1"
+							indicatorClassName="bg-success transition-[width] duration-200"
+						/>
 					) : null}
 				</span>
 				<ChevronDown
 					aria-hidden
 					className={`size-5 shrink-0 text-text-3 transition-transform duration-150 ${expanded ? "rotate-180" : ""}`}
 				/>
-			</button>
+			</Button>
 			{expanded ? (
 				<div id={id} className="border-t border-line pb-3 pl-12 pr-1">
 					{children}
@@ -265,53 +266,64 @@ export function TeamScreen() {
 			</div>
 
 			{team.length > 0 ? (
-				<ul className="overflow-hidden rounded-2xl bg-surface px-4 ring-1 ring-line">
-					{team.map((view) => {
-						const isExpanded = expanded.has(view.member.userId);
-						const hasRows = GROUPS.some(
-							(grouping) => grouping.rows(view.today).length > 0,
-						);
-						return (
-							<MemberRow
-								key={view.member.userId}
-								view={view}
-								currentUserId={me.user.id}
-								expanded={isExpanded}
-								onToggle={() => toggleMember(view.member.userId)}
-							>
-								{hasRows ? (
-									GROUPS.map((grouping) => {
-										const groupRows = grouping.rows(view.today);
-										if (groupRows.length === 0) return null;
-										return (
-											<section key={grouping.title} className="pt-3 first:pt-4">
-												<h3 className="mb-1 text-[12px] font-semibold text-text-2">
-													{grouping.title}
-												</h3>
-												<TaskRows
-													member={view}
-													rows={groupRows}
-													currentUserId={me.user.id}
-													events={events}
-													now={now}
-													onNudge={(taskId) => void nudge(taskId)}
-												/>
-											</section>
-										);
-									})
-								) : (
-									<p className="py-4 text-[14px] text-text-2">
-										No tasks to show.
-									</p>
-								)}
-							</MemberRow>
-						);
-					})}
-				</ul>
+				<Card className="gap-0 rounded-2xl p-0 ring-line">
+					<CardContent className="px-4 py-0">
+						<ul>
+							{team.map((view) => {
+								const isExpanded = expanded.has(view.member.userId);
+								const hasRows = GROUPS.some(
+									(grouping) => grouping.rows(view.today).length > 0,
+								);
+								return (
+									<MemberRow
+										key={view.member.userId}
+										view={view}
+										currentUserId={me.user.id}
+										expanded={isExpanded}
+										onToggle={() => toggleMember(view.member.userId)}
+									>
+										{hasRows ? (
+											GROUPS.map((grouping) => {
+												const groupRows = grouping.rows(view.today);
+												if (groupRows.length === 0) return null;
+												return (
+													<section
+														key={grouping.title}
+														className="pt-3 first:pt-4"
+													>
+														<h3 className="mb-1 text-[12px] font-semibold text-text-2">
+															{grouping.title}
+														</h3>
+														<TaskRows
+															member={view}
+															rows={groupRows}
+															currentUserId={me.user.id}
+															events={events}
+															now={now}
+															onNudge={(taskId) => void nudge(taskId)}
+														/>
+													</section>
+												);
+											})
+										) : (
+											<p className="py-4 text-[14px] text-text-2">
+												No tasks to show.
+											</p>
+										)}
+									</MemberRow>
+								);
+							})}
+						</ul>
+					</CardContent>
+				</Card>
 			) : (
-				<p className="rounded-2xl bg-surface px-4 py-5 text-[14px] text-text-2 ring-1 ring-line">
-					No group members yet.
-				</p>
+				<Empty className="rounded-2xl border-0 bg-surface px-4 py-5 ring-1 ring-line">
+					<EmptyHeader>
+						<EmptyTitle className="text-[15px] font-semibold">
+							No group members yet.
+						</EmptyTitle>
+					</EmptyHeader>
+				</Empty>
 			)}
 
 			<InviteSheet

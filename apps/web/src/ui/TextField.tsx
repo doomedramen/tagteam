@@ -1,11 +1,18 @@
-import { type InputHTMLAttributes, type Ref, useId } from "react";
+import { type InputHTMLAttributes, useId } from "react";
+import {
+	Field,
+	FieldDescription,
+	FieldError,
+	FieldGroup,
+	FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { cx } from "../lib/cx";
 
 export interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
 	label: string;
 	error?: string;
 	hint?: string;
-	ref?: Ref<HTMLInputElement>;
 }
 
 export function TextField({
@@ -14,33 +21,40 @@ export function TextField({
 	hint,
 	id,
 	className,
-	ref,
 	...rest
 }: TextFieldProps) {
 	const autoId = useId();
 	const inputId = id ?? autoId;
 	const note = error ?? hint;
 	return (
-		<div className={cx("flex flex-col gap-1.5", className)}>
-			<label htmlFor={inputId} className="text-[13px] font-medium text-text-2">
-				{label}
-			</label>
-			<input
-				ref={ref}
-				id={inputId}
-				aria-invalid={error ? true : undefined}
-				aria-describedby={note ? `${inputId}-note` : undefined}
-				{...rest}
-				className="min-h-12 rounded-xl bg-surface px-3.5 text-base text-text outline-none ring-1 ring-line placeholder:text-text-3 focus:ring-2 focus:ring-accent aria-invalid:ring-danger"
-			/>
-			{note ? (
-				<p
-					id={`${inputId}-note`}
-					className={cx("text-[13px]", error ? "text-danger" : "text-text-3")}
+		<FieldGroup className="gap-1.5">
+			<Field data-invalid={error ? true : undefined} className="gap-1.5">
+				<FieldLabel
+					htmlFor={inputId}
+					className="text-[13px] font-medium text-text-2"
 				>
-					{note}
-				</p>
-			) : null}
-		</div>
+					{label}
+				</FieldLabel>
+				<Input
+					id={inputId}
+					aria-invalid={error ? true : undefined}
+					aria-describedby={note ? `${inputId}-note` : undefined}
+					{...rest}
+					className={cx(
+						"min-h-12 rounded-xl border-0 bg-surface px-3.5 text-base text-text ring-1 ring-line placeholder:text-text-3 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent aria-invalid:ring-danger",
+						className,
+					)}
+				/>
+				{error ? (
+					<FieldError id={`${inputId}-note`} className="text-[13px]">
+						{error}
+					</FieldError>
+				) : hint ? (
+					<FieldDescription id={`${inputId}-note`} className="text-[13px]">
+						{hint}
+					</FieldDescription>
+				) : null}
+			</Field>
+		</FieldGroup>
 	);
 }

@@ -1,5 +1,18 @@
 import { Bell, BellOff } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+	Field,
+	FieldContent,
+	FieldDescription,
+	FieldError,
+	FieldGroup,
+	FieldLabel,
+	FieldLegend,
+	FieldSet,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { ApiError, apiFetch } from "../../lib/api";
 import { browserTimeZone } from "../../lib/time";
 import { useSession } from "../../session/session";
@@ -216,122 +229,138 @@ export function NotificationSettings() {
 				</p>
 			) : error || !status ? (
 				<div className="flex items-center justify-between gap-3">
-					<p role="alert" className="text-[14px] text-danger">
+					<FieldError className="text-[14px]">
 						Couldn't load notification settings.
-					</p>
+					</FieldError>
 					<Button onClick={() => void refresh()}>Retry</Button>
 				</div>
 			) : !status.configured ? (
-				<p className="rounded-2xl bg-surface px-4 py-3 text-[14px] text-text-2 ring-1 ring-line">
-					Push notifications are not configured on this server yet.
-				</p>
+				<Card className="gap-0 rounded-2xl py-0 ring-line">
+					<CardContent className="px-4 py-3 text-[14px] text-text-2">
+						Push notifications are not configured on this server yet.
+					</CardContent>
+				</Card>
 			) : (
-				<div className="flex flex-col gap-3 rounded-2xl bg-surface p-4 ring-1 ring-line">
-					{!supported() ? (
-						<p className="text-[14px] text-text-2">
-							This browser does not support push notifications.
-						</p>
-					) : !window.isSecureContext ? (
-						<p className="text-[14px] text-text-2">
-							Push notifications require a secure connection.
-						</p>
-					) : needsIosHomeScreen() ? (
-						<p className="text-[14px] text-text-2">
-							On iPhone or iPad, add TagTeam to your Home Screen to enable push.
-						</p>
-					) : !serviceWorkerReady ? (
-						<p className="text-[14px] text-text-2">
-							Open the installed TagTeam app to enable push on this device.
-						</p>
-					) : subscription ? (
-						<div className="flex items-center gap-3">
-							<Bell aria-hidden className="size-5 shrink-0 text-accent" />
-							<p className="min-w-0 flex-1 text-[14px]">
-								Push enabled on this device
+				<Card className="gap-3 rounded-2xl p-4 ring-line">
+					<CardContent className="flex flex-col gap-3 p-0">
+						{!supported() ? (
+							<p className="text-[14px] text-text-2">
+								This browser does not support push notifications.
 							</p>
-							<Button disabled={busy} onClick={() => void disable()}>
-								<BellOff aria-hidden className="size-4" />
-								Turn off
-							</Button>
-						</div>
-					) : (
-						<div className="flex items-center gap-3">
-							<BellOff aria-hidden className="size-5 shrink-0 text-text-2" />
-							<p className="min-w-0 flex-1 text-[14px] text-text-2">
-								Push is off on this device
+						) : !window.isSecureContext ? (
+							<p className="text-[14px] text-text-2">
+								Push notifications require a secure connection.
 							</p>
-							<Button disabled={busy} onClick={() => void enable()}>
-								Enable
-							</Button>
-						</div>
-					)}
-					{status.subscriptionCount > (subscription ? 1 : 0) ? (
-						<p className="text-[12px] text-text-3">
-							Also enabled on{" "}
-							{status.subscriptionCount - (subscription ? 1 : 0)} other devices.
-						</p>
-					) : null}
-					<div className="flex flex-col gap-3 border-t border-line pt-3">
-						<SettingToggle
-							label="Task reminders"
-							description="When tasks are due or overdue"
-							checked={status.settings.remindersEnabled}
-							disabled={busy}
-							onChange={(checked) =>
-								void updateSettings({ remindersEnabled: checked })
-							}
-						/>
-						<SettingToggle
-							label="Nudges from your team"
-							description="A teammate nudges you about a task"
-							checked={status.settings.nudgesEnabled}
-							disabled={busy}
-							onChange={(checked) =>
-								void updateSettings({ nudgesEnabled: checked })
-							}
-						/>
-						<div className="flex flex-col gap-2">
-							<p className="text-[14px] font-medium">Quiet hours</p>
-							<div className="flex items-center gap-2 text-[13px] text-text-2">
-								<label htmlFor="quiet-hours-start">From</label>
-								<TimeInput
-									id="quiet-hours-start"
-									value={status.settings.quietHoursStart}
-									disabled={busy}
-									onSave={(value) =>
-										void updateSettings({ quietHoursStart: value })
-									}
-								/>
-								<label htmlFor="quiet-hours-end">to</label>
-								<TimeInput
-									id="quiet-hours-end"
-									value={status.settings.quietHoursEnd}
-									disabled={busy}
-									onSave={(value) =>
-										void updateSettings({ quietHoursEnd: value })
-									}
-								/>
-							</div>
-							<p className="text-[12px] text-text-3">
-								Reminders wait until quiet hours end. Nudges arrive right away.
+						) : needsIosHomeScreen() ? (
+							<p className="text-[14px] text-text-2">
+								On iPhone or iPad, add TagTeam to your Home Screen to enable
+								push.
 							</p>
-							<div className="flex flex-wrap items-center justify-between gap-2">
-								<p className="text-[12px] text-text-3">
-									Quiet hours use {me.profile.timezone}.
+						) : !serviceWorkerReady ? (
+							<p className="text-[14px] text-text-2">
+								Open the installed TagTeam app to enable push on this device.
+							</p>
+						) : subscription ? (
+							<div className="flex items-center gap-3">
+								<Bell aria-hidden className="size-5 shrink-0 text-accent" />
+								<p className="min-w-0 flex-1 text-[14px]">
+									Push enabled on this device
 								</p>
-								{me.profile.timezone !== browserTimeZone() ? (
-									<Button
-										className="min-h-9 px-3 text-[13px]"
-										disabled={savingTimezone}
-										onClick={() => void updateToDeviceTimezone()}
-									>
-										Use this device’s timezone
-									</Button>
-								) : null}
+								<Button disabled={busy} onClick={() => void disable()}>
+									<BellOff aria-hidden className="size-4" />
+									Turn off
+								</Button>
 							</div>
-						</div>
-					</div>
-				</div>
+						) : (
+							<div className="flex items-center gap-3">
+								<BellOff aria-hidden className="size-5 shrink-0 text-text-2" />
+								<p className="min-w-0 flex-1 text-[14px] text-text-2">
+									Push is off on this device
+								</p>
+								<Button disabled={busy} onClick={() => void enable()}>
+									Enable
+								</Button>
+							</div>
+						)}
+						{status.subscriptionCount > (subscription ? 1 : 0) ? (
+							<p className="text-[12px] text-text-3">
+								Also enabled on{" "}
+								{status.subscriptionCount - (subscription ? 1 : 0)} other
+								devices.
+							</p>
+						) : null}
+						<FieldGroup className="gap-3 border-t border-line pt-3">
+							<SettingToggle
+								label="Task reminders"
+								description="When tasks are due or overdue"
+								checked={status.settings.remindersEnabled}
+								disabled={busy}
+								onChange={(checked) =>
+									void updateSettings({ remindersEnabled: checked })
+								}
+							/>
+							<SettingToggle
+								label="Nudges from your team"
+								description="A teammate nudges you about a task"
+								checked={status.settings.nudgesEnabled}
+								disabled={busy}
+								onChange={(checked) =>
+									void updateSettings({ nudgesEnabled: checked })
+								}
+							/>
+							<FieldSet className="gap-2">
+								<FieldLegend variant="label" className="mb-0 text-[14px]">
+									Quiet hours
+								</FieldLegend>
+								<Field
+									orientation="horizontal"
+									className="flex-wrap gap-2 text-[13px] text-text-2"
+								>
+									<FieldLabel htmlFor="quiet-hours-start" className="w-auto">
+										From
+									</FieldLabel>
+									<TimeInput
+										id="quiet-hours-start"
+										value={status.settings.quietHoursStart}
+										disabled={busy}
+										onSave={(value) =>
+											void updateSettings({ quietHoursStart: value })
+										}
+									/>
+									<FieldLabel htmlFor="quiet-hours-end" className="w-auto">
+										to
+									</FieldLabel>
+									<TimeInput
+										id="quiet-hours-end"
+										value={status.settings.quietHoursEnd}
+										disabled={busy}
+										onSave={(value) =>
+											void updateSettings({ quietHoursEnd: value })
+										}
+									/>
+								</Field>
+								<p className="text-[12px] text-text-3">
+									Reminders wait until quiet hours end. Nudges arrive right
+									away.
+								</p>
+								<div className="flex flex-wrap items-center justify-between gap-2">
+									<p className="text-[12px] text-text-3">
+										Quiet hours use {me.profile.timezone}.
+									</p>
+									{me.profile.timezone !== browserTimeZone() ? (
+										<Button
+											className="min-h-9 px-3 text-[13px]"
+											disabled={savingTimezone}
+											onClick={() => void updateToDeviceTimezone()}
+										>
+											Use this device’s timezone
+										</Button>
+									) : null}
+								</div>
+							</FieldSet>
+						</FieldGroup>
+					</CardContent>
+				</Card>
 			)}
 		</section>
 	);
@@ -350,26 +379,25 @@ function SettingToggle({
 	disabled: boolean;
 	onChange: (checked: boolean) => void;
 }) {
+	const id = useId();
 	return (
-		<div className="flex items-center gap-3">
-			<div className="min-w-0 flex-1">
-				<p className="text-[14px] font-medium">{label}</p>
-				<p className="text-[12px] text-text-3">{description}</p>
-			</div>
-			<button
-				type="button"
-				role="switch"
+		<Field orientation="horizontal" className="items-center gap-3">
+			<FieldContent className="min-w-0 gap-0.5">
+				<FieldLabel htmlFor={id} className="w-auto text-[14px] font-medium">
+					{label}
+				</FieldLabel>
+				<FieldDescription className="text-[12px] text-text-3">
+					{description}
+				</FieldDescription>
+			</FieldContent>
+			<Switch
+				id={id}
 				aria-label={label}
-				aria-checked={checked}
+				checked={checked}
 				disabled={disabled}
-				onClick={() => onChange(!checked)}
-				className={`relative h-7 w-12 shrink-0 rounded-full p-1 transition-colors disabled:opacity-50 ${checked ? "bg-accent" : "bg-surface-2 ring-1 ring-line"}`}
-			>
-				<span
-					className={`block size-5 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-5" : "translate-x-0"}`}
-				/>
-			</button>
-		</div>
+				onCheckedChange={onChange}
+			/>
+		</Field>
 	);
 }
 
@@ -387,7 +415,7 @@ function TimeInput({
 	const [draft, setDraft] = useState(value);
 	useEffect(() => setDraft(value), [value]);
 	return (
-		<input
+		<Input
 			id={id}
 			type="time"
 			value={draft}
@@ -396,7 +424,7 @@ function TimeInput({
 			onBlur={(event) => {
 				if (event.target.value !== value) onSave(event.target.value);
 			}}
-			className="min-h-11 rounded-xl bg-bg px-3 text-[14px] text-text ring-1 ring-line focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50"
+			className="min-h-11 w-auto bg-bg px-3 text-base text-text disabled:opacity-50"
 		/>
 	);
 }

@@ -15,6 +15,9 @@ export default defineConfig({
 			injectionPoint: "self.__SW_MANIFEST",
 		}),
 	],
+	resolve: {
+		alias: { "@": new URL("./src", import.meta.url).pathname },
+	},
 	server: {
 		port: 5173,
 		// The API server (apps/server) runs on 3000 in development.

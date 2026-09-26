@@ -1,6 +1,8 @@
 import type { InviteDto } from "@tagteam/core";
 import { Copy, Share2, UserRoundPlus, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
 import { ApiError, apiFetch, OfflineError } from "../../lib/api";
 import { Button } from "../../ui/Button";
 import { Sheet } from "../../ui/Sheet";
@@ -141,55 +143,57 @@ export function InviteSheet({
 						Codes work once and expire after seven days.
 					</p>
 				</div>
-				<button
-					type="button"
+				<Button
+					variant="ghost"
 					aria-label="Close invite sheet"
 					onClick={onClose}
-					className="flex size-11 items-center justify-center rounded-full text-text-2 active:bg-surface-2"
+					className="size-11 rounded-full px-0 text-text-2"
 				>
 					<X aria-hidden className="size-5" />
-				</button>
+				</Button>
 			</div>
 
 			{latest ? (
-				<div className="mb-4 rounded-2xl bg-accent-soft p-4">
-					<div className="flex items-center gap-2 text-[13px] font-medium text-text-2">
-						<UserRoundPlus aria-hidden className="size-4" />
-						New single-use code
-					</div>
-					<p className="mt-2 font-mono text-3xl font-semibold tracking-[0.18em] text-text">
-						{latest.code}
-					</p>
-					<p className="mt-1 text-[13px] text-text-2">
-						{expiresIn(latest.expiresAt, now)}
-					</p>
-					<div className="mt-3 flex gap-2">
-						<Button block onClick={() => void copy(latest.code)}>
-							<Copy aria-hidden className="size-4" />
-							Copy code
+				<Card className="mb-4 gap-0 rounded-2xl border-0 bg-accent-soft p-4 shadow-none ring-0">
+					<CardContent className="p-0">
+						<div className="flex items-center gap-2 text-[13px] font-medium text-text-2">
+							<UserRoundPlus aria-hidden className="size-4" />
+							New single-use code
+						</div>
+						<p className="mt-2 font-mono text-3xl font-semibold tracking-[0.18em] text-text">
+							{latest.code}
+						</p>
+						<p className="mt-1 text-[13px] text-text-2">
+							{expiresIn(latest.expiresAt, now)}
+						</p>
+						<div className="mt-3 flex gap-2">
+							<Button block onClick={() => void copy(latest.code)}>
+								<Copy aria-hidden className="size-4" />
+								Copy code
+							</Button>
+							<Button block onClick={() => void share(latest.code)}>
+								<Share2 aria-hidden className="size-4" />
+								Share
+							</Button>
+						</div>
+						<Button
+							variant="danger"
+							block
+							className="mt-2"
+							busy={revoking === latest.code}
+							disabled={revoking !== null}
+							onClick={() => void revoke(latest.code)}
+						>
+							Revoke code
 						</Button>
-						<Button block onClick={() => void share(latest.code)}>
-							<Share2 aria-hidden className="size-4" />
-							Share
-						</Button>
-					</div>
-					<Button
-						variant="danger"
-						block
-						className="mt-2"
-						busy={revoking === latest.code}
-						disabled={revoking !== null}
-						onClick={() => void revoke(latest.code)}
-					>
-						Revoke code
-					</Button>
-				</div>
+					</CardContent>
+				</Card>
 			) : null}
 
 			{error ? (
-				<p role="alert" className="mb-3 text-[14px] text-danger">
-					{error}
-				</p>
+				<Alert variant="destructive" className="mb-3">
+					<AlertDescription>{error}</AlertDescription>
+				</Alert>
 			) : null}
 
 			<Button
@@ -208,34 +212,38 @@ export function InviteSheet({
 				{loading ? (
 					<p className="mt-2 text-[14px] text-text-2">Loading codes…</p>
 				) : pendingInvites.length > 0 ? (
-					<ul className="mt-2 divide-y divide-line rounded-2xl bg-surface ring-1 ring-line">
-						{pendingInvites.map((invite) => (
-							<li
-								key={invite.code}
-								className="flex min-h-14 items-center gap-3 px-3 py-2"
-							>
-								<span className="font-mono text-[17px] font-semibold tracking-wider">
-									{invite.code}
-								</span>
-								<span className="min-w-0 flex-1 text-[13px] text-text-2">
-									{expiresIn(invite.expiresAt, now)}
-								</span>
-								<button
-									type="button"
-									aria-label={`Revoke code ${invite.code}`}
-									className="flex size-11 shrink-0 items-center justify-center rounded-full text-danger active:bg-danger-soft disabled:opacity-50"
-									disabled={revoking !== null}
-									onClick={() => void revoke(invite.code)}
-								>
-									{revoking === invite.code ? (
-										<span className="sr-only">Revoking</span>
-									) : (
-										<X aria-hidden className="size-5" />
-									)}
-								</button>
-							</li>
-						))}
-					</ul>
+					<Card className="mt-2 gap-0 rounded-2xl p-0 ring-line">
+						<CardContent className="p-0">
+							<ul className="divide-y divide-line">
+								{pendingInvites.map((invite) => (
+									<li
+										key={invite.code}
+										className="flex min-h-14 items-center gap-3 px-3 py-2"
+									>
+										<span className="font-mono text-[17px] font-semibold tracking-wider">
+											{invite.code}
+										</span>
+										<span className="min-w-0 flex-1 text-[13px] text-text-2">
+											{expiresIn(invite.expiresAt, now)}
+										</span>
+										<Button
+											variant="ghost"
+											aria-label={`Revoke code ${invite.code}`}
+											className="size-11 shrink-0 rounded-full px-0 text-danger hover:bg-danger-soft"
+											disabled={revoking !== null}
+											onClick={() => void revoke(invite.code)}
+										>
+											{revoking === invite.code ? (
+												<span className="sr-only">Revoking</span>
+											) : (
+												<X aria-hidden className="size-5" />
+											)}
+										</Button>
+									</li>
+								))}
+							</ul>
+						</CardContent>
+					</Card>
 				) : (
 					<p className="mt-2 text-[14px] text-text-2">
 						{latest ? "No other pending codes." : "No pending codes."}

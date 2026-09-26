@@ -1,6 +1,7 @@
 import { KeyRound } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { Link } from "react-router";
+import { FieldError } from "@/components/ui/field";
 import { authClient } from "../../lib/auth";
 import { Button } from "../../ui/Button";
 import { TextField } from "../../ui/TextField";
@@ -91,9 +92,7 @@ export function SignInScreen() {
 					onChange={(event) => setPassword(event.target.value)}
 				/>
 				{error ? (
-					<p role="alert" className="text-[14px] text-danger">
-						{error}
-					</p>
+					<FieldError className="text-[14px]">{error}</FieldError>
 				) : null}
 				<Button
 					type="submit"

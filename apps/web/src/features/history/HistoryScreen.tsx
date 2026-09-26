@@ -3,6 +3,13 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { BellRing, CircleAlert, CircleCheck, Clock3, Plus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
+import { Card, CardContent } from "@/components/ui/card";
+import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldLabel } from "@/components/ui/field";
+import {
+	NativeSelect,
+	NativeSelectOption,
+} from "@/components/ui/native-select";
 import {
 	browserTimeZone,
 	dayBounds,
@@ -73,24 +80,33 @@ function MemberFilter({
 	onChange: (value: string) => void;
 }) {
 	return (
-		<label className="flex min-h-11 items-center gap-2 rounded-xl bg-surface px-3 ring-1 ring-line focus-within:ring-2 focus-within:ring-accent">
-			<span className="shrink-0 text-[13px] text-text-2">Member</span>
-			<select
-				aria-label="Filter by member"
-				className="min-w-0 flex-1 bg-transparent text-[14px] font-medium text-text outline-none"
+		<Field
+			orientation="horizontal"
+			className="min-h-11 w-full min-w-0 max-w-[180px] flex-1 items-center gap-2 rounded-xl bg-surface px-3 ring-1 ring-line focus-within:ring-2 focus-within:ring-accent"
+		>
+			<FieldLabel
+				htmlFor="history-member"
+				className="w-auto shrink-0 text-[13px] text-text-2"
+			>
+				Member
+			</FieldLabel>
+			<NativeSelect
+				id="history-member"
+				className="min-w-0 flex-1"
+				selectClassName="h-11 w-full min-w-0 border-0 bg-transparent px-0 text-base font-medium text-text ring-0"
 				value={value}
 				onChange={(event) => onChange(event.target.value)}
 			>
-				<option value="all">All members</option>
+				<NativeSelectOption value="all">All members</NativeSelectOption>
 				{[...members]
 					.sort((a, b) => a.displayName.localeCompare(b.displayName))
 					.map((member) => (
-						<option key={member.userId} value={member.userId}>
+						<NativeSelectOption key={member.userId} value={member.userId}>
 							{member.displayName}
-						</option>
+						</NativeSelectOption>
 					))}
-			</select>
-		</label>
+			</NativeSelect>
+		</Field>
 	);
 }
 
@@ -163,40 +179,48 @@ export function HistoryScreen() {
 							<h2 className="mb-2 text-[14px] font-semibold text-text-2">
 								{dayLabel(day.date, now)}
 							</h2>
-							<ul className="overflow-hidden rounded-2xl bg-surface px-4 ring-1 ring-line">
-								{day.items.map((item) => (
-									<li
-										key={item.id}
-										className="flex min-h-16 items-start gap-3 border-b border-line py-3 last:border-0"
-									>
-										<span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-2">
-											<ActivityIcon item={item} />
-										</span>
-										<div className="min-w-0 flex-1">
-											<p className="text-[14px] font-medium leading-5">
-												<Link
-													to={`/tasks/${item.taskId}`}
-													className="rounded-sm focus-visible:outline-2 focus-visible:outline-accent"
-												>
-													{activityText(item, me.user.id)}
-												</Link>
-											</p>
-											<p className="mt-1 text-[12px] text-text-2">
-												{formatTime(item.at)}
-											</p>
-										</div>
-									</li>
-								))}
-							</ul>
+							<Card className="gap-0 rounded-2xl p-0 ring-line">
+								<CardContent className="px-4 py-0">
+									<ul>
+										{day.items.map((item) => (
+											<li
+												key={item.id}
+												className="flex min-h-16 items-start gap-3 border-b border-line py-3 last:border-0"
+											>
+												<span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-2">
+													<ActivityIcon item={item} />
+												</span>
+												<div className="min-w-0 flex-1">
+													<p className="text-[14px] font-medium leading-5">
+														<Link
+															to={`/tasks/${item.taskId}`}
+															className="rounded-sm focus-visible:outline-2 focus-visible:outline-accent"
+														>
+															{activityText(item, me.user.id)}
+														</Link>
+													</p>
+													<p className="mt-1 text-[12px] text-text-2">
+														{formatTime(item.at)}
+													</p>
+												</div>
+											</li>
+										))}
+									</ul>
+								</CardContent>
+							</Card>
 						</section>
 					))}
 				</div>
 			) : (
-				<p className="rounded-2xl bg-surface px-4 py-5 text-[14px] text-text-2 ring-1 ring-line">
-					{selectedName
-						? `No activity for ${selectedName} yet.`
-						: "No group activity yet."}
-				</p>
+				<Empty className="rounded-2xl border-0 bg-surface px-4 py-5 ring-1 ring-line">
+					<EmptyHeader>
+						<EmptyTitle className="text-[15px] font-semibold">
+							{selectedName
+								? `No activity for ${selectedName} yet.`
+								: "No group activity yet."}
+						</EmptyTitle>
+					</EmptyHeader>
+				</Empty>
 			)}
 		</div>
 	);

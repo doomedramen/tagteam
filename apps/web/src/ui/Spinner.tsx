@@ -1,8 +1,13 @@
-export function Spinner() {
+import type { ComponentProps } from "react";
+import { Spinner as ShadcnSpinner } from "@/components/ui/spinner";
+
+export function Spinner(props: ComponentProps<typeof ShadcnSpinner>) {
 	return (
-		<span
-			aria-hidden
-			className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+		<ShadcnSpinner
+			aria-hidden="true"
+			role="presentation"
+			aria-label={undefined}
+			{...props}
 		/>
 	);
 }

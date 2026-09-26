@@ -1,5 +1,7 @@
 import { type FormEvent, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldError } from "@/components/ui/field";
 import { ApiError, apiFetch, OfflineError } from "../../lib/api";
 import { useSession } from "../../session/session";
 import { Button } from "../../ui/Button";
@@ -81,9 +83,7 @@ export function WelcomeScreen() {
 	};
 	const errorFor = (form: "create" | "join") =>
 		error?.form === form ? (
-			<p role="alert" className="text-[14px] text-danger">
-				{error.message}
-			</p>
+			<FieldError className="text-[14px]">{error.message}</FieldError>
 		) : null;
 
 	return (
@@ -105,61 +105,67 @@ export function WelcomeScreen() {
 				</p>
 			</div>
 			{mode !== "join" ? (
-				<form
-					onSubmit={create}
-					className="flex flex-col gap-3 rounded-2xl bg-surface p-4 ring-1 ring-line"
-				>
-					<h2 className="font-semibold">Create a group</h2>
-					<TextField
-						label="Group name"
-						placeholder="Smith family"
-						maxLength={40}
-						required
-						value={name}
-						onChange={(event) => setName(event.target.value)}
-					/>
-					{errorFor("create")}
-					<Button
-						type="submit"
-						variant="primary"
-						block
-						busy={busy === "create"}
-						disabled={busy !== null}
-					>
-						Create group
-					</Button>
+				<form onSubmit={create}>
+					<Card className="gap-3 rounded-2xl p-4 ring-line">
+						<CardHeader className="p-0">
+							<CardTitle className="font-semibold">Create a group</CardTitle>
+						</CardHeader>
+						<CardContent className="flex flex-col gap-3 p-0">
+							<TextField
+								label="Group name"
+								placeholder="Smith family"
+								maxLength={40}
+								required
+								value={name}
+								onChange={(event) => setName(event.target.value)}
+							/>
+							{errorFor("create")}
+							<Button
+								type="submit"
+								variant="primary"
+								block
+								busy={busy === "create"}
+								disabled={busy !== null}
+							>
+								Create group
+							</Button>
+						</CardContent>
+					</Card>
 				</form>
 			) : null}
 			{mode !== "create" ? (
-				<form
-					onSubmit={join}
-					className="flex flex-col gap-3 rounded-2xl bg-surface p-4 ring-1 ring-line"
-				>
-					<h2 className="font-semibold">Join with a code</h2>
-					<TextField
-						label="Invite code"
-						inputMode="numeric"
-						autoComplete="one-time-code"
-						pattern="\d{6}"
-						maxLength={6}
-						placeholder="123456"
-						required
-						value={code}
-						onChange={(event) =>
-							setCode(event.target.value.replace(/\D/g, "").slice(0, 6))
-						}
-						hint="Ask someone in the group for a 6-digit code."
-					/>
-					{errorFor("join")}
-					<Button
-						type="submit"
-						variant={mode === "join" ? "primary" : "secondary"}
-						block
-						busy={busy === "join"}
-						disabled={busy !== null}
-					>
-						Join group
-					</Button>
+				<form onSubmit={join}>
+					<Card className="gap-3 rounded-2xl p-4 ring-line">
+						<CardHeader className="p-0">
+							<CardTitle className="font-semibold">Join with a code</CardTitle>
+						</CardHeader>
+						<CardContent className="flex flex-col gap-3 p-0">
+							<TextField
+								label="Invite code"
+								inputMode="numeric"
+								autoComplete="one-time-code"
+								pattern="\d{6}"
+								maxLength={6}
+								placeholder="123456"
+								required
+								value={code}
+								onChange={(event) =>
+									setCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+								}
+								hint="Ask someone in the group for a 6-digit code."
+							/>
+							{errorFor("join")}
+							<Button
+								type="submit"
+								variant={mode === "join" ? "primary" : "secondary"}
+								block
+								busy={busy === "join"}
+								disabled={busy !== null}
+							>
+								Join group
+							</Button>
+						</CardContent>
+					</Card>
 				</form>
 			) : null}
 		</div>

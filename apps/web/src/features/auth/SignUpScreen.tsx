@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { Link } from "react-router";
+import { FieldError } from "@/components/ui/field";
 import { authClient } from "../../lib/auth";
 import { Button } from "../../ui/Button";
 import { TextField } from "../../ui/TextField";
@@ -78,9 +79,7 @@ export function SignUpScreen() {
 					error={tooShort ? "At least 10 characters" : undefined}
 				/>
 				{error ? (
-					<p role="alert" className="text-[14px] text-danger">
-						{error}
-					</p>
+					<FieldError className="text-[14px]">{error}</FieldError>
 				) : null}
 				<Button
 					type="submit"

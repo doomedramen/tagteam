@@ -12,6 +12,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { Button } from "../ui/Button";
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
@@ -173,13 +174,13 @@ function AppUpdateNotice() {
 				className="mx-auto flex min-h-14 max-w-md items-center gap-3 bg-warning-soft px-4 text-[14px] text-warning"
 			>
 				<span className="min-w-0 flex-1">A new version is available.</span>
-				<button
-					type="button"
+				<Button
+					variant="ghost"
 					onClick={applyUpdate}
-					className="min-h-11 rounded-lg px-2 font-semibold underline-offset-2 hover:underline"
+					className="min-h-11 rounded-lg px-2 font-semibold text-warning underline-offset-2 hover:bg-warning-soft hover:text-warning hover:underline"
 				>
 					Reload
-				</button>
+				</Button>
 			</div>
 		</div>
 	);

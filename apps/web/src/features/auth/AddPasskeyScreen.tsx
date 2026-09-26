@@ -1,6 +1,7 @@
 import { Fingerprint } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { FieldError } from "@/components/ui/field";
 import { authClient } from "../../lib/auth";
 import { Button } from "../../ui/Button";
 import { AuthLayout } from "./SignInScreen";
@@ -36,9 +37,7 @@ export function AddPasskeyScreen() {
 				Use Face ID, Touch ID or your screen lock instead of typing a password.
 			</p>
 			{error ? (
-				<p role="alert" className="text-center text-[14px] text-danger">
-					{error}
-				</p>
+				<FieldError className="text-center text-[14px]">{error}</FieldError>
 			) : null}
 			<Button
 				variant="primary"

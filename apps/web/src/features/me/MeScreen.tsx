@@ -1,6 +1,17 @@
 import { Fingerprint, LogOut, Pencil, X } from "lucide-react";
-import type { FormEvent } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Field,
+	FieldError,
+	FieldGroup,
+	FieldLabel,
+	FieldLegend,
+	FieldSet,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { apiFetch } from "../../lib/api";
 import { authClient } from "../../lib/auth";
 import { useSession } from "../../session/session";
@@ -87,73 +98,99 @@ export function MeScreen() {
 				) : null}
 			</div>
 			{editingProfile ? (
-				<form
-					onSubmit={(event) => void saveProfile(event)}
-					className="flex flex-col gap-4 rounded-2xl bg-surface p-4 ring-1 ring-line"
-				>
-					<div className="flex items-center justify-between">
-						<h2 className="text-[15px] font-semibold">Edit profile</h2>
-						<Button
-							aria-label="Cancel profile edit"
-							variant="ghost"
-							className="size-10 px-0"
-							onClick={cancelProfileEdit}
-						>
-							<X aria-hidden className="size-4" />
-						</Button>
-					</div>
-					<div className="flex flex-col gap-1.5">
-						<label htmlFor="profile-name" className="text-[13px] text-text-2">
-							Display name
-						</label>
-						<input
-							id="profile-name"
-							value={displayName}
-							maxLength={40}
-							autoComplete="name"
-							onChange={(event) => setDisplayName(event.target.value)}
-							className="min-h-11 rounded-xl bg-bg px-3 ring-1 ring-line focus:outline-none focus:ring-2 focus:ring-accent"
-						/>
-					</div>
-					<fieldset>
-						<legend className="mb-2 text-[13px] text-text-2">
-							Avatar color
-						</legend>
-						<div className="flex flex-wrap gap-3">
-							{[
-								"blue",
-								"green",
-								"amber",
-								"coral",
-								"purple",
-								"teal",
-								"pink",
-								"gray",
-							].map((color) => (
-								<button
-									key={color}
+				<form onSubmit={(event) => void saveProfile(event)}>
+					<Card className="gap-4 rounded-2xl p-4 ring-line">
+						<CardHeader className="flex flex-row items-center justify-between p-0">
+							<CardTitle className="text-[15px] font-semibold">
+								Edit profile
+							</CardTitle>
+							<Button
+								aria-label="Cancel profile edit"
+								variant="ghost"
+								className="size-10 px-0"
+								onClick={cancelProfileEdit}
+							>
+								<X aria-hidden className="size-4" />
+							</Button>
+						</CardHeader>
+						<CardContent className="flex flex-col gap-4 p-0">
+							<FieldGroup className="gap-4">
+								<Field className="gap-1.5">
+									<FieldLabel
+										htmlFor="profile-name"
+										className="text-[13px] text-text-2"
+									>
+										Display name
+									</FieldLabel>
+									<Input
+										id="profile-name"
+										value={displayName}
+										maxLength={40}
+										autoComplete="name"
+										onChange={(event) => setDisplayName(event.target.value)}
+										className="min-h-11 bg-bg"
+									/>
+								</Field>
+								<FieldSet className="gap-2">
+									<FieldLegend
+										variant="label"
+										className="mb-0 text-[13px] text-text-2"
+									>
+										Avatar color
+									</FieldLegend>
+									<ToggleGroup
+										value={[avatarColor]}
+										aria-label="Avatar color"
+										onValueChange={([value]) => value && setAvatarColor(value)}
+										className="flex-wrap justify-start gap-3 rounded-none"
+									>
+										{[
+											"blue",
+											"green",
+											"amber",
+											"coral",
+											"purple",
+											"teal",
+											"pink",
+											"gray",
+										].map((color) => (
+											<ToggleGroupItem
+												key={color}
+												value={color}
+												aria-label={`${color} avatar color`}
+												style={
+													{
+														"--avatar-color": `var(--av-${color})`,
+													} as CSSProperties
+												}
+												className={`avatar-${color} size-9 rounded-full p-0 ring-2 ring-offset-2 ring-offset-surface hover:opacity-90 data-[state=on]:bg-(--avatar-color) data-[state=off]:bg-(--avatar-color) data-[state=on]:ring-accent data-[state=off]:ring-transparent`}
+											>
+												<span className="sr-only">{color}</span>
+											</ToggleGroupItem>
+										))}
+									</ToggleGroup>
+								</FieldSet>
+							</FieldGroup>
+							<div className="flex gap-2">
+								<Button
 									type="button"
-									aria-label={`${color} avatar color`}
-									aria-pressed={avatarColor === color}
-									onClick={() => setAvatarColor(color)}
-									className={`avatar-${color} size-9 rounded-full ring-2 ring-offset-2 ring-offset-surface ${avatarColor === color ? "ring-accent" : "ring-transparent"}`}
-								/>
-							))}
-						</div>
-					</fieldset>
-					<div className="flex gap-2">
-						<Button
-							type="button"
-							variant="secondary"
-							block
-							onClick={cancelProfileEdit}
-						>
-							Cancel
-						</Button>
-						<Button type="submit" variant="primary" block busy={savingProfile}>
-							Save profile
-						</Button>
-					</div>
+									variant="secondary"
+									block
+									onClick={cancelProfileEdit}
+								>
+									Cancel
+								</Button>
+								<Button
+									type="submit"
+									variant="primary"
+									block
+									busy={savingProfile}
+								>
+									Save profile
+								</Button>
+							</div>
+						</CardContent>
+					</Card>
 				</form>
 			) : null}
 			<NotificationSettings />
@@ -164,21 +201,23 @@ export function MeScreen() {
 					</p>
 				) : passkeyQuery.error ? (
 					<div className="flex items-center justify-between gap-3">
-						<p role="alert" className="text-[14px] text-danger">
+						<FieldError className="text-[14px]">
 							Couldn't load passkey status.
-						</p>
+						</FieldError>
 						<Button onClick={() => void passkeyQuery.refetch()}>Retry</Button>
 					</div>
 				) : passkeys.length > 0 ? (
-					<div className="rounded-2xl bg-surface px-4 py-3 ring-1 ring-line">
-						<p className="font-medium">
-							{passkeys.length} {passkeys.length === 1 ? "passkey" : "passkeys"}{" "}
-							added
-						</p>
-						<p className="mt-1 text-[13px] text-text-2">
-							You can use {passkeys.length === 1 ? "it" : "them"} to sign in.
-						</p>
-					</div>
+					<Card className="gap-0 rounded-2xl py-0 ring-line">
+						<CardContent className="px-4 py-3">
+							<p className="font-medium">
+								{passkeys.length}{" "}
+								{passkeys.length === 1 ? "passkey" : "passkeys"} added
+							</p>
+							<p className="mt-1 text-[13px] text-text-2">
+								You can use {passkeys.length === 1 ? "it" : "them"} to sign in.
+							</p>
+						</CardContent>
+					</Card>
 				) : null}
 				{!passkeyQuery.isPending && !passkeyQuery.error ? (
 					<Button

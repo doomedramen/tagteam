@@ -1,3 +1,4 @@
+import { AvatarFallback, Avatar as ShadcnAvatar } from "@/components/ui/avatar";
 import { cx } from "../lib/cx";
 
 const initials = (name: string) =>
@@ -18,15 +19,20 @@ export function Avatar({
 	size?: "sm" | "md";
 }) {
 	return (
-		<span
-			aria-hidden
-			className={cx(
-				`avatar-${color}`,
-				"inline-flex shrink-0 items-center justify-center rounded-full font-semibold",
-				size === "sm" ? "size-7 text-[11px]" : "size-9 text-[13px]",
-			)}
+		<ShadcnAvatar
+			aria-hidden="true"
+			size={size === "sm" ? "sm" : "default"}
+			className={size === "sm" ? "size-7" : "size-9"}
 		>
-			{initials(name)}
-		</span>
+			<AvatarFallback
+				className={cx(
+					`avatar-${color}`,
+					"font-semibold",
+					size === "sm" ? "text-[11px]" : "text-[13px]",
+				)}
+			>
+				{initials(name)}
+			</AvatarFallback>
+		</ShadcnAvatar>
 	);
 }

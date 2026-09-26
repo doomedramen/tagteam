@@ -1,15 +1,12 @@
-import { Drawer } from "@base-ui/react/drawer";
+import { Drawer as DrawerPrimitives } from "@base-ui/react/drawer";
 import { X } from "lucide-react";
+import { type ReactNode, useCallback, useLayoutEffect, useRef } from "react";
 import {
-	type KeyboardEvent,
-	type ReactNode,
-	useCallback,
-	useLayoutEffect,
-	useRef,
-} from "react";
-
-const FOCUSABLE_SELECTOR =
-	'a[href], button:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+	Drawer,
+	DrawerClose,
+	DrawerContent,
+	DrawerTitle,
+} from "@/components/ui/drawer";
 
 /** Bottom sheet dialog. Closes on backdrop tap, Escape, close button, or swipe. */
 export function Sheet({
@@ -36,12 +33,18 @@ export function Sheet({
 					? document.activeElement
 					: null;
 
-			const coarsePointer = window.matchMedia?.("(pointer: coarse)").matches;
-			const touchDevice = coarsePointer || navigator.maxTouchPoints > 0;
-			const preferred = popup.querySelector<HTMLElement>(
+			const touchDevice =
+				window.matchMedia?.("(pointer: coarse)").matches ||
+				navigator.maxTouchPoints > 0;
+			const content = popup.querySelector<HTMLElement>(
+				'[data-slot="sheet-body"]',
+			);
+			const preferred = content?.querySelector<HTMLElement>(
 				"[autofocus], [data-autofocus]",
 			);
-			const first = popup.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+			const first = content?.querySelector<HTMLElement>(
+				'a[href], button:not([disabled]):not([tabindex="-1"]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+			);
 			(touchDevice ? popup : (preferred ?? first ?? popup)).focus({
 				preventScroll: true,
 			});
@@ -55,66 +58,40 @@ export function Sheet({
 		if (target && document.contains(target))
 			target.focus({ preventScroll: true });
 	}, [open]);
-	const trapTab = (event: KeyboardEvent<HTMLDivElement>) => {
-		if (event.key !== "Tab") return;
-		const popup = popupRef.current;
-		if (!popup) return;
-		const focusable = Array.from(
-			popup.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-		);
-		if (focusable.length === 0) {
-			event.preventDefault();
-			popup.focus();
-			return;
-		}
-		const first = focusable[0];
-		const last = focusable[focusable.length - 1];
-		if (event.shiftKey && document.activeElement === first) {
-			event.preventDefault();
-			last?.focus();
-		} else if (!event.shiftKey && document.activeElement === last) {
-			event.preventDefault();
-			first?.focus();
-		}
-	};
 
 	return (
-		<Drawer.Root
-			open={open}
-			onOpenChange={(nextOpen) => {
-				if (!nextOpen) onClose();
-			}}
-		>
-			<Drawer.VirtualKeyboardProvider>
-				<Drawer.Portal>
-					<Drawer.Backdrop className="sheet-backdrop" />
-					<Drawer.Viewport className="sheet-viewport">
-						<Drawer.Popup
-							ref={setPopupRef}
-							className="sheet-popup"
-							initialFocus={false}
-							onKeyDown={trapTab}
-						>
-							<div className="sheet-header">
-								<div aria-hidden className="sheet-handle" />
-								{showCloseButton ? (
-									<Drawer.Close
-										aria-label="Close"
-										tabIndex={-1}
-										className="sheet-close"
-									>
-										<X aria-hidden className="size-4" />
-									</Drawer.Close>
-								) : null}
-							</div>
-							<Drawer.Title className="sr-only">{label}</Drawer.Title>
-							<Drawer.Content className="sheet-scroll">
-								{children}
-							</Drawer.Content>
-						</Drawer.Popup>
-					</Drawer.Viewport>
-				</Drawer.Portal>
-			</Drawer.VirtualKeyboardProvider>
-		</Drawer.Root>
+		<DrawerPrimitives.VirtualKeyboardProvider>
+			<Drawer
+				open={open}
+				onOpenChange={(nextOpen) => {
+					if (!nextOpen) onClose();
+				}}
+				showSwipeHandle
+			>
+				<DrawerContent
+					ref={setPopupRef}
+					initialFocus={false}
+					className="w-full max-h-[92dvh] rounded-t-3xl border-line bg-surface pb-[max(1rem,calc(env(safe-area-inset-bottom)-var(--drawer-keyboard-inset,0px)))] shadow-2xl"
+				>
+					<div className="flex min-h-11 shrink-0 items-center justify-end px-4 pt-1">
+						{showCloseButton ? (
+							<DrawerClose
+								aria-label="Close"
+								className="flex size-11 items-center justify-center rounded-full text-text-2 hover:bg-surface-2"
+							>
+								<X aria-hidden className="size-4" />
+							</DrawerClose>
+						) : null}
+					</div>
+					<DrawerTitle className="sr-only">{label}</DrawerTitle>
+					<div
+						data-slot="sheet-body"
+						className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-1 pt-1 [scrollbar-width:none] [-webkit-overflow-scrolling:touch]"
+					>
+						{children}
+					</div>
+				</DrawerContent>
+			</Drawer>
+		</DrawerPrimitives.VirtualKeyboardProvider>
 	);
 }
