@@ -87,3 +87,7 @@ decisions that matter are summarised below.
 
 - Production push needs stable `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` values.
 - `deriveTask` re-runs for every task on each 30 s tick; measure before optimizing if histories grow.
+- iOS 27 Safari PWAs cannot reliably play scripted haptic patterns. The current `web-haptics`
+  fallback uses scripted switch clicks, which recent iOS versions may ignore. A directly tapped
+  native switch gives one tick but currently interferes with scrolling in WebKit; keep visual
+  hold feedback until WebKit exposes a reliable API or fixes that interaction.

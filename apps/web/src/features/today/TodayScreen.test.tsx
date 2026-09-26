@@ -13,6 +13,7 @@ vi.mock("../../ui/haptics", () => ({
 	cancelTaskHoldHaptics: vi.fn(),
 	startTaskHoldHapticRamp: vi.fn(),
 	fireTaskSuccessHaptic: vi.fn(),
+	fireTaskUndoHaptic: vi.fn(),
 }));
 
 import {
@@ -60,8 +61,9 @@ describe("TodayScreen", () => {
 		const engine = fakeEngine();
 		renderWithSession(<TodayScreen />, { store, engine });
 
-		await userEvent.click(
+		fireEvent.click(
 			await screen.findByRole("button", { name: "Complete Brush teeth" }),
+			{ detail: 0 },
 		);
 		expect(engine.enqueue).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -123,7 +125,8 @@ describe("TodayScreen", () => {
 				});
 				vi.advanceTimersByTime(1000);
 			});
-			expect(fill).toHaveAttribute("d", expect.stringContaining("L 0 50"));
+			expect(fill?.getAttribute("d")).toContain("C ");
+			expect(fill?.getAttribute("d")).not.toContain("M 0 100 C");
 			expect(engine.enqueue).not.toHaveBeenCalled();
 			expect(startTaskHoldHapticRamp).toHaveBeenCalledWith("complete", 2000);
 
@@ -180,7 +183,7 @@ describe("TodayScreen", () => {
 				fireEvent.click(button, { detail: 1 });
 			});
 			expect(engine.enqueue).not.toHaveBeenCalled();
-			expect(fill).toHaveAttribute("d", expect.stringContaining("L 0 100"));
+			expect(fill).toHaveAttribute("d", expect.stringContaining("M 0 100"));
 			expect(cancelTaskHoldHaptics).toHaveBeenCalled();
 
 			await act(async () => {
@@ -223,7 +226,7 @@ describe("TodayScreen", () => {
 				});
 			});
 			expect(engine.enqueue).not.toHaveBeenCalled();
-			expect(fill).toHaveAttribute("d", expect.stringContaining("L 0 100"));
+			expect(fill).toHaveAttribute("d", expect.stringContaining("M 0 100"));
 		} finally {
 			vi.useRealTimers();
 		}
@@ -282,7 +285,7 @@ describe("TodayScreen", () => {
 			});
 			expect(fill).toHaveAttribute(
 				"class",
-				expect.stringContaining("fill-danger/15"),
+				expect.stringContaining("fill-danger/25"),
 			);
 			expect(fill).toHaveStyle({ opacity: "0" });
 			expect(engine.enqueue).not.toHaveBeenCalled();
@@ -292,14 +295,14 @@ describe("TodayScreen", () => {
 				vi.advanceTimersByTime(150);
 			});
 			expect(fill).toHaveStyle({ opacity: "1" });
-			expect(fill).toHaveAttribute("d", expect.stringContaining("L 0 0"));
+			expect(fill).toHaveAttribute("d", expect.stringContaining("M 0 0"));
 
 			await act(async () => {
 				vi.advanceTimersByTime(2350);
 			});
 			const drainingPath = fill?.getAttribute("d");
-			expect(drainingPath).not.toContain("L 0 0");
-			expect(drainingPath).not.toContain("L 0 100");
+			expect(drainingPath).not.toContain("M 0 0 C");
+			expect(drainingPath).not.toContain("M 0 100 C");
 			expect(engine.enqueue).not.toHaveBeenCalled();
 
 			await act(async () => {

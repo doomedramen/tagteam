@@ -1,7 +1,8 @@
 import { type Vibration, WebHaptics } from "web-haptics";
 
-const PULSE_COUNT = 5;
-const PULSE_DURATION_MS = 20;
+const COMPLETE_PULSE_INTERVAL_MS = 125;
+const UNDO_PULSE_INTERVAL_MS = 200;
+const PULSE_DURATION_MS = 35;
 
 let haptics: WebHaptics | null = null;
 
@@ -14,16 +15,18 @@ export function startTaskHoldHapticRamp(
 	action: "complete" | "undo",
 	durationMs: number,
 ) {
-	const intervalMs = (durationMs * 0.9) / (PULSE_COUNT - 1);
-	const intensities =
-		action === "complete"
-			? [0.2, 0.35, 0.5, 0.7, 0.9]
-			: [0.9, 0.7, 0.5, 0.35, 0.2];
-	const pattern: Vibration[] = intensities.map((intensity, index) => ({
-		...(index > 0 ? { delay: intervalMs - PULSE_DURATION_MS } : {}),
-		duration: PULSE_DURATION_MS,
-		intensity,
-	}));
+	const intervalMs =
+		action === "complete" ? COMPLETE_PULSE_INTERVAL_MS : UNDO_PULSE_INTERVAL_MS;
+	const count = Math.max(2, Math.floor(durationMs / intervalMs));
+	const pattern: Vibration[] = Array.from({ length: count }, (_, index) => {
+		const progress = index / (count - 1);
+		return {
+			...(index > 0 ? { delay: intervalMs - PULSE_DURATION_MS } : {}),
+			duration: PULSE_DURATION_MS,
+			intensity:
+				action === "complete" ? 0.3 + progress * 0.7 : 1 - progress * 0.7,
+		};
+	});
 
 	void getHaptics()
 		.trigger(pattern)
@@ -37,5 +40,11 @@ export function cancelTaskHoldHaptics() {
 export function fireTaskSuccessHaptic() {
 	void getHaptics()
 		.trigger("success")
+		.catch(() => {});
+}
+
+export function fireTaskUndoHaptic() {
+	void getHaptics()
+		.trigger("light")
 		.catch(() => {});
 }

@@ -5,6 +5,7 @@ import { readFlag, writeFlag } from "../../lib/storage";
 import { dayBounds, useNow } from "../../lib/time";
 import { useSession } from "../../session/session";
 import { fireScreenConfettiCannon } from "../../ui/confetti";
+import { fireTaskUndoHaptic } from "../../ui/haptics";
 import { useToast } from "../../ui/Toast";
 import { buildToday, type TodayRow } from "./model";
 import { TodayList } from "./TodayList";
@@ -68,7 +69,10 @@ export function TodayScreen() {
 		inFlight.current.add(key);
 		try {
 			if (row.kind === "done") {
-				if (row.completionId) await uncomplete(row.task.id, row.completionId);
+				if (row.completionId) {
+					await uncomplete(row.task.id, row.completionId);
+					fireTaskUndoHaptic();
+				}
 				return;
 			}
 			const id = crypto.randomUUID();

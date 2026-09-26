@@ -33,23 +33,29 @@ const REDUCED_MOTION_PROGRESS_INTERVAL_MS = 100;
 const HOLD_MOVEMENT_TOLERANCE_PX = 20;
 const UNCOMPLETE_FADE_IN_MS = 150;
 
-type HoldFill = { amount: number; opacity: number };
+type HoldFill = { amount: number; opacity: number; phase: number };
 
-function holdFillPath(progress: number) {
+function waveTopPath(progress: number, phase: number) {
 	const amount = Math.min(1, Math.max(0, progress));
 	const top = (1 - amount) * 100;
-	const amplitude = 8 * Math.min(1, amount * 4, (1 - amount) * 4);
-	const crest = top + amplitude;
-	const trough = top - amplitude;
-	return [
-		"M 0 100",
-		`L 0 ${top}`,
-		`C 138 ${top} 250 ${crest} 250 ${crest}`,
-		`C 388 ${crest} 500 ${top} 500 ${top}`,
-		`C 638 ${top} 750 ${trough} 750 ${trough}`,
-		`C 888 ${trough} 1000 ${top} 1000 ${top}`,
-		"L 1000 100 Z",
-	].join(" ");
+	const amplitude = 3 * Math.min(1, amount * 4, (1 - amount) * 4);
+	const segmentWidth = 125;
+	const angleAt = (x: number) => (x / 1000) * Math.PI * 4 + phase;
+	const yAt = (x: number) => top + amplitude * Math.sin(angleAt(x));
+	const slopeAt = (x: number) =>
+		(amplitude * Math.PI * 4 * Math.cos(angleAt(x))) / 1000;
+	const path = [`M 0 ${yAt(0)}`];
+	for (let x = 0; x < 1000; x += segmentWidth) {
+		const next = x + segmentWidth;
+		path.push(
+			`C ${x + segmentWidth / 3} ${yAt(x) + (slopeAt(x) * segmentWidth) / 3} ${next - segmentWidth / 3} ${yAt(next) - (slopeAt(next) * segmentWidth) / 3} ${next} ${yAt(next)}`,
+		);
+	}
+	return path.join(" ");
+}
+
+function holdFillPath(progress: number, phase: number) {
+	return `${waveTopPath(progress, phase)} L 1000 100 L 0 100 Z`;
 }
 
 type ActiveHold = {
@@ -58,6 +64,7 @@ type ActiveHold = {
 	durationMs: number;
 	startX: number;
 	startY: number;
+	reducedMotion: boolean;
 	interval: ReturnType<typeof setInterval> | null;
 };
 
@@ -87,6 +94,9 @@ function CheckCircle({
 			aria-label={
 				done ? `Undo ${row.task.title}` : `Complete ${row.task.title}`
 			}
+			aria-description={
+				done ? "Hold for 5 seconds to undo" : "Hold for 2 seconds to complete"
+			}
 			aria-pressed={done}
 			onClick={onClick}
 			onPointerDown={onPointerDown}
@@ -94,7 +104,7 @@ function CheckCircle({
 			onPointerUp={onPointerUp}
 			onPointerCancel={onPointerCancel}
 			onLostPointerCapture={onLostPointerCapture}
-			className="-m-2 relative size-11 shrink-0 touch-pan-y rounded-full p-0 text-text-2 hover:bg-surface-2 active:scale-90"
+			className="-m-2 relative size-11 shrink-0 touch-pan-y rounded-full p-0 text-text-2 hover:bg-surface-2"
 		>
 			{done && celebrating ? <ConfettiBurst /> : null}
 			<span
@@ -125,16 +135,20 @@ function Row({
 }) {
 	const done = row.kind === "done";
 	const hold = useRef<ActiveHold | null>(null);
-	const suppressTouchClick = useRef(false);
-	const suppressTouchClickTimer = useRef<ReturnType<typeof setTimeout> | null>(
-		null,
-	);
-	const [holdFill, setHoldFill] = useState<HoldFill>({ amount: 0, opacity: 0 });
-	const clearTouchClickSuppression = () => {
-		suppressTouchClick.current = false;
-		if (suppressTouchClickTimer.current) {
-			clearTimeout(suppressTouchClickTimer.current);
-			suppressTouchClickTimer.current = null;
+	const suppressPointerClick = useRef(false);
+	const suppressPointerClickTimer = useRef<ReturnType<
+		typeof setTimeout
+	> | null>(null);
+	const [holdFill, setHoldFill] = useState<HoldFill>({
+		amount: 0,
+		opacity: 0,
+		phase: 0,
+	});
+	const clearPointerClickSuppression = () => {
+		suppressPointerClick.current = false;
+		if (suppressPointerClickTimer.current) {
+			clearTimeout(suppressPointerClickTimer.current);
+			suppressPointerClickTimer.current = null;
 		}
 	};
 	const cancelHold = (pointerId?: number) => {
@@ -146,24 +160,28 @@ function Row({
 			return;
 		if (activeHold.interval !== null) clearInterval(activeHold.interval);
 		hold.current = null;
-		setHoldFill({ amount: 0, opacity: 0 });
+		setHoldFill({ amount: 0, opacity: 0, phase: 0 });
 		cancelTaskHoldHaptics();
 	};
 	const completeHold = (activeHold: ActiveHold) => {
 		if (hold.current !== activeHold) return;
 		if (activeHold.interval !== null) clearInterval(activeHold.interval);
 		hold.current = null;
-		setHoldFill(done ? { amount: 0, opacity: 0 } : { amount: 1, opacity: 1 });
+		setHoldFill(
+			done
+				? { amount: 0, opacity: 0, phase: 0 }
+				: { amount: 1, opacity: 1, phase: 0 },
+		);
 		cancelTaskHoldHaptics();
 		onToggle(row);
 	};
 	const updateHold = (activeHold: ActiveHold) => {
 		if (hold.current !== activeHold) return;
-		const progress = Math.min(
-			1,
-			(Date.now() - activeHold.startedAt) / activeHold.durationMs,
-		);
 		const elapsedMs = Date.now() - activeHold.startedAt;
+		const progress = Math.min(1, elapsedMs / activeHold.durationMs);
+		const phase = activeHold.reducedMotion
+			? 0
+			: (elapsedMs / 900) * Math.PI * 2;
 		const uncompleteDrain = Math.min(
 			1,
 			Math.max(
@@ -177,25 +195,26 @@ function Row({
 				? {
 						amount: 1 - uncompleteDrain,
 						opacity: Math.min(1, elapsedMs / UNCOMPLETE_FADE_IN_MS),
+						phase,
 					}
-				: { amount: progress, opacity: 1 },
+				: { amount: progress, opacity: 1, phase },
 		);
 		if (progress >= 1) completeHold(activeHold);
 	};
 	const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-		if (event.pointerType !== "touch") {
-			clearTouchClickSuppression();
-			return;
-		}
+		if (event.button !== 0) return;
 		if (hold.current) return;
 
-		suppressTouchClick.current = true;
-		if (suppressTouchClickTimer.current)
-			clearTimeout(suppressTouchClickTimer.current);
-		suppressTouchClickTimer.current = setTimeout(
-			clearTouchClickSuppression,
+		suppressPointerClick.current = true;
+		if (suppressPointerClickTimer.current)
+			clearTimeout(suppressPointerClickTimer.current);
+		suppressPointerClickTimer.current = setTimeout(
+			clearPointerClickSuppression,
 			UNCOMPLETE_HOLD_MS + 1000,
 		);
+		const reducedMotion =
+			typeof window.matchMedia === "function" &&
+			window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 		const activeHold: ActiveHold = {
 			pointerId: event.pointerId,
@@ -203,17 +222,23 @@ function Row({
 			durationMs: done ? UNCOMPLETE_HOLD_MS : COMPLETE_HOLD_MS,
 			startX: event.clientX,
 			startY: event.clientY,
+			reducedMotion,
 			interval: null,
 		};
 		hold.current = activeHold;
-		setHoldFill(done ? { amount: 1, opacity: 0 } : { amount: 0, opacity: 1 });
+		setHoldFill(
+			done
+				? { amount: 1, opacity: 0, phase: 0 }
+				: { amount: 0, opacity: 1, phase: 0 },
+		);
 		startTaskHoldHapticRamp(done ? "undo" : "complete", activeHold.durationMs);
-		event.currentTarget.setPointerCapture?.(event.pointerId);
+		try {
+			event.currentTarget.setPointerCapture?.(event.pointerId);
+		} catch {
+			// The hold still works if the browser cannot capture this pointer.
+		}
 
-		const prefersReducedMotion =
-			typeof window.matchMedia === "function" &&
-			window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-		const intervalMs = prefersReducedMotion
+		const intervalMs = reducedMotion
 			? REDUCED_MOTION_PROGRESS_INTERVAL_MS
 			: HOLD_PROGRESS_INTERVAL_MS;
 		activeHold.interval = setInterval(() => updateHold(activeHold), intervalMs);
@@ -237,16 +262,17 @@ function Row({
 	};
 	const onClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
 		if (event.detail === 0) {
-			clearTouchClickSuppression();
+			clearPointerClickSuppression();
 			onToggle(row);
 			return;
 		}
-		if (suppressTouchClick.current) {
+		if (suppressPointerClick.current) {
 			event.preventDefault();
 			event.stopPropagation();
-			clearTouchClickSuppression();
+			clearPointerClickSuppression();
 			return;
 		}
+		// Assistive technology can dispatch a click without pointer events.
 		onToggle(row);
 	};
 	useEffect(
@@ -256,13 +282,13 @@ function Row({
 					clearInterval(hold.current.interval);
 				cancelTaskHoldHaptics();
 			}
-			if (suppressTouchClickTimer.current)
-				clearTimeout(suppressTouchClickTimer.current);
+			if (suppressPointerClickTimer.current)
+				clearTimeout(suppressPointerClickTimer.current);
 		},
 		[],
 	);
 	return (
-		<li className="relative overflow-hidden touch-pan-y">
+		<li className="-mx-4 relative overflow-hidden px-4 touch-pan-y">
 			<svg
 				aria-hidden="true"
 				data-hold-fill
@@ -271,8 +297,16 @@ function Row({
 				preserveAspectRatio="none"
 			>
 				<path
-					className={done ? "fill-danger/15" : "fill-success/15"}
-					d={holdFillPath(holdFill.amount)}
+					className={done ? "fill-danger/25" : "fill-success/25"}
+					d={holdFillPath(holdFill.amount, holdFill.phase)}
+					style={{ opacity: holdFill.opacity }}
+				/>
+				<path
+					data-wave-edge
+					className={done ? "stroke-danger/60" : "stroke-success/60"}
+					d={waveTopPath(holdFill.amount, holdFill.phase)}
+					fill="none"
+					strokeWidth="2"
 					style={{ opacity: holdFill.opacity }}
 				/>
 			</svg>
@@ -338,7 +372,7 @@ function Section({
 	return (
 		<section aria-label={title} className="mt-5">
 			<h2 className="mb-1 text-[13px] font-medium text-text-2">{title}</h2>
-			<Card className="gap-0 rounded-2xl p-0 ring-line">
+			<Card className="gap-0 overflow-hidden rounded-2xl p-0 ring-line">
 				<CardContent className="px-4 py-0">
 					<ul>
 						{rows.map((row) => (

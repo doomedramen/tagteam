@@ -108,7 +108,7 @@ function ToastAction({
 		<ToastPrimitive.Action
 			data-slot="toast-action"
 			render={render}
-			className={cn("shrink-0", className)}
+			className={cn("shrink-0 text-text", className)}
 			{...props}
 		/>
 	);

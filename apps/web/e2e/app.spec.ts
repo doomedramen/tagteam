@@ -45,11 +45,58 @@ test("sign up, create a group, add and complete tasks, keep working offline", as
 	await page.reload();
 	await expect(page.getByRole("button", { name: /E2E family/ })).toBeVisible();
 
-	await page.getByRole("button", { name: "Complete Brush teeth" }).click();
+	const completeButton = page.getByRole("button", {
+		name: "Complete Brush teeth",
+	});
+	await completeButton.click();
+	await expect(completeButton).toBeVisible();
+	const completeBox = await completeButton.boundingBox();
+	if (!completeBox) throw new Error("Completion button has no visible bounds");
+	await page.mouse.move(
+		completeBox.x + completeBox.width / 2,
+		completeBox.y + completeBox.height / 2,
+	);
+	await page.mouse.down();
+	await page.waitForTimeout(700);
+	const wave = completeButton
+		.locator("xpath=ancestor::li")
+		.locator("[data-wave-edge]");
+	const firstWave = await wave.getAttribute("d");
+	await page.waitForTimeout(120);
+	expect(await wave.getAttribute("d")).not.toBe(firstWave);
+	await page.waitForTimeout(1300);
+	await page.mouse.up();
 	await expect(
 		page.getByRole("button", { name: "Undo Brush teeth" }),
 	).toBeVisible();
 	await expect(page.getByText("Offline · 1 queued")).toBeVisible();
+
+	const undoButton = page.getByRole("button", { name: "Undo Brush teeth" });
+	const undoBox = await undoButton.boundingBox();
+	if (!undoBox) throw new Error("Undo button has no visible bounds");
+	await page.mouse.move(
+		undoBox.x + undoBox.width / 2,
+		undoBox.y + undoBox.height / 2,
+	);
+	await page.mouse.down();
+	await page.waitForTimeout(2500);
+	await expect(undoButton).toBeVisible();
+	await page.waitForTimeout(2600);
+	await page.mouse.up();
+	await expect(completeButton).toBeVisible();
+	await expect(page.getByText("Offline · 2 queued")).toBeVisible();
+
+	const completeAgainBox = await completeButton.boundingBox();
+	if (!completeAgainBox)
+		throw new Error("Completion button has no visible bounds");
+	await page.mouse.move(
+		completeAgainBox.x + completeAgainBox.width / 2,
+		completeAgainBox.y + completeAgainBox.height / 2,
+	);
+	await page.mouse.down();
+	await page.waitForTimeout(2100);
+	await page.mouse.up();
+	await expect(page.getByText("Offline · 3 queued")).toBeVisible();
 
 	await context.setOffline(false);
 	await page.evaluate(() => window.dispatchEvent(new Event("online")));
