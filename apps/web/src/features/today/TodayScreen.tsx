@@ -72,7 +72,6 @@ export function TodayScreen() {
 				return;
 			}
 			const id = crypto.randomUUID();
-			navigator.vibrate?.(10);
 			await engine.enqueue({
 				id,
 				at: Date.now(),
