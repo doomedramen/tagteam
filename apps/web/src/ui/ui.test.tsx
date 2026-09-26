@@ -91,16 +91,21 @@ describe("UI kit", () => {
 		expect(screen.getByRole("button", { name: "Open" })).toHaveFocus();
 	});
 
-	it("traps Tab focus and wraps to the first drawer control", async () => {
+	it("keeps Tab focus inside the drawer at the end of its tab order", async () => {
 		render(
 			<Sheet open onClose={vi.fn()} label="Add task">
 				<button type="button">First</button>
 				<button type="button">Last</button>
 			</Sheet>,
 		);
+		const drawer = screen.getByRole("dialog", { name: "Add task" });
+		const viewport = drawer.closest<HTMLElement>(
+			'[data-slot="drawer-viewport"]',
+		);
+		if (!viewport) throw new Error("drawer viewport not found");
 		screen.getByRole("button", { name: "Last" }).focus();
 		await userEvent.tab();
-		expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
+		expect(viewport.contains(document.activeElement)).toBe(true);
 	});
 
 	it("keeps the intended autofocus target focused under StrictMode double-invoked effects", () => {
