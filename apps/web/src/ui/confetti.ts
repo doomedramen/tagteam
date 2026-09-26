@@ -1,5 +1,4 @@
 import confetti from "canvas-confetti";
-import { fireTaskSuccessHaptic } from "./haptics";
 
 function themeColors() {
 	const styles = getComputedStyle(document.documentElement);
@@ -9,7 +8,6 @@ function themeColors() {
 }
 
 export function fireScreenConfettiCannon() {
-	fireTaskSuccessHaptic();
 	const shared = {
 		particleCount: 36,
 		spread: 26,

@@ -184,7 +184,7 @@ the add-task sheet. All tap targets ≥ 44 px. Respect safe-area insets; light +
   untimed; completed items sink to bottom, struck through with "Done 07:42").
 - **Upcoming hidden by default** behind a "Show upcoming" toggle at list end (state remembered
   per device).
-- Tap circle = complete (haptic + check animation + 5 s "Undo" toast). Swipe right = complete.
+- Tap circle = complete (check animation + 5 s "Undo" toast). Swipe right = complete.
   Tap row = task detail/history. Recurring tasks show a small repeat icon.
 - Empty state: "Add your first task" + (+) hint.
 

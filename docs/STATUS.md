@@ -82,12 +82,10 @@ decisions that matter are summarised below.
 - A sync requested while a run is failing is not retried immediately; triggers (online, visibility,
   60 s timer, SSE poke) retry.
 - Today computes "done today" in the browser's timezone; tasks carry their own timezone.
+- Task completion uses visual hold feedback and confetti. Haptics are omitted because iOS PWA
+  scripted switch clicks are unreliable.
 
 ## Remaining follow-ups
 
 - Production push needs stable `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` values.
 - `deriveTask` re-runs for every task on each 30 s tick; measure before optimizing if histories grow.
-- iOS 27 Safari PWAs cannot reliably play scripted haptic patterns. The current `web-haptics`
-  fallback uses scripted switch clicks, which recent iOS versions may ignore. A directly tapped
-  native switch gives one tick but currently interferes with scrolling in WebKit; keep visual
-  hold feedback until WebKit exposes a reliable API or fixes that interaction.

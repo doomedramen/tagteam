@@ -19,10 +19,6 @@ import { Progress } from "@/components/ui/progress";
 import { cx } from "../../lib/cx";
 import { Button } from "../../ui/Button";
 import { ConfettiBurst } from "../../ui/ConfettiBurst";
-import {
-	cancelTaskHoldHaptics,
-	startTaskHoldHapticRamp,
-} from "../../ui/haptics";
 import { rowLabel } from "./labels";
 import type { TodayRow, TodayView } from "./model";
 
@@ -191,7 +187,6 @@ function Row({
 		if (activeHold.interval !== null) clearInterval(activeHold.interval);
 		hold.current = null;
 		setHoldFill({ amount: 0, phase: 0, shape: 0, cycles: 2, visible: false });
-		cancelTaskHoldHaptics();
 	};
 	const completeHold = (activeHold: ActiveHold) => {
 		if (hold.current !== activeHold) return;
@@ -202,7 +197,6 @@ function Row({
 				? { amount: 0, phase: 0, shape: 0, cycles: 2, visible: false }
 				: { amount: 1, phase: 0, shape: 0, cycles: 2, visible: true },
 		);
-		cancelTaskHoldHaptics();
 		onToggle(row);
 	};
 	const updateHold = (activeHold: ActiveHold) => {
@@ -284,7 +278,6 @@ function Row({
 						visible: true,
 					},
 		);
-		startTaskHoldHapticRamp(done ? "undo" : "complete", activeHold.durationMs);
 		try {
 			event.currentTarget.setPointerCapture?.(event.pointerId);
 		} catch {
@@ -333,7 +326,6 @@ function Row({
 			if (hold.current) {
 				if (hold.current.interval !== null)
 					clearInterval(hold.current.interval);
-				cancelTaskHoldHaptics();
 			}
 			if (suppressPointerClickTimer.current)
 				clearTimeout(suppressPointerClickTimer.current);

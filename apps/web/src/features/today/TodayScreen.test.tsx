@@ -9,17 +9,6 @@ import { TodayScreen } from "./TodayScreen";
 vi.mock("../../ui/confetti", () => ({
 	fireScreenConfettiCannon: vi.fn(),
 }));
-vi.mock("../../ui/haptics", () => ({
-	cancelTaskHoldHaptics: vi.fn(),
-	startTaskHoldHapticRamp: vi.fn(),
-	fireTaskSuccessHaptic: vi.fn(),
-	fireTaskUndoHaptic: vi.fn(),
-}));
-
-import {
-	cancelTaskHoldHaptics,
-	startTaskHoldHapticRamp,
-} from "../../ui/haptics";
 
 const today = new Date();
 const iso = (d: Date) => d.toLocaleDateString("en-CA");
@@ -132,7 +121,6 @@ describe("TodayScreen", () => {
 			expect(fill?.getAttribute("d")).toContain("C ");
 			expect(fill?.getAttribute("d")).not.toContain("M 0 100 C");
 			expect(engine.enqueue).not.toHaveBeenCalled();
-			expect(startTaskHoldHapticRamp).toHaveBeenCalledWith("complete", 2000);
 
 			await act(async () => {
 				vi.advanceTimersByTime(1000);
@@ -188,7 +176,6 @@ describe("TodayScreen", () => {
 			});
 			expect(engine.enqueue).not.toHaveBeenCalled();
 			expect(fill).toHaveAttribute("d", expect.stringContaining("M 0 100"));
-			expect(cancelTaskHoldHaptics).toHaveBeenCalled();
 
 			await act(async () => {
 				fireEvent.pointerDown(button, {
@@ -306,7 +293,7 @@ describe("TodayScreen", () => {
 		expect(engine.enqueue).not.toHaveBeenCalled();
 	});
 
-	it("requires a 2-second hold and fades haptics to uncomplete", async () => {
+	it("requires a 2-second hold and visually drains to uncomplete", async () => {
 		await store.tasks.put(brushTeeth);
 		await store.events.put({
 			id: "e1",
@@ -342,7 +329,6 @@ describe("TodayScreen", () => {
 			expect(fill?.closest("svg")).not.toHaveClass("hidden");
 			expect(fill).not.toHaveStyle({ opacity: "0" });
 			expect(engine.enqueue).not.toHaveBeenCalled();
-			expect(startTaskHoldHapticRamp).toHaveBeenCalledWith("undo", 2000);
 
 			await act(async () => {
 				vi.advanceTimersByTime(150);
