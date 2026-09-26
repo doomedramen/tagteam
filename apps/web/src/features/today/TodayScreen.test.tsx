@@ -112,6 +112,10 @@ describe("TodayScreen", () => {
 		});
 		const fill = button.closest("li")?.querySelector("[data-hold-fill] path");
 		expect(fill).not.toBeNull();
+		expect(fill).toHaveAttribute(
+			"class",
+			expect.stringContaining("fill-success-soft"),
+		);
 
 		vi.useFakeTimers();
 		try {
@@ -232,6 +236,54 @@ describe("TodayScreen", () => {
 		}
 	});
 
+	it("starts each hold with a different shallow wave", async () => {
+		await store.tasks.put(brushTeeth);
+		renderWithSession(<TodayScreen />, { store });
+		const button = await screen.findByRole("button", {
+			name: "Complete Brush teeth",
+		});
+		const wave = button.closest("li")?.querySelector("[data-wave-edge]");
+		const random = vi
+			.spyOn(Math, "random")
+			.mockReturnValueOnce(0)
+			.mockReturnValueOnce(0)
+			.mockReturnValueOnce(0.25)
+			.mockReturnValueOnce(0.75)
+			.mockReturnValueOnce(0.5)
+			.mockReturnValueOnce(0.9);
+		vi.useFakeTimers();
+		try {
+			let firstWave = "";
+			for (const pointerId of [1, 2]) {
+				await act(async () => {
+					fireEvent.pointerDown(button, {
+						pointerId,
+						pointerType: "touch",
+						button: 0,
+						clientX: 12,
+						clientY: 12,
+					});
+					vi.advanceTimersByTime(500);
+				});
+				const path = wave?.getAttribute("d") ?? "";
+				if (pointerId === 1) firstWave = path;
+				else expect(path).not.toBe(firstWave);
+				await act(async () => {
+					fireEvent.pointerUp(button, {
+						pointerId,
+						pointerType: "touch",
+						button: 0,
+						clientX: 12,
+						clientY: 12,
+					});
+				});
+			}
+		} finally {
+			vi.useRealTimers();
+			random.mockRestore();
+		}
+	});
+
 	it("does not complete a task by swiping its row", async () => {
 		await store.tasks.put(brushTeeth);
 		const engine = fakeEngine();
@@ -285,16 +337,16 @@ describe("TodayScreen", () => {
 			});
 			expect(fill).toHaveAttribute(
 				"class",
-				expect.stringContaining("fill-danger/25"),
+				expect.stringContaining("fill-danger-soft"),
 			);
-			expect(fill).toHaveStyle({ opacity: "0" });
+			expect(fill?.closest("svg")).not.toHaveClass("hidden");
+			expect(fill).not.toHaveStyle({ opacity: "0" });
 			expect(engine.enqueue).not.toHaveBeenCalled();
 			expect(startTaskHoldHapticRamp).toHaveBeenCalledWith("undo", 5000);
 
 			await act(async () => {
 				vi.advanceTimersByTime(150);
 			});
-			expect(fill).toHaveStyle({ opacity: "1" });
 			expect(fill).toHaveAttribute("d", expect.stringContaining("M 0 0"));
 
 			await act(async () => {

@@ -1,4 +1,36 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
+
+function contrast(first: string, second: string) {
+	const luminance = (color: string) => {
+		const channels =
+			color
+				.match(/[\d.]+/g)
+				?.slice(0, 3)
+				.map(Number) ?? [];
+		const linear = channels.map((channel) => {
+			const value = channel / 255;
+			return value <= 0.04045
+				? value / 12.92
+				: ((value + 0.055) / 1.055) ** 2.4;
+		});
+		return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+	};
+	const a = luminance(first);
+	const b = luminance(second);
+	return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+async function expectOpaqueReadableFill(row: Locator, color: string) {
+	const fill = row.locator("[data-hold-fill] path").first();
+	await expect(fill).toHaveCSS("fill", color);
+	await expect(fill).toHaveCSS("opacity", "1");
+	for (const text of await row.locator("p").all()) {
+		const textColor = await text.evaluate(
+			(element) => getComputedStyle(element).color,
+		);
+		expect(contrast(color, textColor)).toBeGreaterThanOrEqual(4.5);
+	}
+}
 
 test("sign up, create a group, add and complete tasks, keep working offline", async ({
 	page,
@@ -43,6 +75,7 @@ test("sign up, create a group, add and complete tasks, keep working offline", as
 	await page.evaluate(() => navigator.serviceWorker.ready);
 	await context.setOffline(true);
 	await page.reload();
+	await page.emulateMedia({ colorScheme: "light" });
 	await expect(page.getByRole("button", { name: /E2E family/ })).toBeVisible();
 
 	const completeButton = page.getByRole("button", {
@@ -58,10 +91,12 @@ test("sign up, create a group, add and complete tasks, keep working offline", as
 	);
 	await page.mouse.down();
 	await page.waitForTimeout(700);
-	const wave = completeButton
-		.locator("xpath=ancestor::li")
-		.locator("[data-wave-edge]");
+	const completeRow = completeButton.locator("xpath=ancestor::li");
+	const wave = completeRow.locator("[data-wave-edge]");
 	const firstWave = await wave.getAttribute("d");
+	await expectOpaqueReadableFill(completeRow, "rgb(230, 243, 232)");
+	await page.emulateMedia({ colorScheme: "dark" });
+	await expectOpaqueReadableFill(completeRow, "rgb(27, 46, 30)");
 	await page.waitForTimeout(120);
 	expect(await wave.getAttribute("d")).not.toBe(firstWave);
 	await page.waitForTimeout(1300);
@@ -80,6 +115,10 @@ test("sign up, create a group, add and complete tasks, keep working offline", as
 	);
 	await page.mouse.down();
 	await page.waitForTimeout(2500);
+	const undoRow = undoButton.locator("xpath=ancestor::li");
+	await expectOpaqueReadableFill(undoRow, "rgb(58, 28, 28)");
+	await page.emulateMedia({ colorScheme: "light" });
+	await expectOpaqueReadableFill(undoRow, "rgb(251, 233, 233)");
 	await expect(undoButton).toBeVisible();
 	await page.waitForTimeout(2600);
 	await page.mouse.up();

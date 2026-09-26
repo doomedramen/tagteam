@@ -31,19 +31,39 @@ const UNCOMPLETE_HOLD_MS = 5000;
 const HOLD_PROGRESS_INTERVAL_MS = 25;
 const REDUCED_MOTION_PROGRESS_INTERVAL_MS = 100;
 const HOLD_MOVEMENT_TOLERANCE_PX = 20;
-const UNCOMPLETE_FADE_IN_MS = 150;
+const UNCOMPLETE_DRAIN_DELAY_MS = 150;
 
-type HoldFill = { amount: number; opacity: number; phase: number };
+type HoldFill = {
+	amount: number;
+	phase: number;
+	shape: number;
+	cycles: number;
+	visible: boolean;
+};
 
-function waveTopPath(progress: number, phase: number) {
+function waveTopPath(
+	progress: number,
+	phase: number,
+	shape: number,
+	cycles: number,
+) {
 	const amount = Math.min(1, Math.max(0, progress));
 	const top = (1 - amount) * 100;
 	const amplitude = 3 * Math.min(1, amount * 4, (1 - amount) * 4);
 	const segmentWidth = 125;
-	const angleAt = (x: number) => (x / 1000) * Math.PI * 4 + phase;
-	const yAt = (x: number) => top + amplitude * Math.sin(angleAt(x));
+	const angularRate = (Math.PI * 2 * cycles) / 1000;
+	const angleAt = (x: number) => x * angularRate + phase;
+	const yAt = (x: number) => {
+		const angle = angleAt(x);
+		return (
+			top +
+			(amplitude * (Math.sin(angle) + 0.35 * Math.sin(angle / 2 + shape))) /
+				1.35
+		);
+	};
 	const slopeAt = (x: number) =>
-		(amplitude * Math.PI * 4 * Math.cos(angleAt(x))) / 1000;
+		((amplitude * angularRate) / 1.35) *
+		(Math.cos(angleAt(x)) + 0.175 * Math.cos(angleAt(x) / 2 + shape));
 	const path = [`M 0 ${yAt(0)}`];
 	for (let x = 0; x < 1000; x += segmentWidth) {
 		const next = x + segmentWidth;
@@ -54,8 +74,13 @@ function waveTopPath(progress: number, phase: number) {
 	return path.join(" ");
 }
 
-function holdFillPath(progress: number, phase: number) {
-	return `${waveTopPath(progress, phase)} L 1000 100 L 0 100 Z`;
+function holdFillPath(
+	progress: number,
+	phase: number,
+	shape: number,
+	cycles: number,
+) {
+	return `${waveTopPath(progress, phase, shape, cycles)} L 1000 100 L 0 100 Z`;
 }
 
 type ActiveHold = {
@@ -65,6 +90,9 @@ type ActiveHold = {
 	startX: number;
 	startY: number;
 	reducedMotion: boolean;
+	phaseOffset: number;
+	shapeOffset: number;
+	cycles: number;
 	interval: ReturnType<typeof setInterval> | null;
 };
 
@@ -141,8 +169,10 @@ function Row({
 	> | null>(null);
 	const [holdFill, setHoldFill] = useState<HoldFill>({
 		amount: 0,
-		opacity: 0,
 		phase: 0,
+		shape: 0,
+		cycles: 2,
+		visible: false,
 	});
 	const clearPointerClickSuppression = () => {
 		suppressPointerClick.current = false;
@@ -160,7 +190,7 @@ function Row({
 			return;
 		if (activeHold.interval !== null) clearInterval(activeHold.interval);
 		hold.current = null;
-		setHoldFill({ amount: 0, opacity: 0, phase: 0 });
+		setHoldFill({ amount: 0, phase: 0, shape: 0, cycles: 2, visible: false });
 		cancelTaskHoldHaptics();
 	};
 	const completeHold = (activeHold: ActiveHold) => {
@@ -169,8 +199,8 @@ function Row({
 		hold.current = null;
 		setHoldFill(
 			done
-				? { amount: 0, opacity: 0, phase: 0 }
-				: { amount: 1, opacity: 1, phase: 0 },
+				? { amount: 0, phase: 0, shape: 0, cycles: 2, visible: false }
+				: { amount: 1, phase: 0, shape: 0, cycles: 2, visible: true },
 		);
 		cancelTaskHoldHaptics();
 		onToggle(row);
@@ -179,25 +209,33 @@ function Row({
 		if (hold.current !== activeHold) return;
 		const elapsedMs = Date.now() - activeHold.startedAt;
 		const progress = Math.min(1, elapsedMs / activeHold.durationMs);
-		const phase = activeHold.reducedMotion
-			? 0
-			: (elapsedMs / 900) * Math.PI * 2;
+		const phase =
+			activeHold.phaseOffset +
+			(activeHold.reducedMotion ? 0 : (elapsedMs / 900) * Math.PI * 2);
 		const uncompleteDrain = Math.min(
 			1,
 			Math.max(
 				0,
-				(elapsedMs - UNCOMPLETE_FADE_IN_MS) /
-					(activeHold.durationMs - UNCOMPLETE_FADE_IN_MS),
+				(elapsedMs - UNCOMPLETE_DRAIN_DELAY_MS) /
+					(activeHold.durationMs - UNCOMPLETE_DRAIN_DELAY_MS),
 			),
 		);
 		setHoldFill(
 			done
 				? {
 						amount: 1 - uncompleteDrain,
-						opacity: Math.min(1, elapsedMs / UNCOMPLETE_FADE_IN_MS),
 						phase,
+						shape: activeHold.shapeOffset,
+						cycles: activeHold.cycles,
+						visible: true,
 					}
-				: { amount: progress, opacity: 1, phase },
+				: {
+						amount: progress,
+						phase,
+						shape: activeHold.shapeOffset,
+						cycles: activeHold.cycles,
+						visible: true,
+					},
 		);
 		if (progress >= 1) completeHold(activeHold);
 	};
@@ -223,13 +261,28 @@ function Row({
 			startX: event.clientX,
 			startY: event.clientY,
 			reducedMotion,
+			phaseOffset: Math.random() * Math.PI * 2,
+			shapeOffset: Math.random() * Math.PI * 2,
+			cycles: 1.5 + Math.random() * 0.75,
 			interval: null,
 		};
 		hold.current = activeHold;
 		setHoldFill(
 			done
-				? { amount: 1, opacity: 0, phase: 0 }
-				: { amount: 0, opacity: 1, phase: 0 },
+				? {
+						amount: 1,
+						phase: activeHold.phaseOffset,
+						shape: activeHold.shapeOffset,
+						cycles: activeHold.cycles,
+						visible: true,
+					}
+				: {
+						amount: 0,
+						phase: activeHold.phaseOffset,
+						shape: activeHold.shapeOffset,
+						cycles: activeHold.cycles,
+						visible: true,
+					},
 		);
 		startTaskHoldHapticRamp(done ? "undo" : "complete", activeHold.durationMs);
 		try {
@@ -292,22 +345,33 @@ function Row({
 			<svg
 				aria-hidden="true"
 				data-hold-fill
-				className="pointer-events-none absolute inset-0 z-0 size-full"
+				className={cx(
+					"pointer-events-none absolute inset-0 z-0 size-full",
+					!holdFill.visible && "hidden",
+				)}
 				viewBox="0 0 1000 100"
 				preserveAspectRatio="none"
 			>
 				<path
-					className={done ? "fill-danger/25" : "fill-success/25"}
-					d={holdFillPath(holdFill.amount, holdFill.phase)}
-					style={{ opacity: holdFill.opacity }}
+					className={done ? "fill-danger-soft" : "fill-success-soft"}
+					d={holdFillPath(
+						holdFill.amount,
+						holdFill.phase,
+						holdFill.shape,
+						holdFill.cycles,
+					)}
 				/>
 				<path
 					data-wave-edge
-					className={done ? "stroke-danger/60" : "stroke-success/60"}
-					d={waveTopPath(holdFill.amount, holdFill.phase)}
+					className={done ? "stroke-danger" : "stroke-success"}
+					d={waveTopPath(
+						holdFill.amount,
+						holdFill.phase,
+						holdFill.shape,
+						holdFill.cycles,
+					)}
 					fill="none"
 					strokeWidth="2"
-					style={{ opacity: holdFill.opacity }}
 				/>
 			</svg>
 			<div className="relative z-10 flex items-center gap-3 border-b border-line py-3 last:border-0">
@@ -328,7 +392,7 @@ function Row({
 					<p
 						className={cx(
 							"truncate text-[15px]",
-							row.kind === "done" && "text-text-3 line-through",
+							row.kind === "done" && "text-text-2 line-through",
 							row.kind === "upcoming" && "text-text-2",
 						)}
 					>
