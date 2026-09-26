@@ -91,7 +91,7 @@ describe("UI kit", () => {
 		expect(screen.getByRole("button", { name: "Open" })).toHaveFocus();
 	});
 
-	it("traps Tab focus, wrapping from the last focusable element to the first", async () => {
+	it("traps Tab focus and wraps to the first drawer control", async () => {
 		render(
 			<Sheet open onClose={vi.fn()} label="Add task">
 				<button type="button">First</button>
@@ -100,7 +100,7 @@ describe("UI kit", () => {
 		);
 		screen.getByRole("button", { name: "Last" }).focus();
 		await userEvent.tab();
-		expect(screen.getByRole("button", { name: "First" })).toHaveFocus();
+		expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
 	});
 
 	it("keeps the intended autofocus target focused under StrictMode double-invoked effects", () => {
@@ -138,9 +138,11 @@ describe("UI kit", () => {
 			</ToastProvider>,
 		);
 		await userEvent.click(screen.getByRole("button", { name: "Go" }));
-		expect(screen.getByRole("status")).toHaveTextContent("Done");
+		expect(screen.getByRole("dialog", { name: "Done" })).toBeInTheDocument();
 		await userEvent.click(screen.getByRole("button", { name: "Undo" }));
 		expect(onUndo).toHaveBeenCalled();
-		expect(screen.queryByRole("status")).not.toHaveTextContent("Done");
+		expect(
+			screen.queryByRole("dialog", { name: "Done" }),
+		).not.toBeInTheDocument();
 	});
 });

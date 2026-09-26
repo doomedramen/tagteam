@@ -27,7 +27,7 @@ describe("AddTaskSheet", () => {
 		const engine = fakeEngine();
 		renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, { engine });
 		await userEvent.type(screen.getByLabelText("Task"), "Clean room");
-		await userEvent.click(screen.getByRole("radio", { name: "Custom" }));
+		await userEvent.click(screen.getByRole("button", { name: "Custom" }));
 		const every = screen.getByLabelText("Every");
 		await userEvent.clear(every);
 		await userEvent.type(every, "2");

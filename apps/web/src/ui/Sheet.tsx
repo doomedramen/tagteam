@@ -60,14 +60,14 @@ export function Sheet({
 	}, [open]);
 
 	return (
-		<DrawerPrimitives.VirtualKeyboardProvider>
-			<Drawer
-				open={open}
-				onOpenChange={(nextOpen) => {
-					if (!nextOpen) onClose();
-				}}
-				showSwipeHandle
-			>
+		<Drawer
+			open={open}
+			onOpenChange={(nextOpen) => {
+				if (!nextOpen) onClose();
+			}}
+			showSwipeHandle
+		>
+			<DrawerPrimitives.VirtualKeyboardProvider>
 				<DrawerContent
 					ref={setPopupRef}
 					initialFocus={false}
@@ -91,7 +91,7 @@ export function Sheet({
 						{children}
 					</div>
 				</DrawerContent>
-			</Drawer>
-		</DrawerPrimitives.VirtualKeyboardProvider>
+			</DrawerPrimitives.VirtualKeyboardProvider>
+		</Drawer>
 	);
 }
