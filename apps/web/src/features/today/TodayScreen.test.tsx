@@ -123,209 +123,158 @@ describe("TodayScreen", () => {
 		);
 	});
 
-	it("requires a 2-second touch hold and shows a rising wave fill", async () => {
-		await store.tasks.put(brushTeeth);
-		const engine = fakeEngine();
-		renderWithSession(<TodayScreen />, { store, engine });
-
-		const button = await screen.findByRole("button", {
-			name: "Complete Brush teeth",
-		});
-		const fill = button.closest("li")?.querySelector("[data-hold-fill] path");
-		expect(fill).not.toBeNull();
-		expect(fill).toHaveAttribute(
-			"class",
-			expect.stringContaining("fill-success-soft"),
-		);
-
-		vi.useFakeTimers();
-		try {
-			await act(async () => {
-				fireEvent.pointerDown(button, {
-					pointerId: 1,
-					pointerType: "touch",
-					button: 0,
-					clientX: 12,
-					clientY: 12,
-				});
-				vi.advanceTimersByTime(1000);
+	it.each(["touch", "mouse"])(
+		"completes on right swipe release with %s",
+		async (pointerType) => {
+			await store.tasks.put(brushTeeth);
+			const engine = fakeEngine();
+			renderWithSession(<TodayScreen />, { store, engine });
+			const button = await screen.findByRole("button", {
+				name: "Complete Brush teeth",
 			});
-			expect(fill?.getAttribute("d")).toContain("C ");
-			expect(fill?.getAttribute("d")).not.toContain("M 0 100 C");
+			const row = button.closest("li") as HTMLElement;
+			const pointer = {
+				pointerId: 1,
+				isPrimary: true,
+				pointerType,
+				button: 0,
+				clientY: 20,
+			};
+			fireEvent.pointerDown(button, { ...pointer, clientX: 20 });
+			fireEvent.pointerMove(row, { ...pointer, clientX: 70 });
+			expect(row.querySelector("[data-swipe-content]")).toHaveStyle({
+				transform: "translateX(50px)",
+			});
+			expect(row.querySelector("[data-swipe-action]")).toHaveAttribute(
+				"data-ready",
+				"false",
+			);
+			// Touch browsers release the child's implicit capture when the row captures.
+			fireEvent.lostPointerCapture(button, pointer);
+			fireEvent.pointerMove(row, { ...pointer, clientX: 120 });
+			expect(row.querySelector("[data-swipe-action]")).toHaveAttribute(
+				"data-ready",
+				"true",
+			);
 			expect(engine.enqueue).not.toHaveBeenCalled();
-
-			await act(async () => {
-				vi.advanceTimersByTime(1000);
-			});
-			expect(engine.enqueue).toHaveBeenCalledTimes(1);
+			fireEvent.pointerUp(row, { ...pointer, clientX: 120 });
+			fireEvent.click(button, { detail: 1 });
+			await waitFor(() => expect(engine.enqueue).toHaveBeenCalledTimes(1));
 			expect(engine.enqueue).toHaveBeenCalledWith(
 				expect.objectContaining({ type: "task.complete", taskId: "t1" }),
 			);
-			await act(async () => {
-				fireEvent.pointerUp(button, {
-					pointerId: 1,
-					pointerType: "touch",
-					button: 0,
-					clientX: 12,
-					clientY: 12,
-				});
-				fireEvent.click(button, { detail: 1 });
-			});
-			expect(engine.enqueue).toHaveBeenCalledTimes(1);
-		} finally {
-			vi.useRealTimers();
-		}
-	});
+		},
+	);
 
-	it("cancels a touch hold when released or moved before completion", async () => {
+	it.each([
+		["short swipe", 50, 0, "pointerUp"],
+		["left swipe", -100, 0, "pointerUp"],
+		["vertical scroll", 20, 100, "pointerUp"],
+		["cancelled swipe", 100, 0, "pointerCancel"],
+		["lost capture", 100, 0, "lostPointerCapture"],
+	] as const)("does not toggle after %s", async (_name, dx, dy, endEvent) => {
 		await store.tasks.put(brushTeeth);
 		const engine = fakeEngine();
 		renderWithSession(<TodayScreen />, { store, engine });
-
 		const button = await screen.findByRole("button", {
 			name: "Complete Brush teeth",
 		});
-		const fill = button.closest("li")?.querySelector("[data-hold-fill] path");
-		vi.useFakeTimers();
-		try {
-			await act(async () => {
-				fireEvent.pointerDown(button, {
-					pointerId: 1,
-					pointerType: "touch",
-					button: 0,
-					clientX: 12,
-					clientY: 12,
-				});
-				vi.advanceTimersByTime(500);
-				fireEvent.pointerUp(button, {
-					pointerId: 1,
-					pointerType: "touch",
-					button: 0,
-					clientX: 12,
-					clientY: 12,
-				});
-				fireEvent.click(button, { detail: 1 });
-			});
-			expect(engine.enqueue).not.toHaveBeenCalled();
-			expect(fill).toHaveAttribute("d", expect.stringContaining("M 0 100"));
-
-			await act(async () => {
-				fireEvent.pointerDown(button, {
-					pointerId: 2,
-					pointerType: "touch",
-					button: 0,
-					clientX: 12,
-					clientY: 12,
-				});
-				fireEvent.pointerMove(button, {
-					pointerId: 2,
-					pointerType: "touch",
-					clientX: 50,
-					clientY: 12,
-				});
-				fireEvent.pointerUp(button, {
-					pointerId: 2,
-					pointerType: "touch",
-					button: 0,
-					clientX: 50,
-					clientY: 12,
-				});
-				fireEvent.click(button, { detail: 1 });
-			});
-			expect(engine.enqueue).not.toHaveBeenCalled();
-
-			await act(async () => {
-				fireEvent.pointerDown(button, {
-					pointerId: 3,
-					pointerType: "touch",
-					button: 0,
-					clientX: 12,
-					clientY: 12,
-				});
-				vi.advanceTimersByTime(500);
-				fireEvent.pointerCancel(button, {
-					pointerId: 3,
-					pointerType: "touch",
-				});
-			});
-			expect(engine.enqueue).not.toHaveBeenCalled();
-			expect(fill).toHaveAttribute("d", expect.stringContaining("M 0 100"));
-		} finally {
-			vi.useRealTimers();
-		}
-	});
-
-	it("starts each hold with a different shallow wave", async () => {
-		await store.tasks.put(brushTeeth);
-		renderWithSession(<TodayScreen />, { store });
-		const button = await screen.findByRole("button", {
-			name: "Complete Brush teeth",
+		const row = button.closest("li") as HTMLElement;
+		const pointer = {
+			pointerId: 1,
+			isPrimary: true,
+			pointerType: "touch",
+			button: 0,
+		};
+		fireEvent.pointerDown(row, { ...pointer, clientX: 120, clientY: 20 });
+		fireEvent.pointerMove(row, {
+			...pointer,
+			clientX: 120 + dx,
+			clientY: 20 + dy,
 		});
-		const wave = button.closest("li")?.querySelector("[data-wave-edge]");
-		const random = vi
-			.spyOn(Math, "random")
-			.mockReturnValueOnce(0)
-			.mockReturnValueOnce(0)
-			.mockReturnValueOnce(0.25)
-			.mockReturnValueOnce(0.75)
-			.mockReturnValueOnce(0.5)
-			.mockReturnValueOnce(0.9);
-		vi.useFakeTimers();
-		try {
-			let firstWave = "";
-			for (const pointerId of [1, 2]) {
-				await act(async () => {
-					fireEvent.pointerDown(button, {
-						pointerId,
-						pointerType: "touch",
-						button: 0,
-						clientX: 12,
-						clientY: 12,
-					});
-					vi.advanceTimersByTime(500);
-				});
-				const path = wave?.getAttribute("d") ?? "";
-				if (pointerId === 1) firstWave = path;
-				else expect(path).not.toBe(firstWave);
-				await act(async () => {
-					fireEvent.pointerUp(button, {
-						pointerId,
-						pointerType: "touch",
-						button: 0,
-						clientX: 12,
-						clientY: 12,
-					});
-				});
-			}
-		} finally {
-			vi.useRealTimers();
-			random.mockRestore();
-		}
+		fireEvent[endEvent](row, {
+			...pointer,
+			clientX: 120 + dx,
+			clientY: 20 + dy,
+		});
+		fireEvent.click(button, { detail: 1 });
+		expect(engine.enqueue).not.toHaveBeenCalled();
+		expect(row.querySelector("[data-swipe-content]")).toHaveStyle({
+			transform: "translateX(0px)",
+		});
 	});
 
-	it("does not complete a task by swiping its row", async () => {
+	it("cancels when dragged back before release and ignores other pointers", async () => {
 		await store.tasks.put(brushTeeth);
 		const engine = fakeEngine();
 		renderWithSession(<TodayScreen />, { store, engine });
-
-		const button = await screen.findByRole("button", {
-			name: "Complete Brush teeth",
-		});
-		const row = button.closest("li");
-		expect(row).not.toBeNull();
-		fireEvent.touchStart(row as HTMLElement, {
-			touches: [{ identifier: 1, clientX: 12, clientY: 12 }],
-		});
-		fireEvent.touchMove(row as HTMLElement, {
-			touches: [{ identifier: 1, clientX: 100, clientY: 12 }],
-		});
-		fireEvent.touchEnd(row as HTMLElement, {
-			changedTouches: [{ identifier: 1, clientX: 100, clientY: 12 }],
-		});
+		const row = (
+			await screen.findByRole("button", { name: "Complete Brush teeth" })
+		).closest("li") as HTMLElement;
+		const pointer = {
+			pointerId: 1,
+			isPrimary: true,
+			pointerType: "touch",
+			button: 0,
+			clientY: 20,
+		};
+		fireEvent.pointerDown(row, { ...pointer, clientX: 20 });
+		fireEvent.pointerMove(row, { ...pointer, clientX: 140 });
+		fireEvent.pointerUp(row, { ...pointer, pointerId: 2, clientX: 140 });
+		fireEvent.pointerCancel(row, { ...pointer, pointerId: 2 });
+		expect(engine.enqueue).not.toHaveBeenCalled();
+		expect(row.querySelector("[data-swipe-action]")).toHaveAttribute(
+			"data-ready",
+			"true",
+		);
+		fireEvent.pointerMove(row, { ...pointer, clientX: 50 });
+		fireEvent.pointerUp(row, { ...pointer, clientX: 50 });
 		expect(engine.enqueue).not.toHaveBeenCalled();
 	});
 
-	it("requires a 2-second hold and visually drains to uncomplete", async () => {
+	it("does not toggle on a tap or long hold", async () => {
+		await store.tasks.put(brushTeeth);
+		const engine = fakeEngine();
+		renderWithSession(<TodayScreen />, { store, engine });
+		const button = await screen.findByRole("button", {
+			name: "Complete Brush teeth",
+		});
+		await userEvent.click(button);
+		vi.useFakeTimers();
+		try {
+			const pointer = {
+				pointerId: 1,
+				isPrimary: true,
+				pointerType: "touch",
+				button: 0,
+				clientX: 20,
+				clientY: 20,
+			};
+			fireEvent.pointerDown(button, pointer);
+			await act(async () => vi.advanceTimersByTime(3000));
+			fireEvent.pointerUp(button, pointer);
+			fireEvent.click(button, { detail: 1 });
+			expect(engine.enqueue).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("allows keyboard completion with Space", async () => {
+		await store.tasks.put(brushTeeth);
+		const engine = fakeEngine();
+		renderWithSession(<TodayScreen />, { store, engine });
+		const button = await screen.findByRole("button", {
+			name: "Complete Brush teeth",
+		});
+		button.focus();
+		await userEvent.keyboard(" ");
+		expect(engine.enqueue).toHaveBeenCalledWith(
+			expect.objectContaining({ type: "task.complete" }),
+		);
+	});
+
+	it("swipes right from the title to undo without opening task details", async () => {
 		await store.tasks.put(brushTeeth);
 		await store.events.put({
 			id: "e1",
@@ -338,61 +287,33 @@ describe("TodayScreen", () => {
 		});
 		const engine = fakeEngine();
 		renderWithSession(<TodayScreen />, { store, engine });
-
 		const button = await screen.findByRole("button", {
 			name: "Undo Brush teeth",
 		});
-		const fill = button.closest("li")?.querySelector("[data-hold-fill] path");
-		vi.useFakeTimers();
-		try {
-			await act(async () => {
-				fireEvent.pointerDown(button, {
-					pointerId: 1,
-					pointerType: "touch",
-					button: 0,
-					clientX: 12,
-					clientY: 12,
-				});
-			});
-			expect(fill).toHaveAttribute(
-				"class",
-				expect.stringContaining("fill-danger-soft"),
-			);
-			expect(fill?.closest("svg")).not.toHaveClass("hidden");
-			expect(fill).not.toHaveStyle({ opacity: "0" });
-			expect(engine.enqueue).not.toHaveBeenCalled();
-
-			await act(async () => {
-				vi.advanceTimersByTime(150);
-			});
-			expect(fill).toHaveAttribute("d", expect.stringContaining("M 0 0"));
-
-			await act(async () => {
-				vi.advanceTimersByTime(850);
-			});
-			const drainingPath = fill?.getAttribute("d");
-			expect(drainingPath).not.toContain("M 0 0 C");
-			expect(drainingPath).not.toContain("M 0 100 C");
-			expect(engine.enqueue).not.toHaveBeenCalled();
-
-			await act(async () => {
-				vi.advanceTimersByTime(999);
-			});
-			expect(engine.enqueue).not.toHaveBeenCalled();
-
-			await act(async () => {
-				vi.advanceTimersByTime(1);
-			});
-			expect(engine.enqueue).toHaveBeenCalledWith(
-				expect.objectContaining({
-					type: "task.uncomplete",
-					taskId: "t1",
-					refEventId: "e1",
-				}),
-			);
-		} finally {
-			vi.useRealTimers();
-		}
+		const row = button.closest("li") as HTMLElement;
+		const link = row.querySelector("a") as HTMLElement;
+		const pointer = {
+			pointerId: 1,
+			isPrimary: true,
+			pointerType: "touch",
+			button: 0,
+			clientY: 20,
+		};
+		fireEvent.pointerDown(link, { ...pointer, clientX: 60 });
+		fireEvent.pointerMove(link, { ...pointer, clientX: 160 });
+		expect(row.querySelector("[data-swipe-action]")).toHaveClass(
+			"bg-danger-soft",
+		);
+		fireEvent.pointerUp(link, { ...pointer, clientX: 160 });
+		expect(fireEvent.click(link, { detail: 1 })).toBe(false);
+		await waitFor(() => expect(engine.enqueue).toHaveBeenCalledTimes(1));
+		expect(engine.enqueue).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: "task.uncomplete",
+				taskId: "t1",
+				refEventId: "e1",
+			}),
+		);
 	});
 
 	it("hides upcoming until asked and remembers the choice", async () => {

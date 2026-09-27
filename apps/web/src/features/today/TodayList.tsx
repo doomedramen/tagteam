@@ -1,9 +1,8 @@
-import { Check, Repeat } from "lucide-react";
+import { ArrowRight, Check, Repeat, Undo2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import {
 	type MouseEvent as ReactMouseEvent,
 	type PointerEvent as ReactPointerEvent,
-	useEffect,
 	useRef,
 	useState,
 } from "react";
@@ -23,94 +22,25 @@ import { ConfettiBurst } from "../../ui/ConfettiBurst";
 import { rowLabel } from "./labels";
 import type { TodayRow, TodayView } from "./model";
 
-const COMPLETE_HOLD_MS = 2000;
-const UNCOMPLETE_HOLD_MS = COMPLETE_HOLD_MS;
-const HOLD_PROGRESS_INTERVAL_MS = 25;
-const REDUCED_MOTION_PROGRESS_INTERVAL_MS = 100;
-const HOLD_MOVEMENT_TOLERANCE_PX = 20;
-const UNCOMPLETE_DRAIN_DELAY_MS = 150;
+const SWIPE_THRESHOLD_PX = 88;
+const SWIPE_MAX_PX = 120;
+const SWIPE_DIRECTION_SLOP_PX = 10;
 
-type HoldFill = {
-	amount: number;
-	phase: number;
-	shape: number;
-	cycles: number;
-	visible: boolean;
-};
-
-function waveTopPath(
-	progress: number,
-	phase: number,
-	shape: number,
-	cycles: number,
-) {
-	const amount = Math.min(1, Math.max(0, progress));
-	const top = (1 - amount) * 100;
-	const amplitude = 3 * Math.min(1, amount * 4, (1 - amount) * 4);
-	const segmentWidth = 125;
-	const angularRate = (Math.PI * 2 * cycles) / 1000;
-	const angleAt = (x: number) => x * angularRate + phase;
-	const yAt = (x: number) => {
-		const angle = angleAt(x);
-		return (
-			top +
-			(amplitude * (Math.sin(angle) + 0.35 * Math.sin(angle / 2 + shape))) /
-				1.35
-		);
-	};
-	const slopeAt = (x: number) =>
-		((amplitude * angularRate) / 1.35) *
-		(Math.cos(angleAt(x)) + 0.175 * Math.cos(angleAt(x) / 2 + shape));
-	const path = [`M 0 ${yAt(0)}`];
-	for (let x = 0; x < 1000; x += segmentWidth) {
-		const next = x + segmentWidth;
-		path.push(
-			`C ${x + segmentWidth / 3} ${yAt(x) + (slopeAt(x) * segmentWidth) / 3} ${next - segmentWidth / 3} ${yAt(next) - (slopeAt(next) * segmentWidth) / 3} ${next} ${yAt(next)}`,
-		);
-	}
-	return path.join(" ");
-}
-
-function holdFillPath(
-	progress: number,
-	phase: number,
-	shape: number,
-	cycles: number,
-) {
-	return `${waveTopPath(progress, phase, shape, cycles)} L 1000 100 L 0 100 Z`;
-}
-
-type ActiveHold = {
+type ActiveSwipe = {
 	pointerId: number;
-	startedAt: number;
-	durationMs: number;
 	startX: number;
 	startY: number;
-	reducedMotion: boolean;
-	phaseOffset: number;
-	shapeOffset: number;
-	cycles: number;
-	interval: ReturnType<typeof setInterval> | null;
+	dragging: boolean;
 };
 
 function CheckCircle({
 	row,
 	celebrating,
 	onClick,
-	onPointerDown,
-	onPointerMove,
-	onPointerUp,
-	onPointerCancel,
-	onLostPointerCapture,
 }: {
 	row: TodayRow;
 	celebrating: boolean;
 	onClick: (event: ReactMouseEvent<HTMLButtonElement>) => void;
-	onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void;
-	onPointerMove: (event: ReactPointerEvent<HTMLButtonElement>) => void;
-	onPointerUp: (event: ReactPointerEvent<HTMLButtonElement>) => void;
-	onPointerCancel: () => void;
-	onLostPointerCapture: () => void;
 }) {
 	const done = row.kind === "done";
 	return (
@@ -120,15 +50,12 @@ function CheckCircle({
 				done ? `Undo ${row.task.title}` : `Complete ${row.task.title}`
 			}
 			aria-description={
-				done ? "Hold for 2 seconds to undo" : "Hold for 2 seconds to complete"
+				done
+					? "Slide right to undo, or press Enter or Space"
+					: "Slide right to complete, or press Enter or Space"
 			}
 			aria-pressed={done}
 			onClick={onClick}
-			onPointerDown={onPointerDown}
-			onPointerMove={onPointerMove}
-			onPointerUp={onPointerUp}
-			onPointerCancel={onPointerCancel}
-			onLostPointerCapture={onLostPointerCapture}
 			className="-m-2 relative size-11 shrink-0 touch-pan-y rounded-full p-0 text-text-2 hover:bg-surface-2"
 		>
 			{done && celebrating ? <ConfettiBurst /> : null}
@@ -159,227 +86,127 @@ function Row({
 	celebrating: boolean;
 }) {
 	const done = row.kind === "done";
-	const hold = useRef<ActiveHold | null>(null);
-	const suppressPointerClick = useRef(false);
-	const suppressPointerClickTimer = useRef<ReturnType<
-		typeof setTimeout
-	> | null>(null);
-	const [holdFill, setHoldFill] = useState<HoldFill>({
-		amount: 0,
-		phase: 0,
-		shape: 0,
-		cycles: 2,
-		visible: false,
-	});
-	const clearPointerClickSuppression = () => {
-		suppressPointerClick.current = false;
-		if (suppressPointerClickTimer.current) {
-			clearTimeout(suppressPointerClickTimer.current);
-			suppressPointerClickTimer.current = null;
-		}
+	const swipe = useRef<ActiveSwipe | null>(null);
+	const suppressClick = useRef(false);
+	const [offset, setOffset] = useState(0);
+	const [dragging, setDragging] = useState(false);
+	const cancelSwipe = (pointerId: number) => {
+		if (swipe.current?.pointerId !== pointerId) return;
+		swipe.current = null;
+		setOffset(0);
+		setDragging(false);
 	};
-	const cancelHold = (pointerId?: number) => {
-		const activeHold = hold.current;
-		if (
-			!activeHold ||
-			(pointerId !== undefined && pointerId !== activeHold.pointerId)
-		)
+	const onPointerDown = (event: ReactPointerEvent<HTMLLIElement>) => {
+		if (event.button !== 0 || event.isPrimary === false || swipe.current)
 			return;
-		if (activeHold.interval !== null) clearInterval(activeHold.interval);
-		hold.current = null;
-		setHoldFill({ amount: 0, phase: 0, shape: 0, cycles: 2, visible: false });
-	};
-	const completeHold = (activeHold: ActiveHold) => {
-		if (hold.current !== activeHold) return;
-		if (activeHold.interval !== null) clearInterval(activeHold.interval);
-		hold.current = null;
-		setHoldFill(
-			done
-				? { amount: 0, phase: 0, shape: 0, cycles: 2, visible: false }
-				: { amount: 1, phase: 0, shape: 0, cycles: 2, visible: true },
-		);
-		onToggle(row);
-	};
-	const updateHold = (activeHold: ActiveHold) => {
-		if (hold.current !== activeHold) return;
-		const elapsedMs = Date.now() - activeHold.startedAt;
-		const progress = Math.min(1, elapsedMs / activeHold.durationMs);
-		const phase =
-			activeHold.phaseOffset +
-			(activeHold.reducedMotion ? 0 : (elapsedMs / 900) * Math.PI * 2);
-		const uncompleteDrain = Math.min(
-			1,
-			Math.max(
-				0,
-				(elapsedMs - UNCOMPLETE_DRAIN_DELAY_MS) /
-					(activeHold.durationMs - UNCOMPLETE_DRAIN_DELAY_MS),
-			),
-		);
-		setHoldFill(
-			done
-				? {
-						amount: 1 - uncompleteDrain,
-						phase,
-						shape: activeHold.shapeOffset,
-						cycles: activeHold.cycles,
-						visible: true,
-					}
-				: {
-						amount: progress,
-						phase,
-						shape: activeHold.shapeOffset,
-						cycles: activeHold.cycles,
-						visible: true,
-					},
-		);
-		if (progress >= 1) completeHold(activeHold);
-	};
-	const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-		if (event.button !== 0) return;
-		if (hold.current) return;
-
-		suppressPointerClick.current = true;
-		if (suppressPointerClickTimer.current)
-			clearTimeout(suppressPointerClickTimer.current);
-		suppressPointerClickTimer.current = setTimeout(
-			clearPointerClickSuppression,
-			UNCOMPLETE_HOLD_MS + 1000,
-		);
-		const reducedMotion =
-			typeof window.matchMedia === "function" &&
-			window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-		const activeHold: ActiveHold = {
+		suppressClick.current = false;
+		swipe.current = {
 			pointerId: event.pointerId,
-			startedAt: Date.now(),
-			durationMs: done ? UNCOMPLETE_HOLD_MS : COMPLETE_HOLD_MS,
 			startX: event.clientX,
 			startY: event.clientY,
-			reducedMotion,
-			phaseOffset: Math.random() * Math.PI * 2,
-			shapeOffset: Math.random() * Math.PI * 2,
-			cycles: 1.5 + Math.random() * 0.75,
-			interval: null,
+			dragging: false,
 		};
-		hold.current = activeHold;
-		setHoldFill(
-			done
-				? {
-						amount: 1,
-						phase: activeHold.phaseOffset,
-						shape: activeHold.shapeOffset,
-						cycles: activeHold.cycles,
-						visible: true,
-					}
-				: {
-						amount: 0,
-						phase: activeHold.phaseOffset,
-						shape: activeHold.shapeOffset,
-						cycles: activeHold.cycles,
-						visible: true,
-					},
-		);
-		try {
-			event.currentTarget.setPointerCapture?.(event.pointerId);
-		} catch {
-			// The hold still works if the browser cannot capture this pointer.
+	};
+	const updateSwipe = (event: ReactPointerEvent<HTMLLIElement>) => {
+		const active = swipe.current;
+		if (!active || active.pointerId !== event.pointerId) return 0;
+		const dx = event.clientX - active.startX;
+		const dy = Math.abs(event.clientY - active.startY);
+		if (!active.dragging) {
+			if (Math.max(Math.abs(dx), dy) < SWIPE_DIRECTION_SLOP_PX) return 0;
+			suppressClick.current = true;
+			if (dx <= dy) {
+				cancelSwipe(event.pointerId);
+				return 0;
+			}
+			active.dragging = true;
+			setDragging(true);
+			try {
+				event.currentTarget.setPointerCapture(event.pointerId);
+			} catch {
+				// Pointer events still bubble from the row if capture is unavailable.
+			}
 		}
-
-		const intervalMs = reducedMotion
-			? REDUCED_MOTION_PROGRESS_INTERVAL_MS
-			: HOLD_PROGRESS_INTERVAL_MS;
-		activeHold.interval = setInterval(() => updateHold(activeHold), intervalMs);
+		const distance = Math.min(SWIPE_MAX_PX, Math.max(0, dx));
+		setOffset(distance);
+		return distance;
 	};
-	const onPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
-		const activeHold = hold.current;
-		if (!activeHold || activeHold.pointerId !== event.pointerId) return;
-		updateHold(activeHold);
-		if (hold.current === activeHold) cancelHold(event.pointerId);
+	const onPointerMove = (event: ReactPointerEvent<HTMLLIElement>) => {
+		updateSwipe(event);
 	};
-	const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
-		const activeHold = hold.current;
-		if (!activeHold || activeHold.pointerId !== event.pointerId) return;
-		if (
-			Math.hypot(
-				event.clientX - activeHold.startX,
-				event.clientY - activeHold.startY,
-			) > HOLD_MOVEMENT_TOLERANCE_PX
-		)
-			cancelHold(event.pointerId);
+	const onPointerUp = (event: ReactPointerEvent<HTMLLIElement>) => {
+		if (swipe.current?.pointerId !== event.pointerId) return;
+		const distance = updateSwipe(event);
+		cancelSwipe(event.pointerId);
+		if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+			event.currentTarget.releasePointerCapture(event.pointerId);
+		}
+		if (distance >= SWIPE_THRESHOLD_PX) onToggle(row);
 	};
 	const onClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
-		if (event.detail === 0) {
-			clearPointerClickSuppression();
-			onToggle(row);
-			return;
-		}
-		if (suppressPointerClick.current) {
-			event.preventDefault();
-			event.stopPropagation();
-			clearPointerClickSuppression();
-			return;
-		}
-		// Assistive technology can dispatch a click without pointer events.
-		onToggle(row);
+		// Keyboard and assistive technology can activate without a pointer gesture.
+		if (event.detail === 0) onToggle(row);
 	};
-	useEffect(
-		() => () => {
-			if (hold.current) {
-				if (hold.current.interval !== null)
-					clearInterval(hold.current.interval);
-			}
-			if (suppressPointerClickTimer.current)
-				clearTimeout(suppressPointerClickTimer.current);
-		},
-		[],
-	);
+	const ready = offset >= SWIPE_THRESHOLD_PX;
 	return (
-		<li className="-mx-4 relative overflow-hidden px-4 touch-pan-y">
-			<svg
+		<li
+			className="-mx-4 relative touch-pan-y overflow-hidden select-none"
+			onPointerDown={onPointerDown}
+			onPointerMove={onPointerMove}
+			onPointerUp={onPointerUp}
+			onPointerCancel={(event) => cancelSwipe(event.pointerId)}
+			onPointerLeave={(event) => {
+				if (!swipe.current?.dragging && event.pointerType === "mouse") {
+					cancelSwipe(event.pointerId);
+				}
+			}}
+			onLostPointerCapture={(event) => {
+				// Touch capture transfers from the pressed child to the row during a swipe.
+				if (event.target === event.currentTarget) cancelSwipe(event.pointerId);
+			}}
+			onClickCapture={(event) => {
+				if (suppressClick.current && event.detail !== 0) {
+					event.preventDefault();
+					event.stopPropagation();
+					suppressClick.current = false;
+				}
+			}}
+		>
+			<div
 				aria-hidden="true"
-				data-hold-fill
+				data-swipe-action
+				data-ready={ready}
 				className={cx(
-					"pointer-events-none absolute inset-0 z-0 size-full",
-					!holdFill.visible && "hidden",
+					"pointer-events-none absolute inset-0 flex items-center gap-2 px-4 text-text",
+					done ? "bg-danger-soft" : "bg-success-soft",
 				)}
-				viewBox="0 0 1000 100"
-				preserveAspectRatio="none"
 			>
-				<path
-					className={done ? "fill-danger-soft" : "fill-success-soft"}
-					d={holdFillPath(
-						holdFill.amount,
-						holdFill.phase,
-						holdFill.shape,
-						holdFill.cycles,
-					)}
-				/>
-				<path
-					data-wave-edge
-					className={done ? "stroke-danger" : "stroke-success"}
-					d={waveTopPath(
-						holdFill.amount,
-						holdFill.phase,
-						holdFill.shape,
-						holdFill.cycles,
-					)}
-					fill="none"
-					strokeWidth="2"
-				/>
-			</svg>
-			<div className="relative z-10 flex items-center gap-3 border-b border-line py-3 last:border-0">
-				<CheckCircle
-					row={row}
-					celebrating={celebrating}
-					onClick={onClick}
-					onPointerDown={onPointerDown}
-					onPointerMove={onPointerMove}
-					onPointerUp={onPointerUp}
-					onPointerCancel={() => cancelHold()}
-					onLostPointerCapture={() => cancelHold()}
-				/>
+				{ready ? (
+					done ? (
+						<Undo2 className="size-4" />
+					) : (
+						<Check className="size-4" />
+					)
+				) : (
+					<ArrowRight className="size-4" />
+				)}
+				<span className="text-[13px] font-medium">
+					{done ? "Undo" : "Done"}
+				</span>
+			</div>
+			<div
+				data-swipe-content
+				className={cx(
+					"relative z-10 flex items-center gap-3 border-b border-line bg-card px-4 py-3",
+					!dragging &&
+						"motion-safe:transition-transform motion-safe:duration-150",
+				)}
+				style={{ transform: `translateX(${offset}px)` }}
+			>
+				<CheckCircle row={row} celebrating={celebrating} onClick={onClick} />
 				<Link
 					to={`/tasks/${row.task.id}`}
+					draggable={false}
 					className="min-w-0 flex-1 rounded-lg focus-visible:outline-2 focus-visible:outline-accent"
 				>
 					<p
@@ -524,6 +351,9 @@ export function TodayList({
 							indicatorClassName="bg-success motion-safe:transition-transform duration-300 ease-[var(--ease-in-out)]"
 						/>
 					</div>
+					<p className="mt-3 text-[13px] text-text-2">
+						Slide right to complete or undo
+					</p>
 					<Section
 						title="Overdue"
 						rows={view.overdue}

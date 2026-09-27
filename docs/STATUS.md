@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-09-27 (new-task reminder fix)._
+_Last updated: 2026-09-27 (right-swipe task completion)._
 
 ## Done (on `main`; CI green through Plan 7)
 
@@ -84,8 +84,13 @@ decisions that matter are summarised below.
 - A sync requested while a run is failing is not retried immediately; triggers (online, visibility,
   60 s timer, SSE poke) retry.
 - Today computes "done today" in the browser's timezone; tasks carry their own timezone.
-- Task completion uses visual hold feedback and confetti. Haptics are omitted because iOS PWA
-  scripted switch clicks are unreliable.
+- Today tasks now slide right to complete or undo. Releasing after 88 px confirms; short,
+  leftward, cancelled, or vertical gestures do not toggle. The row follows the pointer and
+  reveals a Done/Undo action. Long holds and pointer taps no longer toggle; keyboard and
+  assistive activation remain available. Completion confetti and offline sync are preserved.
+- Swipe validation: 72 web tests, web typecheck, lint, production build, and Playwright offline
+  completion/undo/sync flow pass, including native touch input and 375 × 812 light/dark review.
+- Haptics are omitted because iOS PWA scripted switch clicks are unreliable.
 
 ## Remaining follow-ups
 
