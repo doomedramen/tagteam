@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-09-26 (CI runtime and live-sync follow-ups)._
+_Last updated: 2026-09-27 (new-task reminder fix)._
 
 ## Done (on `main`; CI green through Plan 7)
 
@@ -65,6 +65,8 @@ decisions that matter are summarised below.
   Service worker displays notifications and opens Today or Team when tapped.
 - Reminder and nudge opt-in starts at enable time; older triggers and newly added devices receive
   no catch-up notifications.
+- New tasks skip reminder triggers that predate their creation, preventing an immediate push
+  when a task is added after its reminder time. Future due and overdue reminders still apply.
 - Typecheck, lint, server bundle, and PWA build pass.
 
 ## Next plans

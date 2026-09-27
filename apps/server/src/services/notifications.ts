@@ -409,6 +409,8 @@ export async function runNotificationSweep(
 		const kind: NotificationKind = now >= overdueAt ? "overdue" : "due";
 		const scheduledAt = kind === "overdue" ? overdueAt : remindAt;
 		if (now < scheduledAt) continue;
+		// New tasks must not catch up on reminder triggers from before they existed.
+		if (scheduledAt < item.createdAt) continue;
 		enqueueNotification(
 			db,
 			{
