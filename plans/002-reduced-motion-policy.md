@@ -1,6 +1,6 @@
 # 002 — Preserve feedback with reduced motion
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: a90b17c
 - **Severity**: MEDIUM
 - **Category**: Accessibility

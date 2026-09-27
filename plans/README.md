@@ -1,18 +1,18 @@
 # Motion implementation plans
 
-Plans describe verified findings from the animation audit at commit a90b17c. No app source has changed.
+Plans record verified findings from the animation audit at commit a90b17c and their completed implementation.
 
 | # | Plan | Severity | Status |
 |---|---|---:|---|
-| 001 | Add shared motion runtime | MEDIUM | TODO |
-| 002 | Preserve feedback with reduced motion | MEDIUM | TODO |
-| 003 | Tighten toast motion | MEDIUM | TODO |
-| 004 | Animate progress with transforms | LOW | TODO |
-| 005 | Animate team member disclosures | MEDIUM | TODO |
-| 006 | Animate the Upcoming disclosure | LOW | TODO |
-| 007 | Reveal newly created invite codes | LOW | TODO |
-| 008 | Reveal the first task state | LOW | TODO |
-| 009 | Reserve screen-wide confetti for all done | MEDIUM | TODO |
+| 001 | Add shared motion runtime | MEDIUM | DONE |
+| 002 | Preserve feedback with reduced motion | MEDIUM | DONE |
+| 003 | Tighten toast motion | MEDIUM | DONE |
+| 004 | Animate progress with transforms | LOW | DONE |
+| 005 | Animate team member disclosures | MEDIUM | DONE |
+| 006 | Animate the Upcoming disclosure | LOW | DONE |
+| 007 | Reveal newly created invite codes | LOW | DONE |
+| 008 | Reveal the first task state | LOW | DONE |
+| 009 | Reserve screen-wide confetti for all done | MEDIUM | DONE |
 
 ## Recommended execution order
 

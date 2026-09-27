@@ -45,7 +45,7 @@ export function SyncChip({ status }: { status: SyncStatus }) {
 	const Icon = displayLabel.startsWith("Offline") ? CloudOff : RefreshCw;
 	return (
 		<span
-			className={`inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2.5 py-1 text-[12px] font-medium text-warning transition-[opacity,transform] duration-[180ms] ease-out ${visible ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-1 opacity-0"} ${entering ? "animate-[sync-badge-in_180ms_ease-out]" : ""}`}
+			className={`inline-flex items-center gap-1.5 rounded-full bg-warning-soft px-2.5 py-1 text-[12px] font-medium text-warning transition-opacity duration-[180ms] ease-[var(--ease-out-strong)] motion-safe:transition-[opacity,transform] ${visible ? "opacity-100 motion-safe:translate-y-0" : "pointer-events-none opacity-0 motion-safe:-translate-y-1"} ${entering ? "motion-safe:animate-[sync-badge-in_180ms_ease-out]" : ""}`}
 		>
 			<Icon aria-hidden className="size-3.5" />
 			{displayLabel}

@@ -86,7 +86,7 @@ export function AppShell({
 							variant="primary"
 							aria-label="Add task"
 							onClick={onAdd}
-							className="size-12 rounded-full p-0 shadow-md transition-transform duration-150 active:scale-95 [&_svg]:size-6"
+							className="size-12 rounded-full p-0 shadow-md motion-safe:transition-transform motion-safe:duration-150 motion-safe:active:scale-95 [&_svg]:size-6"
 						>
 							<Plus aria-hidden strokeWidth={2.25} />
 						</Button>

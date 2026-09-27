@@ -1,4 +1,5 @@
 import { Check, Repeat } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import {
 	type MouseEvent as ReactMouseEvent,
 	type PointerEvent as ReactPointerEvent,
@@ -464,25 +465,6 @@ export function TodayList({
 	celebratingKey: string | null;
 	onAdd: () => void;
 }) {
-	if (!view.hasTasks) {
-		return (
-			<Empty className="mt-20 gap-3 border-0 p-0">
-				<EmptyHeader>
-					<EmptyTitle className="text-lg font-semibold">
-						Add your first task
-					</EmptyTitle>
-					<EmptyDescription className="max-w-64 text-[14px] text-text-2">
-						Things you want to do every day, week or month — or just once.
-					</EmptyDescription>
-				</EmptyHeader>
-				<EmptyContent className="w-auto">
-					<Button variant="primary" onClick={onAdd}>
-						Add task
-					</Button>
-				</EmptyContent>
-			</Empty>
-		);
-	}
 	const percent =
 		view.total === 0 ? 100 : Math.round((view.done / view.total) * 100);
 	const allDone =
@@ -490,56 +472,102 @@ export function TodayList({
 		view.overdue.length === 0 &&
 		view.today.every((r) => r.kind === "done");
 	return (
-		<div>
-			<div className="mt-2">
-				<h1 className="text-[26px] font-semibold tracking-tight">
-					{new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(now)}
-				</h1>
-				<p className="min-h-5 text-[14px] text-text-2">
-					{allDone
-						? "All done for today"
-						: `${view.done} of ${view.total} done today`}
-				</p>
-				<Progress
-					value={percent}
-					aria-label="Done today"
-					className="mt-2 gap-0"
-					trackClassName="h-1.5"
-					indicatorClassName="bg-success transition-[width] duration-300"
-				/>
-			</div>
-			<Section
-				title="Overdue"
-				rows={view.overdue}
-				now={now}
-				onToggle={onToggle}
-				celebratingKey={celebratingKey}
-			/>
-			<Section
-				title="Today"
-				rows={view.today}
-				now={now}
-				onToggle={onToggle}
-				celebratingKey={celebratingKey}
-			/>
-			{view.upcoming.length > 0 ? (
-				<div className="mt-4 flex justify-center">
-					<Button variant="ghost" onClick={onToggleUpcoming}>
-						{showUpcoming
-							? "Hide upcoming"
-							: `Show upcoming (${view.upcoming.length})`}
-					</Button>
-				</div>
-			) : null}
-			{showUpcoming ? (
-				<Section
-					title="Upcoming"
-					rows={view.upcoming}
-					now={now}
-					onToggle={onToggle}
-					celebratingKey={celebratingKey}
-				/>
-			) : null}
-		</div>
+		<AnimatePresence initial={false} mode="sync">
+			{!view.hasTasks ? (
+				<motion.div
+					key="empty"
+					initial={{ opacity: 0, transform: "translateY(8px)" }}
+					animate={{ opacity: 1, transform: "translateY(0px)" }}
+					exit={{ opacity: 0, transform: "translateY(-4px)" }}
+					transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+				>
+					<Empty className="mt-20 gap-3 border-0 p-0">
+						<EmptyHeader>
+							<EmptyTitle className="text-lg font-semibold">
+								Add your first task
+							</EmptyTitle>
+							<EmptyDescription className="max-w-64 text-[14px] text-text-2">
+								Things you want to do every day, week or month — or just once.
+							</EmptyDescription>
+						</EmptyHeader>
+						<EmptyContent className="w-auto">
+							<Button variant="primary" onClick={onAdd}>
+								Add task
+							</Button>
+						</EmptyContent>
+					</Empty>
+				</motion.div>
+			) : (
+				<motion.div
+					key="populated"
+					initial={{ opacity: 0, transform: "translateY(8px)" }}
+					animate={{ opacity: 1, transform: "translateY(0px)" }}
+					exit={{ opacity: 0, transform: "translateY(-4px)" }}
+					transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+				>
+					<div className="mt-2">
+						<h1 className="text-[26px] font-semibold tracking-tight">
+							{new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(
+								now,
+							)}
+						</h1>
+						<p className="min-h-5 text-[14px] text-text-2">
+							{allDone
+								? "All done for today"
+								: `${view.done} of ${view.total} done today`}
+						</p>
+						<Progress
+							value={percent}
+							aria-label="Done today"
+							className="mt-2 gap-0"
+							trackClassName="h-1.5"
+							indicatorClassName="bg-success motion-safe:transition-transform duration-300 ease-[var(--ease-in-out)]"
+						/>
+					</div>
+					<Section
+						title="Overdue"
+						rows={view.overdue}
+						now={now}
+						onToggle={onToggle}
+						celebratingKey={celebratingKey}
+					/>
+					<Section
+						title="Today"
+						rows={view.today}
+						now={now}
+						onToggle={onToggle}
+						celebratingKey={celebratingKey}
+					/>
+					{view.upcoming.length > 0 ? (
+						<div className="mt-4 flex justify-center">
+							<Button variant="ghost" onClick={onToggleUpcoming}>
+								{showUpcoming
+									? "Hide upcoming"
+									: `Show upcoming (${view.upcoming.length})`}
+							</Button>
+						</div>
+					) : null}
+					<AnimatePresence initial={false}>
+						{showUpcoming && view.upcoming.length > 0 ? (
+							<motion.div
+								key="upcoming"
+								initial={{ opacity: 0, transform: "translateY(8px)" }}
+								animate={{ opacity: 1, transform: "translateY(0px)" }}
+								exit={{ opacity: 0, transform: "translateY(-4px)" }}
+								transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+							>
+								<Section
+									title="Upcoming"
+									rows={view.upcoming}
+									now={now}
+									onToggle={onToggle}
+									celebratingKey={celebratingKey}
+								/>
+							</motion.div>
+						) : null}
+					</AnimatePresence>
+				</motion.div>
+			)}
+		</AnimatePresence>
 	);
 }

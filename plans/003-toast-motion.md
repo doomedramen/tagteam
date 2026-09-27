@@ -1,6 +1,6 @@
 # 003 — Tighten toast motion
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: a90b17c
 - **Severity**: MEDIUM
 - **Category**: Easing and duration

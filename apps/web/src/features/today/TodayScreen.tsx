@@ -6,10 +6,38 @@ import { dayBounds, useNow } from "../../lib/time";
 import { useSession } from "../../session/session";
 import { fireScreenConfettiCannon } from "../../ui/confetti";
 import { useToast } from "../../ui/Toast";
-import { buildToday, type TodayRow } from "./model";
+import { buildToday, type TodayRow, type TodayView } from "./model";
 import { TodayList } from "./TodayList";
 
 const UPCOMING_KEY = "tagteam.showUpcoming";
+
+function isFinalTodayCompletion(view: TodayView, row: TodayRow): boolean {
+	const matches = (candidate: TodayRow) =>
+		candidate.task.id === row.task.id && candidate.key === row.key;
+
+	if (row.kind === "overdue") {
+		if (!view.overdue.some(matches)) return false;
+		const overdue = view.overdue.filter((candidate) => !matches(candidate));
+		const completedRow: TodayRow = { ...row, kind: "done" };
+		const today = [...view.today, completedRow];
+		return (
+			overdue.length === 0 &&
+			today.length > 0 &&
+			today.every((candidate) => candidate.kind === "done")
+		);
+	}
+
+	if (row.kind !== "open" || !view.today.some(matches)) return false;
+	const today = view.today.map(
+		(candidate): TodayRow =>
+			matches(candidate) ? { ...candidate, kind: "done" } : candidate,
+	);
+	return (
+		view.overdue.length === 0 &&
+		today.length > 0 &&
+		today.every((candidate) => candidate.kind === "done")
+	);
+}
 
 export function TodayScreen() {
 	const { store, engine, me, activeGroupId } = useSession();
@@ -73,6 +101,7 @@ export function TodayScreen() {
 				}
 				return;
 			}
+			const shouldFireScreenCannon = isFinalTodayCompletion(view, row);
 			const id = crypto.randomUUID();
 			await engine.enqueue({
 				id,
@@ -81,7 +110,7 @@ export function TodayScreen() {
 				taskId: row.task.id,
 				occurrenceKey: row.key,
 			});
-			fireScreenConfettiCannon();
+			if (shouldFireScreenCannon) fireScreenConfettiCannon();
 			const nextCelebrationKey = `${row.task.id}:${row.key}`;
 			setCelebratingKey(nextCelebrationKey);
 			if (celebrationTimer.current) clearTimeout(celebrationTimer.current);

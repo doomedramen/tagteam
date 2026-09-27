@@ -21,6 +21,7 @@
 	--danger: #c93131;
 	--danger-soft: #fbe9e9;
 	--ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+	--ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 	--av-blue: #dbe8fd;
 	--av-blue-fg: #1d4ed8;
 	--av-green: #dcf0df;
@@ -230,14 +231,6 @@ textarea:focus-visible {
 	.confetti-piece {
 		animation: none;
 		opacity: 0.7;
-	}
-	*,
-	*::before,
-	*::after {
-		/* biome-ignore lint/complexity/noImportantStyles: must always win the cascade to honor reduced-motion */
-		animation-duration: 0.01ms !important;
-		/* biome-ignore lint/complexity/noImportantStyles: must always win the cascade to honor reduced-motion */
-		transition-duration: 0.01ms !important;
 	}
 }
 

@@ -1,6 +1,6 @@
 # 009 — Reserve screen-wide confetti for all done
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: a90b17c
 - **Severity**: MEDIUM
 - **Category**: Purpose and frequency

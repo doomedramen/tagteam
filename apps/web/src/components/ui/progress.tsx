@@ -12,6 +12,8 @@ function Progress({
 	trackClassName?: string;
 	indicatorClassName?: string;
 }) {
+	const scale = value == null ? null : Math.min(1, Math.max(0, value / 100));
+
 	return (
 		<ProgressPrimitive.Root
 			value={value}
@@ -21,7 +23,18 @@ function Progress({
 		>
 			{children}
 			<ProgressTrack className={trackClassName}>
-				<ProgressIndicator className={indicatorClassName} />
+				<ProgressIndicator
+					className={indicatorClassName}
+					style={
+						scale == null
+							? undefined
+							: {
+									width: "100%",
+									transformOrigin: "left center",
+									transform: `scaleX(${scale})`,
+								}
+					}
+				/>
 			</ProgressTrack>
 		</ProgressPrimitive.Root>
 	);
@@ -47,7 +60,10 @@ function ProgressIndicator({
 	return (
 		<ProgressPrimitive.Indicator
 			data-slot="progress-indicator"
-			className={cn("h-full rounded-full bg-primary transition-all", className)}
+			className={cn(
+				"h-full rounded-full bg-primary motion-safe:transition-transform",
+				className,
+			)}
 			{...props}
 		/>
 	);

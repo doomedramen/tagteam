@@ -1,6 +1,6 @@
 # 006 — Animate the Upcoming disclosure
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: a90b17c
 - **Severity**: LOW
 - **Category**: Missed opportunity

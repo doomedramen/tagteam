@@ -1,5 +1,6 @@
 import type { InviteDto } from "@tagteam/core";
 import { Copy, Share2, UserRoundPlus, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
@@ -153,42 +154,52 @@ export function InviteSheet({
 				</Button>
 			</div>
 
-			{latest ? (
-				<Card className="mb-4 gap-0 rounded-2xl border-0 bg-accent-soft p-4 shadow-none ring-0">
-					<CardContent className="p-0">
-						<div className="flex items-center gap-2 text-[13px] font-medium text-text-2">
-							<UserRoundPlus aria-hidden className="size-4" />
-							New single-use code
-						</div>
-						<p className="mt-2 font-mono text-3xl font-semibold tracking-[0.18em] text-text">
-							{latest.code}
-						</p>
-						<p className="mt-1 text-[13px] text-text-2">
-							{expiresIn(latest.expiresAt, now)}
-						</p>
-						<div className="mt-3 flex gap-2">
-							<Button block onClick={() => void copy(latest.code)}>
-								<Copy aria-hidden className="size-4" />
-								Copy code
-							</Button>
-							<Button block onClick={() => void share(latest.code)}>
-								<Share2 aria-hidden className="size-4" />
-								Share
-							</Button>
-						</div>
-						<Button
-							variant="danger"
-							block
-							className="mt-2"
-							busy={revoking === latest.code}
-							disabled={revoking !== null}
-							onClick={() => void revoke(latest.code)}
-						>
-							Revoke code
-						</Button>
-					</CardContent>
-				</Card>
-			) : null}
+			<AnimatePresence initial={false}>
+				{latest ? (
+					<motion.div
+						key={latest.code}
+						initial={{ opacity: 0, transform: "translateY(8px)" }}
+						animate={{ opacity: 1, transform: "translateY(0px)" }}
+						exit={{ opacity: 0, transform: "translateY(-4px)" }}
+						transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+					>
+						<Card className="mb-4 gap-0 rounded-2xl border-0 bg-accent-soft p-4 shadow-none ring-0">
+							<CardContent className="p-0">
+								<div className="flex items-center gap-2 text-[13px] font-medium text-text-2">
+									<UserRoundPlus aria-hidden className="size-4" />
+									New single-use code
+								</div>
+								<p className="mt-2 font-mono text-3xl font-semibold tracking-[0.18em] text-text">
+									{latest.code}
+								</p>
+								<p className="mt-1 text-[13px] text-text-2">
+									{expiresIn(latest.expiresAt, now)}
+								</p>
+								<div className="mt-3 flex gap-2">
+									<Button block onClick={() => void copy(latest.code)}>
+										<Copy aria-hidden className="size-4" />
+										Copy code
+									</Button>
+									<Button block onClick={() => void share(latest.code)}>
+										<Share2 aria-hidden className="size-4" />
+										Share
+									</Button>
+								</div>
+								<Button
+									variant="danger"
+									block
+									className="mt-2"
+									busy={revoking === latest.code}
+									disabled={revoking !== null}
+									onClick={() => void revoke(latest.code)}
+								>
+									Revoke code
+								</Button>
+							</CardContent>
+						</Card>
+					</motion.div>
+				) : null}
+			</AnimatePresence>
 
 			{error ? (
 				<Alert variant="destructive" className="mb-3">

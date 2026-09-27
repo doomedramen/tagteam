@@ -1,6 +1,6 @@
 # 004 — Animate progress with transforms
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: a90b17c
 - **Severity**: LOW
 - **Category**: Performance

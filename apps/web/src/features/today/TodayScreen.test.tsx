@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TagTeamDb } from "../../store/db";
 import { fakeEngine, ME, renderWithSession } from "../../test/fakes";
+import { fireScreenConfettiCannon } from "../../ui/confetti";
 import { TodayScreen } from "./TodayScreen";
 
 vi.mock("../../ui/confetti", () => ({
@@ -62,6 +63,9 @@ describe("TodayScreen", () => {
 			}),
 		);
 		const completionId = engine.enqueue.mock.calls[0]?.[0].id;
+		await waitFor(() =>
+			expect(fireScreenConfettiCannon).toHaveBeenCalledTimes(1),
+		);
 
 		await userEvent.click(await screen.findByRole("button", { name: "Undo" }));
 		expect(engine.enqueue).toHaveBeenLastCalledWith(
@@ -71,6 +75,23 @@ describe("TodayScreen", () => {
 				refEventId: completionId,
 			}),
 		);
+		expect(fireScreenConfettiCannon).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps the screen cannon for the final open task", async () => {
+		await store.tasks.bulkPut([
+			brushTeeth,
+			{ ...brushTeeth, id: "t2", title: "Water plants" },
+		]);
+		const engine = fakeEngine();
+		renderWithSession(<TodayScreen />, { store, engine });
+
+		fireEvent.click(
+			await screen.findByRole("button", { name: "Complete Brush teeth" }),
+			{ detail: 0 },
+		);
+		await waitFor(() => expect(engine.enqueue).toHaveBeenCalledTimes(1));
+		expect(fireScreenConfettiCannon).not.toHaveBeenCalled();
 	});
 
 	it("ignores a second tap while the first completion is still in flight", async () => {

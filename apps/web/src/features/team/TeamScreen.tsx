@@ -2,6 +2,7 @@ import type { EventDto, MemberDto, TaskDto } from "@tagteam/core";
 import { NUDGE_INTERVAL_MS } from "@tagteam/core";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BellRing, ChevronDown, UserRoundPlus } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { type ReactNode, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Badge } from "@/components/ui/badge";
@@ -131,7 +132,11 @@ function MemberRow({
 		todayTotal === 0 ? 0 : Math.round((today.done / todayTotal) * 100);
 	const id = `member-${member.userId}-tasks`;
 	return (
-		<li className="border-b border-line last:border-0">
+		<motion.li
+			layout
+			transition={{ layout: { duration: 0.22, ease: [0.77, 0, 0.175, 1] } }}
+			className="border-b border-line last:border-0"
+		>
 			<Button
 				variant="ghost"
 				aria-expanded={expanded}
@@ -170,21 +175,31 @@ function MemberRow({
 							aria-label={`${member.displayName} tasks completed today`}
 							className="mt-2 gap-0"
 							trackClassName="h-1"
-							indicatorClassName="bg-success transition-[width] duration-200"
+							indicatorClassName="bg-success motion-safe:transition-transform duration-200 ease-[var(--ease-in-out)]"
 						/>
 					) : null}
 				</span>
 				<ChevronDown
 					aria-hidden
-					className={`size-5 shrink-0 text-text-3 transition-transform duration-150 ${expanded ? "rotate-180" : ""}`}
+					className={`size-5 shrink-0 text-text-3 motion-safe:transition-transform motion-safe:duration-150 ${expanded ? "motion-safe:rotate-180" : ""}`}
 				/>
 			</Button>
-			{expanded ? (
-				<div id={id} className="border-t border-line pb-3 pl-12 pr-1">
-					{children}
-				</div>
-			) : null}
-		</li>
+			<AnimatePresence initial={false} mode="sync">
+				{expanded ? (
+					<motion.div
+						key="member-tasks"
+						id={id}
+						initial={{ opacity: 0, transform: "translateY(8px)" }}
+						animate={{ opacity: 1, transform: "translateY(0px)" }}
+						exit={{ opacity: 0, transform: "translateY(-4px)" }}
+						transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+						className="border-t border-line pb-3 pl-12 pr-1"
+					>
+						{children}
+					</motion.div>
+				) : null}
+			</AnimatePresence>
+		</motion.li>
 	);
 }
 

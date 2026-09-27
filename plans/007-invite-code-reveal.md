@@ -1,6 +1,6 @@
 # 007 — Reveal newly created invite codes
 
-- **Status**: TODO
+- **Status**: DONE
 - **Commit**: a90b17c
 - **Severity**: LOW
 - **Category**: Missed opportunity
