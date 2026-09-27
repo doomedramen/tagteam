@@ -12,7 +12,7 @@ Plans record verified findings from the animation audit at commit a90b17c and th
 | 006 | Animate the Upcoming disclosure | LOW | DONE |
 | 007 | Reveal newly created invite codes | LOW | DONE |
 | 008 | Reveal the first task state | LOW | DONE |
-| 009 | Reserve screen-wide confetti for all done | MEDIUM | DONE |
+| 009 | Keep screen-wide confetti on every completion | MEDIUM | DONE |
 
 ## Recommended execution order
 
@@ -27,7 +27,7 @@ Plans 003–008 depend on 001 and 002. Plan 009 is independent.
 ## Decisions from the audit
 
 - Keep task-calendar cells static when paging months. Week count and date data change, so sliding the grid can imply spatial continuity that is not present. Do not animate a heading crossfade; overlapping month labels can reduce readability.
-- Do not add more completion effects. Plan 009 reserves the existing screen-wide confetti for the all-done moment and keeps the local row burst for routine completion.
+- Fire the screen-wide confetti cannon for every successful task completion. Keep the local row burst as additional task-level feedback; undo does not fire the cannon.
 - Progress width transitions are small but trigger layout. Plan 004 converts determinate bars to left-origin scaleX while retaining Base UI's value and accessibility state.
 
 ## Source references

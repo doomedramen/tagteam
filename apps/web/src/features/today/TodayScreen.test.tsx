@@ -78,7 +78,7 @@ describe("TodayScreen", () => {
 		expect(fireScreenConfettiCannon).toHaveBeenCalledTimes(1);
 	});
 
-	it("keeps the screen cannon for the final open task", async () => {
+	it("fires the screen cannon for a routine task completion", async () => {
 		await store.tasks.bulkPut([
 			brushTeeth,
 			{ ...brushTeeth, id: "t2", title: "Water plants" },
@@ -91,7 +91,18 @@ describe("TodayScreen", () => {
 			{ detail: 0 },
 		);
 		await waitFor(() => expect(engine.enqueue).toHaveBeenCalledTimes(1));
-		expect(fireScreenConfettiCannon).not.toHaveBeenCalled();
+		await waitFor(() =>
+			expect(fireScreenConfettiCannon).toHaveBeenCalledTimes(1),
+		);
+
+		fireEvent.click(
+			await screen.findByRole("button", { name: "Complete Water plants" }),
+			{ detail: 0 },
+		);
+		await waitFor(() => expect(engine.enqueue).toHaveBeenCalledTimes(2));
+		await waitFor(() =>
+			expect(fireScreenConfettiCannon).toHaveBeenCalledTimes(2),
+		);
 	});
 
 	it("ignores a second tap while the first completion is still in flight", async () => {
