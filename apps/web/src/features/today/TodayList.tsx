@@ -51,17 +51,17 @@ function CheckCircle({
 			}
 			aria-description={
 				done
-					? "Slide right to undo, or press Enter or Space"
-					: "Slide right to complete, or press Enter or Space"
+					? "Tap to mark incomplete. You can also swipe right."
+					: "Tap to complete. You can also swipe right."
 			}
 			aria-pressed={done}
 			onClick={onClick}
-			className="-m-2 relative size-11 shrink-0 touch-pan-y rounded-full p-0 text-text-2 hover:bg-surface-2"
+			className="-m-2 relative size-12 shrink-0 touch-pan-y rounded-full p-0 text-text-2 hover:bg-surface-2"
 		>
 			{done && celebrating ? <ConfettiBurst /> : null}
 			<span
 				className={cx(
-					"flex size-[26px] items-center justify-center rounded-full border-[1.5px] transition-colors duration-150",
+					"flex size-[26px] items-center justify-center rounded-full border-[1.5px] transition-colors duration-150 motion-safe:active:scale-90",
 					done && "border-success bg-success text-bg",
 					row.kind === "overdue" && "border-danger",
 					row.kind === "open" && "border-text-3",
@@ -144,8 +144,8 @@ function Row({
 		if (distance >= SWIPE_THRESHOLD_PX) onToggle(row);
 	};
 	const onClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
-		// Keyboard and assistive technology can activate without a pointer gesture.
-		if (event.detail === 0) onToggle(row);
+		// Drag-generated clicks are suppressed by the row before reaching this button.
+		if (!event.defaultPrevented) onToggle(row);
 	};
 	const ready = offset >= SWIPE_THRESHOLD_PX;
 	return (
@@ -178,7 +178,7 @@ function Row({
 				data-ready={ready}
 				className={cx(
 					"pointer-events-none absolute inset-0 flex items-center gap-2 px-4 text-text",
-					done ? "bg-danger-soft" : "bg-success-soft",
+					done ? "bg-accent-soft" : "bg-success-soft",
 				)}
 			>
 				{ready ? (
@@ -191,7 +191,7 @@ function Row({
 					<ArrowRight className="size-4" />
 				)}
 				<span className="text-[13px] font-medium">
-					{done ? "Undo" : "Done"}
+					{done ? "Reopen" : "Done"}
 				</span>
 			</div>
 			<div
@@ -207,7 +207,7 @@ function Row({
 				<Link
 					to={`/tasks/${row.task.id}`}
 					draggable={false}
-					className="min-w-0 flex-1 rounded-lg focus-visible:outline-2 focus-visible:outline-accent"
+					className="flex min-h-11 min-w-0 flex-1 flex-col justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-accent"
 				>
 					<p
 						className={cx(
@@ -352,7 +352,7 @@ export function TodayList({
 						/>
 					</div>
 					<p className="mt-3 text-[13px] text-text-2">
-						Slide right to complete or undo
+						Tap a circle to complete or reopen. Swipe right works too.
 					</p>
 					<Section
 						title="Overdue"

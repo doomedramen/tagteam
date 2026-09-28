@@ -70,6 +70,7 @@ export function TodayScreen() {
 			if (row.kind === "done") {
 				if (row.completionId) {
 					await uncomplete(row.task.id, row.completionId);
+					toast.show({ message: `Reopened · ${row.task.title}` });
 				}
 				return;
 			}
@@ -94,10 +95,16 @@ export function TodayScreen() {
 				message: `Done · ${row.task.title}`,
 				action: {
 					label: "Undo",
-					onClick: () => void uncomplete(row.task.id, id),
+					onClick: () => {
+						void uncomplete(row.task.id, id).catch(() => {
+							toast.show({ message: "Could not undo completion. Try again." });
+						});
+					},
 				},
 				durationMs: 5000,
 			});
+		} catch {
+			toast.show({ message: "Could not change task. Try again." });
 		} finally {
 			inFlight.current.delete(key);
 		}

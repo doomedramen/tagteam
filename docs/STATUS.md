@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-09-27 (right-swipe task completion)._
+_Last updated: 2026-09-28 (iOS task creation and completion interactions)._
 
 ## Done (on `main`; CI green through Plan 7)
 
@@ -84,12 +84,19 @@ decisions that matter are summarised below.
 - A sync requested while a run is failing is not retried immediately; triggers (online, visibility,
   60 s timer, SSE poke) retry.
 - Today computes "done today" in the browser's timezone; tasks carry their own timezone.
-- Today tasks now slide right to complete or undo. Releasing after 88 px confirms; short,
-  leftward, cancelled, or vertical gestures do not toggle. The row follows the pointer and
-  reveals a Done/Undo action. Long holds and pointer taps no longer toggle; keyboard and
-  assistive activation remain available. Completion confetti and offline sync are preserved.
-- Swipe validation: 72 web tests, web typecheck, lint, production build, and Playwright offline
-  completion/undo/sync flow pass, including native touch input and 375 × 812 light/dark review.
+- Task circles now support a single tap to complete or reopen; right swipe remains a shortcut.
+  A completed task uses neutral blue Reopen feedback. Drag-generated clicks remain suppressed,
+  and vertical, short, reversed, and cancelled gestures do not change state.
+- New tasks open a compact title-first sheet. Schedule expands on request; editing starts with
+  schedule expanded. Add/Save and inline save failures sit outside the scrolling body.
+- The sheet lifts and caps its height using the keyboard inset, keeping its header and footer
+  visible. Button taps retain input focus so keyboard dismissal cannot move the hit target
+  before release. Extra keyboard scroll padding is suppressed because the sheet already clears
+  the keyboard. Drafts survive closing/reopening within the current group and page session.
+- Interaction design: `docs/superpowers/specs/2026-09-28-task-interactions.md`.
+- Validation includes 75 web tests, web typecheck, lint, production build, and mobile browser
+  coverage for task creation, simulated keyboard geometry, taps, swipes, undo, and offline sync.
+  Native iPhone keyboard animation and installed-PWA behavior still require device verification.
 - Haptics are omitted because iOS PWA scripted switch clicks are unreliable.
 
 ## Remaining follow-ups

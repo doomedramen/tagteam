@@ -1,5 +1,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useCallback, useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { createBrowserRouter, Navigate, Outlet } from "react-router";
 import { AddTaskSheet } from "../features/add-task/AddTaskSheet";
 import { AddPasskeyScreen } from "../features/auth/AddPasskeyScreen";
@@ -23,7 +24,8 @@ function MainLayout() {
 	const { me, store, engine, activeGroupId, setActiveGroup } = useSession();
 	const status = useSyncStatus(engine);
 	const [adding, setAdding] = useState(false);
-	const openAdd = useCallback(() => setAdding(true), []);
+	// Keep initial title focus inside the tap that opens the iOS keyboard.
+	const openAdd = useCallback(() => flushSync(() => setAdding(true)), []);
 	const closeAdd = useCallback(() => setAdding(false), []);
 	const localGroups = useLiveQuery(() => store.groups.toArray(), [store]);
 	const groups =

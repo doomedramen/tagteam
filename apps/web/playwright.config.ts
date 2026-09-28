@@ -8,7 +8,14 @@ const BASE_URL = `http://localhost:${PORT}`;
 export default defineConfig({
 	testDir: "e2e",
 	timeout: 30_000,
-	use: { baseURL: BASE_URL, ...devices["Pixel 7"], serviceWorkers: "allow" },
+	use: { baseURL: BASE_URL, serviceWorkers: "allow" },
+	projects: [
+		{ name: "iphone", use: { ...devices["iPhone 13"], browserName: "webkit" } },
+		{
+			name: "chromium",
+			use: { ...devices["Pixel 7"], browserName: "chromium" },
+		},
+	],
 	webServer: {
 		command: "pnpm --filter @tagteam/server start",
 		url: `${BASE_URL}/api/health`,

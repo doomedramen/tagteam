@@ -1,5 +1,5 @@
 import type { TaskDto } from "@tagteam/core";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TagTeamDb } from "../../store/db";
@@ -232,32 +232,33 @@ describe("TodayScreen", () => {
 		expect(engine.enqueue).not.toHaveBeenCalled();
 	});
 
-	it("does not toggle on a tap or long hold", async () => {
+	it("completes with a pointer tap", async () => {
 		await store.tasks.put(brushTeeth);
 		const engine = fakeEngine();
+		renderWithSession(<TodayScreen />, { store, engine });
+		await userEvent.click(
+			await screen.findByRole("button", { name: "Complete Brush teeth" }),
+		);
+		expect(engine.enqueue).toHaveBeenCalledWith(
+			expect.objectContaining({ type: "task.complete" }),
+		);
+	});
+
+	it("reports a failed completion without celebrating and allows retry", async () => {
+		await store.tasks.put(brushTeeth);
+		const engine = fakeEngine();
+		engine.enqueue.mockRejectedValueOnce(new Error("disk full"));
 		renderWithSession(<TodayScreen />, { store, engine });
 		const button = await screen.findByRole("button", {
 			name: "Complete Brush teeth",
 		});
 		await userEvent.click(button);
-		vi.useFakeTimers();
-		try {
-			const pointer = {
-				pointerId: 1,
-				isPrimary: true,
-				pointerType: "touch",
-				button: 0,
-				clientX: 20,
-				clientY: 20,
-			};
-			fireEvent.pointerDown(button, pointer);
-			await act(async () => vi.advanceTimersByTime(3000));
-			fireEvent.pointerUp(button, pointer);
-			fireEvent.click(button, { detail: 1 });
-			expect(engine.enqueue).not.toHaveBeenCalled();
-		} finally {
-			vi.useRealTimers();
-		}
+		expect(
+			await screen.findByText("Could not change task. Try again."),
+		).toBeInTheDocument();
+		expect(fireScreenConfettiCannon).not.toHaveBeenCalled();
+		await userEvent.click(button);
+		expect(engine.enqueue).toHaveBeenCalledTimes(2);
 	});
 
 	it("allows keyboard completion with Space", async () => {
@@ -302,7 +303,7 @@ describe("TodayScreen", () => {
 		fireEvent.pointerDown(link, { ...pointer, clientX: 60 });
 		fireEvent.pointerMove(link, { ...pointer, clientX: 160 });
 		expect(row.querySelector("[data-swipe-action]")).toHaveClass(
-			"bg-danger-soft",
+			"bg-accent-soft",
 		);
 		fireEvent.pointerUp(link, { ...pointer, clientX: 160 });
 		expect(fireEvent.click(link, { detail: 1 })).toBe(false);
