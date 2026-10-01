@@ -3,6 +3,7 @@ import type {
 	GroupDto,
 	MemberDto,
 	Mutation,
+	SuggestionDto,
 	TaskDto,
 } from "@tagteam/core";
 import Dexie, { type EntityTable, type Table } from "dexie";
@@ -29,6 +30,7 @@ export class TagTeamDb extends Dexie {
 	members!: Table<MemberDto, [string, string]>;
 	tasks!: EntityTable<TaskDto, "id">;
 	events!: EntityTable<EventDto, "id">;
+	suggestions!: EntityTable<SuggestionDto, "id">;
 	outbox!: EntityTable<OutboxRow, "seq">;
 	meta!: EntityTable<MetaRow, "key">;
 
@@ -41,6 +43,9 @@ export class TagTeamDb extends Dexie {
 			events: "id, taskId",
 			outbox: "++seq",
 			meta: "key",
+		});
+		this.version(2).stores({
+			suggestions: "id, groupId",
 		});
 	}
 }

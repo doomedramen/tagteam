@@ -93,6 +93,70 @@ export async function applyLocal(
 					refEventId: null,
 				});
 			return;
+		case "suggestion.create":
+			await store.suggestions.put({
+				id: m.suggestionId,
+				groupId: m.groupId,
+				fromUserId: me.userId,
+				toUserId: m.toUserId,
+				title: m.title.trim(),
+				notes: m.notes,
+				startDate: m.startDate,
+				dueTime: m.dueTime,
+				rule: m.rule,
+				status: "pending",
+				taskId: null,
+				createdAt: m.at,
+				resolvedAt: null,
+			});
+			return;
+		case "suggestion.accept": {
+			const suggestion = await store.suggestions.get(m.suggestionId);
+			if (suggestion?.status !== "pending") return;
+			await store.tasks.put({
+				id: m.taskId,
+				groupId: suggestion.groupId,
+				ownerId: me.userId,
+				title: suggestion.title,
+				notes: suggestion.notes,
+				timezone: m.timezone,
+				startDate: m.startDate,
+				rules: [
+					{
+						effectiveFrom: m.startDate,
+						rule: suggestion.rule,
+						dueTime: suggestion.dueTime,
+					},
+				],
+				archivedAt: null,
+				createdAt: m.at,
+				suggestedBy: suggestion.fromUserId,
+			});
+			await store.suggestions.update(suggestion.id, {
+				status: "accepted",
+				taskId: m.taskId,
+				resolvedAt: m.at,
+			});
+			return;
+		}
+		case "suggestion.decline": {
+			const suggestion = await store.suggestions.get(m.suggestionId);
+			if (suggestion?.status === "pending")
+				await store.suggestions.update(suggestion.id, {
+					status: "declined",
+					resolvedAt: m.at,
+				});
+			return;
+		}
+		case "suggestion.withdraw": {
+			const suggestion = await store.suggestions.get(m.suggestionId);
+			if (suggestion?.status === "pending" || suggestion?.status === "declined")
+				await store.suggestions.update(suggestion.id, {
+					status: "withdrawn",
+					resolvedAt: m.at,
+				});
+			return;
+		}
 	}
 }
 
@@ -103,6 +167,7 @@ async function removeGroup(store: TagTeamDb, groupId: string): Promise<void> {
 		.primaryKeys();
 	await store.events.where("taskId").anyOf(taskIds).delete();
 	await store.tasks.bulkDelete(taskIds);
+	await store.suggestions.where("groupId").equals(groupId).delete();
 	await store.members.where("groupId").equals(groupId).delete();
 	await store.groups.delete(groupId);
 }
@@ -121,6 +186,7 @@ export async function applyPull(
 			store.members,
 			store.tasks,
 			store.events,
+			store.suggestions,
 			store.outbox,
 			store.meta,
 		],
@@ -131,6 +197,7 @@ export async function applyPull(
 					store.members.clear(),
 					store.tasks.clear(),
 					store.events.clear(),
+					store.suggestions.clear(),
 				]);
 			}
 			for (const groupId of pull.removedGroupIds)
@@ -139,6 +206,7 @@ export async function applyPull(
 			await store.members.bulkPut(pull.members);
 			await store.tasks.bulkPut(pull.tasks);
 			await store.events.bulkPut(pull.events);
+			await store.suggestions.bulkPut(pull.suggestions);
 			const pending = await store.outbox.orderBy("seq").toArray();
 			for (const row of pending) await applyLocal(store, row.mutation, me);
 			await setMeta(store, "cursor", pull.cursor);

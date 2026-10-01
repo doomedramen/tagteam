@@ -1,4 +1,9 @@
-import type { Mutation, PullResponse, TaskDto } from "@tagteam/core";
+import type {
+	Mutation,
+	PullResponse,
+	SuggestionDto,
+	TaskDto,
+} from "@tagteam/core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { applyLocal, applyPull } from "./apply";
 import { getMeta, TagTeamDb } from "./db";
@@ -28,6 +33,35 @@ const serverTask = (title: string): TaskDto => ({
 	archivedAt: null,
 	createdAt: at,
 	suggestedBy: null,
+});
+const suggestionId = "44444444-4444-4444-8444-444444444444";
+const newTaskId = "55555555-5555-4555-8555-555555555555";
+const serverSuggestion = (
+	patch: Partial<SuggestionDto> = {},
+): SuggestionDto => ({
+	id: suggestionId,
+	groupId,
+	fromUserId: "u2",
+	toUserId: "u1",
+	title: "Wash dishes",
+	notes: null,
+	startDate: "2026-09-21",
+	dueTime: "19:00",
+	rule: { freq: "day", interval: 1 },
+	status: "pending",
+	taskId: null,
+	createdAt: at,
+	resolvedAt: null,
+	...patch,
+});
+const accept = (): Mutation => ({
+	id: id(),
+	at: at + 5,
+	type: "suggestion.accept",
+	suggestionId,
+	taskId: newTaskId,
+	timezone: "Europe/London",
+	startDate: "2026-09-23",
 });
 const pull = (patch: Partial<PullResponse>): PullResponse => ({
 	cursor: 1,
@@ -210,6 +244,160 @@ describe("applyPull", () => {
 		});
 		expect((await db.tasks.toArray()).map((t) => t.title)).toEqual([
 			"Brush teeth",
+		]);
+	});
+});
+
+describe("applyLocal suggestions", () => {
+	it("records a pending suggestion from me", async () => {
+		await applyLocal(
+			db,
+			{
+				id: id(),
+				at,
+				type: "suggestion.create",
+				suggestionId,
+				groupId,
+				toUserId: "u2",
+				title: " Wash dishes ",
+				notes: null,
+				startDate: "2026-09-21",
+				dueTime: "19:00",
+				rule: { freq: "day", interval: 1 },
+			},
+			me,
+		);
+		expect(await db.suggestions.get(suggestionId)).toEqual({
+			id: suggestionId,
+			groupId,
+			fromUserId: "u1",
+			toUserId: "u2",
+			title: "Wash dishes",
+			notes: null,
+			startDate: "2026-09-21",
+			dueTime: "19:00",
+			rule: { freq: "day", interval: 1 },
+			status: "pending",
+			taskId: null,
+			createdAt: at,
+			resolvedAt: null,
+		});
+	});
+
+	it("accepting writes my own task with the suggester recorded and resolves the suggestion", async () => {
+		await db.suggestions.put(serverSuggestion());
+		await applyLocal(db, accept(), me);
+		expect(await db.tasks.get(newTaskId)).toEqual({
+			id: newTaskId,
+			groupId,
+			ownerId: "u1",
+			title: "Wash dishes",
+			notes: null,
+			timezone: "Europe/London",
+			startDate: "2026-09-23",
+			rules: [
+				{
+					effectiveFrom: "2026-09-23",
+					rule: { freq: "day", interval: 1 },
+					dueTime: "19:00",
+				},
+			],
+			archivedAt: null,
+			createdAt: at + 5,
+			suggestedBy: "u2",
+		});
+		expect(await db.suggestions.get(suggestionId)).toMatchObject({
+			status: "accepted",
+			taskId: newTaskId,
+			resolvedAt: at + 5,
+		});
+	});
+
+	it("declines a pending suggestion and withdraws a pending or declined one", async () => {
+		await db.suggestions.put(serverSuggestion());
+		await applyLocal(
+			db,
+			{ id: id(), at: at + 1, type: "suggestion.decline", suggestionId },
+			me,
+		);
+		expect(await db.suggestions.get(suggestionId)).toMatchObject({
+			status: "declined",
+			resolvedAt: at + 1,
+		});
+		await applyLocal(
+			db,
+			{ id: id(), at: at + 2, type: "suggestion.withdraw", suggestionId },
+			me,
+		);
+		expect(await db.suggestions.get(suggestionId)).toMatchObject({
+			status: "withdrawn",
+			resolvedAt: at + 2,
+		});
+	});
+
+	it("ignores answers to suggestions that are unknown or no longer pending", async () => {
+		await applyLocal(db, accept(), me);
+		expect(await db.tasks.count()).toBe(0);
+
+		await db.suggestions.put(serverSuggestion({ status: "withdrawn" }));
+		await applyLocal(db, accept(), me);
+		await applyLocal(
+			db,
+			{ id: id(), at, type: "suggestion.decline", suggestionId },
+			me,
+		);
+		expect(await db.tasks.count()).toBe(0);
+		expect((await db.suggestions.get(suggestionId))?.status).toBe("withdrawn");
+
+		await db.suggestions.put(serverSuggestion({ status: "accepted" }));
+		await applyLocal(
+			db,
+			{ id: id(), at, type: "suggestion.withdraw", suggestionId },
+			me,
+		);
+		expect((await db.suggestions.get(suggestionId))?.status).toBe("accepted");
+	});
+});
+
+describe("applyPull suggestions", () => {
+	it("mirrors suggestions the server returned", async () => {
+		await applyPull(db, pull({ suggestions: [serverSuggestion()] }), me);
+		expect(await db.suggestions.toArray()).toEqual([serverSuggestion()]);
+		await applyPull(
+			db,
+			pull({ suggestions: [serverSuggestion({ status: "declined" })] }),
+			me,
+		);
+		expect((await db.suggestions.get(suggestionId))?.status).toBe("declined");
+	});
+
+	it("keeps a queued accept on top of an older pull", async () => {
+		await db.outbox.add({ mutation: accept() });
+		await applyPull(db, pull({ suggestions: [serverSuggestion()] }), me);
+		expect((await db.suggestions.get(suggestionId))?.status).toBe("accepted");
+		expect((await db.tasks.get(newTaskId))?.suggestedBy).toBe("u2");
+	});
+
+	it("drops the suggestions of groups the user left", async () => {
+		await applyPull(
+			db,
+			pull({
+				groups: [{ id: groupId, name: "Smiths" }],
+				suggestions: [serverSuggestion()],
+			}),
+			me,
+		);
+		await applyPull(db, pull({ removedGroupIds: [groupId] }), me);
+		expect(await db.suggestions.count()).toBe(0);
+	});
+
+	it("rebuilds suggestions from scratch on reset", async () => {
+		await db.suggestions.put(serverSuggestion({ id: "local-only" }));
+		await applyPull(db, pull({ suggestions: [serverSuggestion()] }), me, {
+			reset: true,
+		});
+		expect((await db.suggestions.toArray()).map((s) => s.id)).toEqual([
+			suggestionId,
 		]);
 	});
 });

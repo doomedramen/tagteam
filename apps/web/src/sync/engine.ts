@@ -92,7 +92,7 @@ export function createSyncEngine(opts: {
 		async enqueue(mutation) {
 			await store.transaction(
 				"rw",
-				[store.outbox, store.tasks, store.events],
+				[store.outbox, store.tasks, store.events, store.suggestions],
 				async () => {
 					await store.outbox.add({ mutation });
 					await applyLocal(store, mutation, me);

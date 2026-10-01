@@ -87,6 +87,37 @@ describe("sync engine", () => {
 		engine.dispose();
 	});
 
+	it("applies a suggestion locally at once and clears it when the server rejects it", async () => {
+		const api = fakeApi((ms) =>
+			ms.map((m) => ({
+				id: m.id,
+				status: "rejected",
+				reason: "recipient is not a member of this group",
+			})),
+		);
+		const engine = createSyncEngine({ store, api, me, debounceMs: 10_000 });
+		await engine.enqueue({
+			id: crypto.randomUUID(),
+			at: Date.now(),
+			type: "suggestion.create",
+			suggestionId: crypto.randomUUID(),
+			groupId,
+			toUserId: "u2",
+			title: "Wash dishes",
+			notes: null,
+			startDate: "2026-09-21",
+			dueTime: null,
+			rule: null,
+		});
+		expect(await store.suggestions.count()).toBe(1);
+		expect(engine.getStatus().pending).toBe(1);
+
+		await engine.sync();
+		expect(api.pull).toHaveBeenCalledWith(0);
+		expect(await store.suggestions.count()).toBe(0);
+		engine.dispose();
+	});
+
 	it("pushes large outboxes in batches of 100", async () => {
 		const api = fakeApi();
 		const engine = createSyncEngine({ store, api, me, debounceMs: 10_000 });
