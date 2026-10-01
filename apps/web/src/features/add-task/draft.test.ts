@@ -5,6 +5,7 @@ import {
 	draftMutation,
 	draftRule,
 	newDraft,
+	suggestionMutation,
 	type TaskDraft,
 } from "./draft";
 
@@ -139,5 +140,38 @@ describe("task drafts", () => {
 			at: 5,
 		});
 		expect(m.id).not.toBe((m as { taskId: string }).taskId);
+	});
+
+	it("starts every draft for me", () => {
+		expect(newDraft("2026-09-23").forUserId).toBeNull();
+	});
+
+	it("builds a suggestion.create that core accepts", () => {
+		const m = suggestionMutation(
+			{
+				...base,
+				title: " Wash dishes ",
+				repeat: "weekly",
+				dueTime: "19:00",
+				forUserId: "u2",
+			},
+			{
+				groupId: "11111111-1111-4111-8111-111111111111",
+				toUserId: "u2",
+				at: 7,
+			},
+		);
+		expect(mutationErrors(m)).toEqual([]);
+		expect(m).toMatchObject({
+			type: "suggestion.create",
+			toUserId: "u2",
+			title: "Wash dishes",
+			notes: null,
+			startDate: "2026-09-23",
+			dueTime: "19:00",
+			rule: { freq: "week", interval: 1, weekdays: [3] },
+			at: 7,
+		});
+		expect(m.id).not.toBe((m as { suggestionId: string }).suggestionId);
 	});
 });

@@ -1,5 +1,10 @@
-import type { TaskDto, Weekday } from "@tagteam/core";
-import { CalendarDays, ChevronDown, Clock, Plus } from "lucide-react";
+import {
+	MAX_PENDING_SUGGESTIONS,
+	type TaskDto,
+	type Weekday,
+} from "@tagteam/core";
+import { useLiveQuery } from "dexie-react-hooks";
+import { CalendarDays, ChevronDown, Clock, Plus, Send } from "lucide-react";
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import {
 	Field,
@@ -21,12 +26,14 @@ import { useSession } from "../../session/session";
 import { Button } from "../../ui/Button";
 import { Sheet } from "../../ui/Sheet";
 import { useToast } from "../../ui/Toast";
+import { pendingSuggestionCount } from "../suggestions/model";
 import {
 	draftErrors,
 	draftMutation,
 	draftScheduleMutation,
 	newDraft,
 	type Repeat,
+	suggestionMutation,
 	type TaskDraft,
 	taskDraft,
 	type Unit,
@@ -60,7 +67,7 @@ export function AddTaskSheet({
 	onClose: () => void;
 	task?: TaskDto;
 }) {
-	const { engine, activeGroupId, me } = useSession();
+	const { store, engine, activeGroupId, me } = useSession();
 	const toast = useToast();
 	const formId = useId();
 	const submittingRef = useRef(false);
@@ -71,6 +78,30 @@ export function AddTaskSheet({
 	const [showDate, setShowDate] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
 	const [saveError, setSaveError] = useState<string | null>(null);
+	const members = useLiveQuery(
+		() =>
+			store.members
+				.where("groupId")
+				.equals(activeGroupId ?? "")
+				.toArray(),
+		[store, activeGroupId],
+	);
+	const suggestions = useLiveQuery(
+		() =>
+			store.suggestions
+				.where("groupId")
+				.equals(activeGroupId ?? "")
+				.toArray(),
+		[store, activeGroupId],
+	);
+	// Other active members I could suggest this task to. Editing never offers it.
+	const recipients = task
+		? []
+		: (members ?? [])
+				.filter((m) => m.leftAt === null && m.userId !== me.user.id)
+				.sort((a, b) => a.displayName.localeCompare(b.displayName));
+	const recipient =
+		recipients.find((m) => m.userId === draft.forUserId) ?? null;
 	useEffect(() => {
 		if (!open || !task) return;
 		const effectiveFrom =
@@ -107,6 +138,20 @@ export function AddTaskSheet({
 		}
 		if (task && task.ownerId !== me.user.id) return;
 		if (!task && !activeGroupId) return;
+		if (
+			recipient &&
+			pendingSuggestionCount(
+				suggestions ?? [],
+				activeGroupId as string,
+				me.user.id,
+				recipient.userId,
+			) >= MAX_PENDING_SUGGESTIONS
+		) {
+			setSaveError(
+				`You already have ${MAX_PENDING_SUGGESTIONS} suggestions waiting for ${recipient.displayName}. Wait for an answer or withdraw one.`,
+			);
+			return;
+		}
 		setSaveError(null);
 		submittingRef.current = true;
 		setSubmitting(true);
@@ -130,6 +175,17 @@ export function AddTaskSheet({
 					message:
 						titleChanged || schedule ? "Task updated" : "No changes to save",
 				});
+			} else if (recipient) {
+				await engine.enqueue(
+					suggestionMutation(draft, {
+						groupId: activeGroupId as string,
+						toUserId: recipient.userId,
+						at: Date.now(),
+					}),
+				);
+				toast.show({
+					message: `Suggested to ${recipient.displayName} · ${draft.title.trim()}`,
+				});
 			} else {
 				await engine.enqueue(
 					draftMutation(draft, {
@@ -150,7 +206,9 @@ export function AddTaskSheet({
 			setSaveError(
 				task
 					? "Could not update task. Try again."
-					: "Could not add task. Try again.",
+					: recipient
+						? "Could not send suggestion. Try again."
+						: "Could not add task. Try again.",
 			);
 		} finally {
 			submittingRef.current = false;
@@ -189,9 +247,17 @@ export function AddTaskSheet({
 						className="min-h-12 rounded-2xl"
 					>
 						{!task && !submitting ? (
-							<Plus aria-hidden className="size-5" />
+							recipient ? (
+								<Send aria-hidden className="size-5" />
+							) : (
+								<Plus aria-hidden className="size-5" />
+							)
 						) : null}
-						{task ? "Save changes" : "Add task"}
+						{task
+							? "Save changes"
+							: recipient
+								? `Suggest to ${recipient.displayName}`
+								: "Add task"}
 					</Button>
 				</>
 			}
@@ -228,6 +294,40 @@ export function AddTaskSheet({
 							</FieldError>
 						) : null}
 					</Field>
+
+					{recipients.length > 0 ? (
+						<FieldSet className="gap-2">
+							<FieldLegend
+								variant="label"
+								className="mb-2 text-[13px] font-medium text-text-2"
+							>
+								For
+							</FieldLegend>
+							<ToggleGroup
+								value={[recipient?.userId ?? me.user.id]}
+								aria-label="For"
+								onValueChange={([value]) => {
+									if (!value) return;
+									update({ forUserId: value === me.user.id ? null : value });
+									setSaveError(null);
+								}}
+								className="w-full flex-wrap justify-start gap-2 rounded-none"
+							>
+								<ToggleGroupItem value={me.user.id} className={toggleClass}>
+									Me
+								</ToggleGroupItem>
+								{recipients.map((member) => (
+									<ToggleGroupItem
+										key={member.userId}
+										value={member.userId}
+										className={toggleClass}
+									>
+										{member.displayName}
+									</ToggleGroupItem>
+								))}
+							</ToggleGroup>
+						</FieldSet>
+					) : null}
 
 					<button
 						type="button"

@@ -23,6 +23,8 @@ export interface TaskDraft {
 	monthDay: number | "last";
 	startDate: LocalDate;
 	dueTime: string | null;
+	/** Another member to suggest this task to; `null` means the task is for me. */
+	forUserId: string | null;
 }
 
 export const newDraft = (today: LocalDate): TaskDraft => ({
@@ -34,6 +36,7 @@ export const newDraft = (today: LocalDate): TaskDraft => ({
 	monthDay: Number(today.slice(8)),
 	startDate: today,
 	dueTime: null,
+	forUserId: null,
 });
 
 export function taskDraft(task: TaskDto, effectiveFrom: LocalDate): TaskDraft {
@@ -142,6 +145,25 @@ export function draftMutation(
 		title: d.title.trim(),
 		notes: null,
 		timezone: ctx.timezone,
+		startDate: d.startDate,
+		dueTime: d.dueTime,
+		rule: draftRule(d),
+	};
+}
+
+export function suggestionMutation(
+	d: TaskDraft,
+	ctx: { groupId: string; toUserId: string; at: number },
+): Mutation {
+	return {
+		id: crypto.randomUUID(),
+		at: ctx.at,
+		type: "suggestion.create",
+		suggestionId: crypto.randomUUID(),
+		groupId: ctx.groupId,
+		toUserId: ctx.toUserId,
+		title: d.title.trim(),
+		notes: null,
 		startDate: d.startDate,
 		dueTime: d.dueTime,
 		rule: draftRule(d),
