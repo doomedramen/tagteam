@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-01 (Plan 8 task suggestions complete)._
+_Last updated: 2026-10-01 (Plan 8 complete; final fixes)._
 
 ## Done (on `main`; CI green through Plan 7, Plan 8 not yet run in CI)
 
@@ -86,13 +86,22 @@ decisions that matter are summarised below.
   `notification_log` would cascade-delete queued `notification_delivery` rows inside the migrator's
   transaction, so the file parks deliveries in a backup table first. `src/db/migrations.test.ts`
   guards this.
-- Web: Dexie `version(2)` `suggestions`; "For" chips in New task (hidden with no other active member
-  and when editing); incoming cards and a "Suggested by you" section on Today; History says
-  "{owner} took on {title}" with "Suggested by {name}"; the Me toggle is "Nudges and suggestions".
+- Web: Dexie `version(2)` `suggestions`. The New task sheet has a "For" select (Me plus other active
+  members; hidden with no other active member and when editing). Today shows one suggestions strip
+  ("{n} suggestion(s) for you", "Sent by you: {w} waiting, {d} declined"; hidden when nothing is
+  pending or declined) that opens a "Suggestions" sheet with "For you" and "Sent by you" sections;
+  the sheet closes itself when empty. History and task detail say "{owner} took on {title}" /
+  "Suggested by {name}". The Me toggle is "Nudges and suggestions".
 - Checks: unit tests, typecheck, lint, and the two-user Playwright flow (WebKit `iphone` and
-  `chromium` projects) passed. The 375 × 812 light/dark visual check is pending.
+  `chromium` projects) passed. Visual check at 375 × 812 light and dark passed for the Today strip,
+  Suggestions sheet, New task "For" select, and History; the Me toggle label is covered by unit test
+  only because the local dev server had no VAPID keys.
 
 ## Next plans
+
+- None planned.
+
+## Considered and dropped
 
 - "Team up" on shared or dependent tasks was considered and dropped (spec §1): nudges and talking
   cover it.
@@ -133,3 +142,8 @@ decisions that matter are summarised below.
 
 - Production push needs stable `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` values.
 - `deriveTask` re-runs for every task on each 30 s tick; measure before optimizing if histories grow.
+- Native iOS push for the three suggestion kinds, and installed-PWA behaviour of the strip and sheet,
+  need device verification.
+- Suggestion pushes have no per-sender throttle (the cap counts only pending suggestions; acceptable
+  for small trusted groups).
+- Suggestion rows are never pruned, so pulls carry the full history between pairs.

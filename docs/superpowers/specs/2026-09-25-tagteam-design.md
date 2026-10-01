@@ -95,7 +95,9 @@ across DST. Occurrence keys are local dates (`2026-09-21`) in that timezone.
 
 Server job every minute computes due / overdue tasks with the same `core` engine and sends web
 push. Dedupe via `(taskId, occurrenceKey, kind)` unique log. Nudges send immediately (rate
-limited: 1 nudge per sender per task per 30 min).
+limited: 1 nudge per sender per task per 30 min). Task suggestions add three push kinds
+(`suggested` to the recipient, `accepted` and `declined` to the sender); see
+`2026-10-01-task-suggestions-design.md` §7.
 
 ### 3.6 Sync protocol
 
@@ -121,11 +123,17 @@ Better Auth owns `user`, `session`, `account`, `passkey`. App tables (all synced
   usedBy, usedAt, revokedAt. Single use: consumed atomically on join. Redeem attempts rate limited
   per user (5/min, 20/h).
 - `task` — id, groupId, ownerId, title, notes, timezone, startDate, rules (JSON RuleVersion[] —
-  each {effectiveFrom, rule, dueTime}), archivedAt, createdAt, clocks (LWW per field group), seq
+  each {effectiveFrom, rule, dueTime}), archivedAt, createdAt, clocks (LWW per field group), seq,
+  suggestedBy (nullable user id; set when the task came from an accepted suggestion)
 - `task_event` — id (= mutation id), taskId, groupId, userId, type, occurrenceKey, refEventId, at
   (client, clamped), receivedAt, seq
 - `push_subscription` — userId, endpoint, keys, deviceLabel
-- `notification_log` — taskId, occurrenceKey, kind; unique
+- `suggestion` — id, groupId, fromUserId, toUserId, title, notes, startDate, dueTime, rule (the task
+  draft), status (`pending` | `accepted` | `declined` | `withdrawn`), taskId (null until accepted),
+  createdAt, resolvedAt, seq. Rows are never deleted. Columns and rules in
+  `2026-10-01-task-suggestions-design.md` §3.
+- `notification_log` — taskId (nullable), suggestionId (nullable), occurrenceKey, kind; unique per
+  task occurrence and kind, and per suggestion and kind
 - `applied_mutation` — mutationId, userId, appliedAt (idempotency)
 - `sync_state` — key, value (global change sequence)
 
