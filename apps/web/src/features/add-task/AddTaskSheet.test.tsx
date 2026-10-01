@@ -191,18 +191,12 @@ describe("AddTaskSheet suggestions", () => {
 			member("u4", "Lee", { leftAt: 9 }),
 		]);
 		renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, { store });
-		const group = await screen.findByLabelText("For");
-		const chips = within(group)
-			.getAllByRole("button")
-			.map((button) => [
-				button.textContent,
-				button.getAttribute("aria-pressed"),
-			]);
-		expect(chips).toEqual([
-			["Me", "true"],
-			["Jo", "false"],
-			["Kim", "false"],
-		]);
+		const select = await screen.findByRole("combobox", { name: "For" });
+		const options = within(select)
+			.getAllByRole("option")
+			.map((option) => option.textContent);
+		expect(options).toEqual(["Me", "Jo", "Kim"]);
+		expect(select).toHaveDisplayValue("Me");
 	});
 
 	it("hides the control when nobody else is in the group", async () => {
@@ -258,7 +252,7 @@ describe("AddTaskSheet suggestions", () => {
 			engine,
 		});
 		await userEvent.type(screen.getByLabelText("Task"), "Wash dishes");
-		await userEvent.click(await screen.findByRole("button", { name: "Jo" }));
+		await userEvent.selectOptions(await screen.findByLabelText("For"), "Jo");
 		await userEvent.click(
 			screen.getByRole("button", { name: "Suggest to Jo" }),
 		);
@@ -284,8 +278,11 @@ describe("AddTaskSheet suggestions", () => {
 			engine,
 		});
 		await userEvent.type(screen.getByLabelText("Task"), "Call grandma");
-		await userEvent.click(await screen.findByRole("button", { name: "Jo" }));
-		await userEvent.click(screen.getByRole("button", { name: "Me" }));
+		const select = await screen.findByLabelText("For");
+		await userEvent.selectOptions(select, "Jo");
+		expect(select).toHaveDisplayValue("Jo");
+		await userEvent.selectOptions(select, "Me");
+		expect(select).toHaveDisplayValue("Me");
 		await userEvent.click(screen.getByRole("button", { name: "Add task" }));
 		expect(engine.enqueue).toHaveBeenCalledWith(
 			expect.objectContaining({ type: "task.create", title: "Call grandma" }),
@@ -306,12 +303,45 @@ describe("AddTaskSheet suggestions", () => {
 		}
 		const store = await storeWith([member("u1", "Sam"), member("u2", "Jo")]);
 		renderWithSession(<Harness />, { store });
-		await userEvent.click(await screen.findByRole("button", { name: "Jo" }));
+		await userEvent.selectOptions(await screen.findByLabelText("For"), "Jo");
 		await userEvent.click(screen.getByRole("button", { name: "Close" }));
 		await userEvent.click(screen.getByRole("button", { name: "Open" }));
 		expect(
 			screen.getByRole("button", { name: "Suggest to Jo" }),
 		).toBeInTheDocument();
+		expect(screen.getByLabelText("For")).toHaveDisplayValue("Jo");
+	});
+
+	it("treats a chosen member who has since left as Me", async () => {
+		const store = await storeWith([
+			member("u1", "Sam"),
+			member("u2", "Jo"),
+			member("u3", "Kim"),
+		]);
+		const engine = fakeEngine();
+		renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, {
+			store,
+			engine,
+		});
+		await userEvent.type(screen.getByLabelText("Task"), "Wash dishes");
+		await userEvent.selectOptions(await screen.findByLabelText("For"), "Jo");
+		expect(
+			screen.getByRole("button", { name: "Suggest to Jo" }),
+		).toBeInTheDocument();
+		await act(async () => {
+			await store.members.update(["g1", "u2"], { leftAt: 9 });
+		});
+		await waitFor(() =>
+			expect(screen.getByLabelText("For")).toHaveDisplayValue("Me"),
+		);
+		expect(
+			screen.queryByRole("option", { name: "Jo" }),
+		).not.toBeInTheDocument();
+		await userEvent.click(screen.getByRole("button", { name: "Add task" }));
+		expect(engine.enqueue).toHaveBeenCalledTimes(1);
+		expect(engine.enqueue).toHaveBeenCalledWith(
+			expect.objectContaining({ type: "task.create", title: "Wash dishes" }),
+		);
 	});
 
 	it.each([
@@ -330,7 +360,7 @@ describe("AddTaskSheet suggestions", () => {
 				engine,
 			});
 			await userEvent.type(screen.getByLabelText("Task"), "Wash dishes");
-			await userEvent.click(await screen.findByRole("button", { name: "Jo" }));
+			await userEvent.selectOptions(await screen.findByLabelText("For"), "Jo");
 			await settle();
 			await userEvent.click(
 				screen.getByRole("button", { name: "Suggest to Jo" }),

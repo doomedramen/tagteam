@@ -55,6 +55,8 @@ const WEEKDAYS: { value: Weekday; short: string; name: string }[] = [
 	{ value: 6, short: "S", name: "Saturday" },
 	{ value: 7, short: "S", name: "Sunday" },
 ];
+// Option value for "Me" (no recipient); a member's option value is their user id.
+const ME = "";
 const toggleClass =
 	"h-11 min-w-11 rounded-full bg-surface px-3.5 text-[14px] text-text ring-1 ring-line aria-pressed:bg-accent aria-pressed:text-on-accent data-[state=on]:bg-accent data-[state=on]:text-on-accent";
 
@@ -296,37 +298,32 @@ export function AddTaskSheet({
 					</Field>
 
 					{recipients.length > 0 ? (
-						<FieldSet className="gap-2">
-							<FieldLegend
-								variant="label"
-								className="mb-2 text-[13px] font-medium text-text-2"
+						<Field className="gap-1">
+							<FieldLabel
+								htmlFor="task-for"
+								className="text-[13px] font-medium text-text-2"
 							>
 								For
-							</FieldLegend>
-							<ToggleGroup
-								value={[recipient?.userId ?? me.user.id]}
-								aria-label="For"
-								onValueChange={([value]) => {
-									if (!value) return;
-									update({ forUserId: value === me.user.id ? null : value });
+							</FieldLabel>
+							<NativeSelect
+								id="task-for"
+								className="w-full"
+								value={recipient?.userId ?? ME}
+								onChange={(e) => {
+									update({
+										forUserId: e.target.value === ME ? null : e.target.value,
+									});
 									setSaveError(null);
 								}}
-								className="w-full flex-wrap justify-start gap-2 rounded-none"
 							>
-								<ToggleGroupItem value={me.user.id} className={toggleClass}>
-									Me
-								</ToggleGroupItem>
+								<NativeSelectOption value={ME}>Me</NativeSelectOption>
 								{recipients.map((member) => (
-									<ToggleGroupItem
-										key={member.userId}
-										value={member.userId}
-										className={toggleClass}
-									>
+									<NativeSelectOption key={member.userId} value={member.userId}>
 										{member.displayName}
-									</ToggleGroupItem>
+									</NativeSelectOption>
 								))}
-							</ToggleGroup>
-						</FieldSet>
+							</NativeSelect>
+						</Field>
 					) : null}
 
 					<button

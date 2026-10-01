@@ -46,10 +46,10 @@ test("one member suggests a task, the other accepts it, and both see it", async 
 		await sam.getByRole("button", { name: "Add task" }).first().click();
 		const sheet = sam.getByRole("dialog", { name: "New task", exact: true });
 		await sheet.getByRole("textbox", { name: "Task" }).fill("Wash dishes");
-		await sheet.getByRole("button", { name: "Jo", exact: true }).click();
-		await expect(
-			sheet.getByRole("button", { name: "Me", exact: true }),
-		).toHaveAttribute("aria-pressed", "false");
+		await sheet.getByLabel("For").selectOption({ label: "Jo" });
+		await expect(sheet.getByLabel("For").locator("option:checked")).toHaveText(
+			"Jo",
+		);
 		await sam.screenshot({ path: testInfo.outputPath("sam-suggest.png") });
 		await sheet.getByRole("button", { name: "Suggest to Jo" }).click();
 		await expect(sam.getByText("Waiting for Jo")).toBeVisible();

@@ -190,6 +190,8 @@ export function TodayScreen() {
 				: `Withdrawn · ${suggestion.title}`,
 		);
 
+	const incoming = incomingSuggestions(suggestions, activeGroupId, me.user.id);
+
 	return (
 		<TodayList
 			view={view}
@@ -204,13 +206,10 @@ export function TodayScreen() {
 			}}
 			onToggle={(row) => void onToggle(row)}
 			onAdd={() => outlet?.openAdd?.()}
+			hasIncoming={incoming.length > 0}
 			incoming={
 				<IncomingSuggestions
-					suggestions={incomingSuggestions(
-						suggestions,
-						activeGroupId,
-						me.user.id,
-					)}
+					suggestions={incoming}
 					members={members}
 					today={localDate(now)}
 					onAccept={(suggestion) => void accept(suggestion)}

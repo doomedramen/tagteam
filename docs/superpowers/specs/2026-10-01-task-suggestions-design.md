@@ -135,7 +135,7 @@ engine's enqueue transaction includes the new table.
 
 ### New task sheet
 
-A "For" control sits under the title: single-select chips, "Me" first and selected by default,
+A "For" control sits under the title: a select, "Me" first and selected by default,
 then the other active members of the group. It is hidden when the group has no other active
 member and when the sheet is editing an existing task.
 
@@ -151,6 +151,7 @@ next to the footer action and does not enqueue.
 - **Incoming.** Each pending suggestion addressed to me renders as a card above the task
   sections: the sender's avatar, "{name} suggests", the title, a schedule summary, and Decline and
   Accept buttons. Accept turns it into a task in the list; Decline removes the card.
+  While incoming cards are shown and the user has no tasks, the empty-state prompt is hidden.
 - **Suggested by you.** A section at the bottom of Today, shown only when it has rows. Pending
   rows read "Waiting for {name}" with a Withdraw action. Declined rows read "{name} declined" with
   a Clear action.

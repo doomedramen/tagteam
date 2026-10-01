@@ -284,6 +284,7 @@ export function TodayList({
 	onToggle,
 	celebratingKey,
 	onAdd,
+	hasIncoming = false,
 	incoming,
 	outgoing,
 }: {
@@ -294,6 +295,8 @@ export function TodayList({
 	onToggle: (row: TodayRow) => void;
 	celebratingKey: string | null;
 	onAdd: () => void;
+	/** Whether `incoming` renders any cards; they replace the empty-state prompt. */
+	hasIncoming?: boolean;
 	/** Suggestion cards addressed to me, shown above the task sections. */
 	incoming?: ReactNode;
 	/** The "Suggested by you" section, shown at the bottom. */
@@ -316,21 +319,23 @@ export function TodayList({
 					transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
 				>
 					{incoming}
-					<Empty className="mt-20 gap-3 border-0 p-0">
-						<EmptyHeader>
-							<EmptyTitle className="text-lg font-semibold">
-								Add your first task
-							</EmptyTitle>
-							<EmptyDescription className="max-w-64 text-[14px] text-text-2">
-								Things you want to do every day, week or month — or just once.
-							</EmptyDescription>
-						</EmptyHeader>
-						<EmptyContent className="w-auto">
-							<Button variant="primary" onClick={onAdd}>
-								Add task
-							</Button>
-						</EmptyContent>
-					</Empty>
+					{hasIncoming ? null : (
+						<Empty className="mt-20 gap-3 border-0 p-0">
+							<EmptyHeader>
+								<EmptyTitle className="text-lg font-semibold">
+									Add your first task
+								</EmptyTitle>
+								<EmptyDescription className="max-w-64 text-[14px] text-text-2">
+									Things you want to do every day, week or month — or just once.
+								</EmptyDescription>
+							</EmptyHeader>
+							<EmptyContent className="w-auto">
+								<Button variant="primary" onClick={onAdd}>
+									Add task
+								</Button>
+							</EmptyContent>
+						</Empty>
+					)}
 					{outgoing}
 				</motion.div>
 			) : (

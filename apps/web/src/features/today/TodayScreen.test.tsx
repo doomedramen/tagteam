@@ -377,14 +377,35 @@ const daysFromNow = (days: number) =>
 	iso(new Date(Date.now() + days * 86_400_000));
 
 describe("TodayScreen suggestions", () => {
-	it("shows a suggestion for me above the task sections, even in an empty group", async () => {
+	it("shows a suggestion for me in an empty group without the add-first-task prompt", async () => {
 		await store.members.put(jo);
 		await store.suggestions.put(suggestion());
 		renderWithSession(<TodayScreen />, { store });
 		expect(await screen.findByText("Jo suggests")).toBeInTheDocument();
 		expect(screen.getByText("Wash dishes")).toBeInTheDocument();
 		expect(screen.getByText("Daily")).toBeInTheDocument();
+		expect(screen.queryByText("Add your first task")).not.toBeInTheDocument();
+	});
+
+	it("still invites adding a first task when only my own suggestions are waiting", async () => {
+		await store.members.put(jo);
+		await store.suggestions.put(
+			suggestion({ fromUserId: "u1", toUserId: "u2" }),
+		);
+		renderWithSession(<TodayScreen />, { store });
+		expect(await screen.findByText("Suggested by you")).toBeInTheDocument();
 		expect(screen.getByText("Add your first task")).toBeInTheDocument();
+	});
+
+	it("brings the add-first-task prompt back once the last incoming card is answered", async () => {
+		await store.members.put(jo);
+		await store.suggestions.put(suggestion());
+		const engine = fakeEngine();
+		renderWithSession(<TodayScreen />, { store, engine });
+		await screen.findByText("Jo suggests");
+		expect(screen.queryByText("Add your first task")).not.toBeInTheDocument();
+		await store.suggestions.update("s1", { status: "declined" });
+		expect(await screen.findByText("Add your first task")).toBeInTheDocument();
 	});
 
 	it("puts the cards before the task list", async () => {
