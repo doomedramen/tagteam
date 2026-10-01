@@ -9,8 +9,8 @@ import { applyMutations } from "../services/sync-push";
 export interface SyncDeps {
 	db: Db;
 	now: () => number;
-	/** Called after a push that changed data, with the affected group ids. */
-	onChange?: (groupIds: Set<string>) => void;
+	/** Called after a push that changed data: groups whose members to poke, plus individual users to poke. */
+	onChange?: (groupIds: Set<string>, userIds: Set<string>) => void;
 	onNudge?: (input: {
 		taskId: string;
 		eventId: string;
@@ -34,7 +34,7 @@ export function syncRoutes(deps: SyncDeps) {
 				`Send { mutations: [...] } with at most ${MAX_BATCH} items.`,
 			);
 		}
-		const { results, groupIds } = applyMutations(
+		const { results, groupIds, userIds } = applyMutations(
 			deps.db,
 			c.var.user.id,
 			mutations,
@@ -62,7 +62,8 @@ export function syncRoutes(deps: SyncDeps) {
 					.catch((error: unknown) => console.error("Nudge push failed", error));
 			}
 		}
-		if (groupIds.size > 0) deps.onChange?.(groupIds);
+		if (groupIds.size > 0 || userIds.size > 0)
+			deps.onChange?.(groupIds, userIds);
 		return c.json({ results });
 	});
 

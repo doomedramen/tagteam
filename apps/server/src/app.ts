@@ -70,7 +70,7 @@ export function createApp({
 			onNudge: push
 				? (input) => sendNudgeNotification(db, push, input, now())
 				: undefined,
-			onChange: (groupIds) => pokeGroups(db, live, groupIds),
+			onChange: (groupIds, userIds) => pokeGroups(db, live, groupIds, userIds),
 		}),
 	);
 	api.route("/live", liveRoutes({ hub: live }));

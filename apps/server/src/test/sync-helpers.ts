@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { Mutation, MutationType } from "@tagteam/core";
+import { eq } from "drizzle-orm";
 import type { Hono } from "hono";
+import type { Db } from "../db/client";
+import { user } from "../db/schema";
 import type { PullResponse } from "../services/sync-pull";
 import type { MutationResult } from "../services/sync-push";
 import { api, readJson } from "./harness";
@@ -36,4 +39,15 @@ export async function pullAll(
 	if (res.status !== 200)
 		throw new Error(`pull failed: ${res.status} ${await res.text()}`);
 	return readJson<PullResponse>(res);
+}
+
+/** The id Better Auth assigned to the user who signed up with `email`. */
+export function userIdOf(db: Db, email: string): string {
+	const row = db
+		.select({ id: user.id })
+		.from(user)
+		.where(eq(user.email, email))
+		.get();
+	if (!row) throw new Error(`no user with email ${email}`);
+	return row.id;
 }

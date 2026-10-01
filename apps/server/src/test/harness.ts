@@ -3,6 +3,7 @@ import { createApp } from "../app";
 import { createAuth } from "../auth";
 import type { Config } from "../config";
 import { type Db, openDb } from "../db/client";
+import type { LiveHub } from "../live";
 
 export const TEST_CONFIG: Config = {
 	port: 0,
@@ -22,7 +23,7 @@ export interface TestContext {
 }
 
 export function createTestContext(
-	options: { webDir?: string } = {},
+	options: { webDir?: string; live?: LiveHub } = {},
 ): TestContext {
 	const clock = { now: Date.UTC(2026, 8, 25, 12) };
 	const { db, close } = openDb(":memory:");
@@ -33,6 +34,7 @@ export function createTestContext(
 		trustedOrigin: TEST_CONFIG.baseUrl,
 		now: () => clock.now,
 		webDir: options.webDir,
+		live: options.live,
 	});
 	return { db, app, clock, close };
 }

@@ -13,11 +13,15 @@ import type { Db } from "../db/client";
 import { appliedMutation, task, taskEvent } from "../db/schema";
 import { nextSeq } from "../db/seq";
 import { isActiveMember } from "./groups";
+import { applySuggestionMutation } from "./sync-suggestions";
 
 export type { MutationResult };
 
-type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
-type Outcome = { groupId: string } | { reason: string } | { groupId: null };
+export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+/** What a mutation did: rejected, or applied with the group to poke and any extra users to poke. */
+export type Outcome =
+	| { reason: string }
+	| { groupId: string | null; pokeUserIds?: string[] };
 
 const OWNER_ONLY = new Set<Mutation["type"]>([
 	"task.update",
@@ -27,15 +31,20 @@ const OWNER_ONLY = new Set<Mutation["type"]>([
 	"task.uncomplete",
 ]);
 
-/** Applies client mutations in order, each atomically. Returns per-mutation results and the groups that changed. */
+/** Applies client mutations in order, each atomically. Returns per-mutation results, the groups that changed, and users to poke individually. */
 export function applyMutations(
 	db: Db,
 	userId: string,
 	inputs: unknown[],
 	now: number,
-): { results: MutationResult[]; groupIds: Set<string> } {
+): {
+	results: MutationResult[];
+	groupIds: Set<string>;
+	userIds: Set<string>;
+} {
 	const results: MutationResult[] = [];
 	const groupIds = new Set<string>();
+	const userIds = new Set<string>();
 	for (const input of inputs) {
 		const errors = mutationErrors(input);
 		const id =
@@ -69,11 +78,12 @@ export function applyMutations(
 				.values({ id: m.id, userId, appliedAt: now })
 				.run();
 			if (outcome.groupId) groupIds.add(outcome.groupId);
+			for (const id of outcome.pokeUserIds ?? []) userIds.add(id);
 			return { id: m.id, status: "applied" };
 		});
 		results.push(result);
 	}
-	return { results, groupIds };
+	return { results, groupIds, userIds };
 }
 
 function applyOne(
@@ -84,7 +94,7 @@ function applyOne(
 	now: number,
 ): Outcome {
 	if (isSuggestionMutation(m))
-		return { reason: "suggestions are not supported yet" };
+		return applySuggestionMutation(tx, userId, m, at);
 	if (m.type === "task.create") {
 		if (!isActiveMember(tx, m.groupId, userId))
 			return { reason: "not a member of this group" };
