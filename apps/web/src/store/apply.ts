@@ -43,6 +43,7 @@ export async function applyLocal(
 				],
 				archivedAt: null,
 				createdAt: m.at,
+				suggestedBy: null,
 			});
 			return;
 		case "task.update": {

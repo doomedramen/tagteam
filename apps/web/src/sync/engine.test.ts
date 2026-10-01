@@ -12,6 +12,7 @@ const emptyPull = (cursor: number): PullResponse => ({
 	members: [],
 	tasks: [],
 	events: [],
+	suggestions: [],
 	removedGroupIds: [],
 });
 const create = (taskId = crypto.randomUUID()): Mutation => ({

@@ -30,6 +30,7 @@ const brushTeeth: TaskDto = {
 	],
 	archivedAt: null,
 	createdAt: 0,
+	suggestedBy: null,
 };
 
 let store: TagTeamDb;

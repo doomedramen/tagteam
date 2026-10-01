@@ -27,6 +27,7 @@ const serverTask = (title: string): TaskDto => ({
 	],
 	archivedAt: null,
 	createdAt: at,
+	suggestedBy: null,
 });
 const pull = (patch: Partial<PullResponse>): PullResponse => ({
 	cursor: 1,
@@ -34,6 +35,7 @@ const pull = (patch: Partial<PullResponse>): PullResponse => ({
 	members: [],
 	tasks: [],
 	events: [],
+	suggestions: [],
 	removedGroupIds: [],
 	...patch,
 });

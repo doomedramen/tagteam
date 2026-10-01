@@ -3,15 +3,30 @@ import type {
 	GroupDto,
 	MemberDto,
 	PullResponse,
+	SuggestionDto,
 	TaskDto,
 } from "@tagteam/core";
 import { and, eq, gt, inArray, or, type SQL } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { Db } from "../db/client";
-import { groups, membership, profile, task, taskEvent } from "../db/schema";
+import {
+	groups,
+	membership,
+	profile,
+	suggestion,
+	task,
+	taskEvent,
+} from "../db/schema";
 import { currentSeq } from "../db/seq";
 
-export type { EventDto, GroupDto, MemberDto, PullResponse, TaskDto };
+export type {
+	EventDto,
+	GroupDto,
+	MemberDto,
+	PullResponse,
+	SuggestionDto,
+	TaskDto,
+};
 
 /** Everything visible to `userId` that changed after `cursor`, plus full snapshots of newly joined groups. */
 export function pull(db: Db, userId: string, cursor: number): PullResponse {
@@ -39,6 +54,7 @@ export function pull(db: Db, userId: string, cursor: number): PullResponse {
 			members: [],
 			tasks: [],
 			events: [],
+			suggestions: [],
 			removedGroupIds,
 		};
 		if (active.length === 0) return empty;
@@ -92,6 +108,7 @@ export function pull(db: Db, userId: string, cursor: number): PullResponse {
 					rules: task.rules,
 					archivedAt: task.archivedAt,
 					createdAt: task.createdAt,
+					suggestedBy: task.suggestedBy,
 				})
 				.from(task)
 				.where(visible(task.groupId, task.seq))
@@ -110,6 +127,36 @@ export function pull(db: Db, userId: string, cursor: number): PullResponse {
 				.from(taskEvent)
 				.where(visible(taskEvent.groupId, taskEvent.seq))
 				.orderBy(taskEvent.seq)
+				.all(),
+			// The only per-user filter in pull, and the only place the privacy rule lives:
+			// a suggestion belongs to its sender and recipient, not to the group.
+			suggestions: tx
+				.select({
+					id: suggestion.id,
+					groupId: suggestion.groupId,
+					fromUserId: suggestion.fromUserId,
+					toUserId: suggestion.toUserId,
+					title: suggestion.title,
+					notes: suggestion.notes,
+					startDate: suggestion.startDate,
+					dueTime: suggestion.dueTime,
+					rule: suggestion.rule,
+					status: suggestion.status,
+					taskId: suggestion.taskId,
+					createdAt: suggestion.createdAt,
+					resolvedAt: suggestion.resolvedAt,
+				})
+				.from(suggestion)
+				.where(
+					and(
+						visible(suggestion.groupId, suggestion.seq),
+						or(
+							eq(suggestion.fromUserId, userId),
+							eq(suggestion.toUserId, userId),
+						),
+					),
+				)
+				.orderBy(suggestion.seq)
 				.all(),
 		};
 	});

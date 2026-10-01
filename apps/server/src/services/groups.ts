@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { MyGroup } from "@tagteam/core";
-import { and, asc, eq, isNull, ne } from "drizzle-orm";
+import { and, asc, eq, isNull, ne, or } from "drizzle-orm";
 import type { Db } from "../db/client";
-import { groups, membership, profile } from "../db/schema";
+import { groups, membership, profile, suggestion } from "../db/schema";
 import { nextSeq } from "../db/seq";
 
 export type { MyGroup };
@@ -106,6 +106,29 @@ export function leaveGroup(
 			.set({ leftAt: now, seq })
 			.where(
 				and(eq(membership.groupId, groupId), eq(membership.userId, userId)),
+			)
+			.run();
+		// Nobody is left to answer these or to read their answers: withdraw what is
+		// still pending to or from the leaver, and declined suggestions they sent.
+		tx.update(suggestion)
+			.set({ status: "withdrawn", resolvedAt: now, seq })
+			.where(
+				and(
+					eq(suggestion.groupId, groupId),
+					or(
+						and(
+							eq(suggestion.status, "pending"),
+							or(
+								eq(suggestion.fromUserId, userId),
+								eq(suggestion.toUserId, userId),
+							),
+						),
+						and(
+							eq(suggestion.status, "declined"),
+							eq(suggestion.fromUserId, userId),
+						),
+					),
+				),
 			)
 			.run();
 		const current = tx

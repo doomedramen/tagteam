@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { MAX_PENDING_SUGGESTIONS } from "@tagteam/core";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { suggestion, task } from "../db/schema";
+import { membership, suggestion, task } from "../db/schema";
 import { createLiveHub, type LiveHub } from "../live";
 import {
 	api,
@@ -11,7 +11,7 @@ import {
 	signUp,
 	type TestContext,
 } from "../test/harness";
-import { mutation, push, userIdOf } from "../test/sync-helpers";
+import { mutation, pullAll, push, userIdOf } from "../test/sync-helpers";
 
 describe("suggestion mutations", () => {
 	let ctx: TestContext;
@@ -336,5 +336,137 @@ describe("suggestion mutations", () => {
 		poked.length = 0;
 		await push(ctx.app, sam, [withdraw(third)]);
 		expect(poked.sort()).toEqual(["jo", "sam"]);
+	});
+
+	it("pulls a suggestion to its sender and recipient only", async () => {
+		await push(ctx.app, sam, [create()]);
+		const expected = {
+			id: suggestionId,
+			groupId,
+			fromUserId: samId,
+			toUserId: joId,
+			title: "Wash dishes",
+			notes: null,
+			startDate: "2026-10-01",
+			dueTime: "19:00",
+			rule: { freq: "day", interval: 1 },
+			status: "pending",
+			taskId: null,
+			createdAt: ctx.clock.now,
+			resolvedAt: null,
+		};
+		expect((await pullAll(ctx.app, sam)).suggestions).toEqual([expected]);
+		expect((await pullAll(ctx.app, jo)).suggestions).toEqual([expected]);
+		// Lee is in the group but is not a party; Kim is not in the group.
+		expect((await pullAll(ctx.app, lee)).suggestions).toEqual([]);
+		expect((await pullAll(ctx.app, kim)).suggestions).toEqual([]);
+	});
+
+	it("returns a changed suggestion after the cursor and nothing when nothing changed", async () => {
+		await push(ctx.app, sam, [create()]);
+		const { cursor } = await pullAll(ctx.app, jo);
+		expect((await pullAll(ctx.app, jo, cursor)).suggestions).toEqual([]);
+
+		ctx.clock.now += 1000;
+		await push(ctx.app, jo, [decline()]);
+		const after = await pullAll(ctx.app, sam, cursor);
+		expect(after.suggestions).toMatchObject([
+			{ id: suggestionId, status: "declined", resolvedAt: ctx.clock.now },
+		]);
+		expect(after.tasks).toEqual([]);
+	});
+
+	it("shows an accepted task to the whole group with who suggested it, but not the suggestion", async () => {
+		await push(ctx.app, sam, [create()]);
+		await push(ctx.app, jo, [accept()]);
+		const ordinaryId = randomUUID();
+		await push(ctx.app, jo, [
+			mutation(
+				"task.create",
+				{
+					taskId: ordinaryId,
+					groupId,
+					title: "Bins",
+					notes: null,
+					timezone: "UTC",
+					startDate: "2026-10-01",
+					dueTime: null,
+					rule: null,
+				},
+				ctx.clock.now,
+			),
+		]);
+		await join(kim);
+		const view = await pullAll(ctx.app, kim);
+		const byId = new Map(view.tasks.map((t) => [t.id, t]));
+		expect(byId.get(taskId)).toMatchObject({
+			ownerId: joId,
+			suggestedBy: samId,
+		});
+		expect(byId.get(ordinaryId)?.suggestedBy).toBeNull();
+		expect(view.suggestions).toEqual([]);
+	});
+
+	it("withdraws suggestions that can no longer be answered when a member leaves", async () => {
+		const ids = {
+			toJoPending: randomUUID(),
+			toJoDeclined: randomUUID(),
+			fromJoPending: randomUUID(),
+			fromJoDeclined: randomUUID(),
+			toLeePending: randomUUID(),
+			toLeeAccepted: randomUUID(),
+		};
+		await push(ctx.app, sam, [
+			create(ids.toJoPending),
+			create(ids.toJoDeclined),
+			create(ids.toLeePending, leeId),
+			create(ids.toLeeAccepted, leeId),
+		]);
+		await push(ctx.app, jo, [
+			decline(ids.toJoDeclined),
+			create(ids.fromJoPending, samId),
+			create(ids.fromJoDeclined, samId),
+		]);
+		await push(ctx.app, sam, [decline(ids.fromJoDeclined)]);
+		await push(ctx.app, lee, [accept(ids.toLeeAccepted, randomUUID())]);
+		const samCursor = (await pullAll(ctx.app, sam)).cursor;
+		const joCursor = (await pullAll(ctx.app, jo)).cursor;
+
+		await api(ctx.app, jo, "POST", `/api/groups/${groupId}/leave`);
+
+		const status = (id: string) => row(id)?.status;
+		expect(status(ids.toJoPending)).toBe("withdrawn");
+		expect(status(ids.fromJoPending)).toBe("withdrawn");
+		expect(status(ids.fromJoDeclined)).toBe("withdrawn");
+		expect(row(ids.toJoPending)?.resolvedAt).toBe(ctx.clock.now);
+		// Declined suggestions sent to the leaver, and unrelated ones, are untouched.
+		expect(status(ids.toJoDeclined)).toBe("declined");
+		expect(status(ids.toLeePending)).toBe("pending");
+		expect(status(ids.toLeeAccepted)).toBe("accepted");
+
+		const samAfter = await pullAll(ctx.app, sam, samCursor);
+		expect(samAfter.suggestions.map((s) => [s.id, s.status]).sort()).toEqual(
+			[
+				[ids.fromJoDeclined, "withdrawn"],
+				[ids.fromJoPending, "withdrawn"],
+				[ids.toJoPending, "withdrawn"],
+			].sort(),
+		);
+		const joAfter = await pullAll(ctx.app, jo, joCursor);
+		expect(joAfter.suggestions).toEqual([]);
+		expect(joAfter.removedGroupIds).toEqual([groupId]);
+	});
+
+	it("rejects an accept from a recipient who is no longer an active member", async () => {
+		await push(ctx.app, sam, [create()]);
+		// Direct DB change, not the leave route (which would withdraw the suggestion).
+		ctx.db
+			.update(membership)
+			.set({ leftAt: ctx.clock.now })
+			.where(and(eq(membership.groupId, groupId), eq(membership.userId, joId)))
+			.run();
+		expect(await reason(jo, accept())).toBe("not a member of this group");
+		expect(taskRow(taskId)).toBeUndefined();
+		expect(row()?.status).toBe("pending");
 	});
 });

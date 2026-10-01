@@ -64,6 +64,8 @@ export interface TaskDto {
 	rules: RuleVersion[];
 	archivedAt: number | null;
 	createdAt: number;
+	/** User id of whoever suggested this task, when it began as an accepted suggestion. */
+	suggestedBy: string | null;
 }
 
 export interface EventDto {
@@ -104,6 +106,8 @@ export interface PullResponse {
 	members: MemberDto[];
 	tasks: TaskDto[];
 	events: EventDto[];
+	/** Suggestions the caller sent or received; never anyone else's. */
+	suggestions: SuggestionDto[];
 	removedGroupIds: string[];
 }
 
