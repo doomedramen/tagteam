@@ -12,6 +12,7 @@ import {
 	notificationLog,
 	profile,
 	pushSubscription,
+	suggestion,
 	task,
 	taskEvent,
 } from "../db/schema";
@@ -22,7 +23,25 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const RETRY_MAX = HOUR;
 
-type NotificationKind = "due" | "overdue" | "nudge";
+type NotificationKind =
+	| "due"
+	| "overdue"
+	| "nudge"
+	| "suggested"
+	| "suggestion_accepted"
+	| "suggestion_declined";
+
+/** Kinds that follow the user's nudge toggle; reminders follow the reminders toggle. */
+const NUDGE_TOGGLE_KINDS: ReadonlySet<NotificationKind> = new Set([
+	"nudge",
+	"suggested",
+	"suggestion_accepted",
+	"suggestion_declined",
+]);
+const usesNudgeToggle = (kind: NotificationKind) =>
+	NUDGE_TOGGLE_KINDS.has(kind);
+
+export type SuggestionPushEvent = "suggested" | "accepted" | "declined";
 
 function localDateAt(ms: number, timezone: string): LocalDate {
 	const parts = new Intl.DateTimeFormat("en-CA", {
@@ -102,9 +121,41 @@ function notificationEnabled(
 	scheduledAt: number,
 ): boolean {
 	const settings = getNotificationSettings(db, userId);
-	return kind === "nudge"
+	return usesNudgeToggle(kind)
 		? settings.nudgesEnabled && scheduledAt >= settings.nudgesEnabledAt
 		: settings.remindersEnabled && scheduledAt >= settings.remindersEnabledAt;
+}
+
+function dropNotification(
+	db: Db,
+	notificationId: string,
+	reason: string,
+	now: number,
+) {
+	db.update(notificationDelivery)
+		.set({ status: "gone", lastError: reason })
+		.where(
+			and(
+				eq(notificationDelivery.notificationId, notificationId),
+				eq(notificationDelivery.status, "pending"),
+			),
+		)
+		.run();
+	db.update(notificationLog)
+		.set({ sentAt: now })
+		.where(eq(notificationLog.id, notificationId))
+		.run();
+}
+
+function suggestionIsPending(db: Db, suggestionId: string | null): boolean {
+	if (!suggestionId) return false;
+	return (
+		db
+			.select({ status: suggestion.status })
+			.from(suggestion)
+			.where(eq(suggestion.id, suggestionId))
+			.get()?.status === "pending"
+	);
 }
 
 async function deliverPending(db: Db, push: PushTransport, now: number) {
@@ -118,27 +169,24 @@ async function deliverPending(db: Db, push: PushTransport, now: number) {
 
 	for (const log of pendingLogs) {
 		const settings = getNotificationSettings(db, log.userId);
-		const enabled =
-			log.kind === "nudge" ? settings.nudgesEnabled : settings.remindersEnabled;
+		const nudgeToggle = usesNudgeToggle(log.kind);
+		const enabled = nudgeToggle
+			? settings.nudgesEnabled
+			: settings.remindersEnabled;
 		if (!enabled) continue;
-		const enabledAt =
-			log.kind === "nudge"
-				? settings.nudgesEnabledAt
-				: settings.remindersEnabledAt;
+		const enabledAt = nudgeToggle
+			? settings.nudgesEnabledAt
+			: settings.remindersEnabledAt;
 		if (log.createdAt < enabledAt) {
-			db.update(notificationDelivery)
-				.set({ status: "gone", lastError: "Notification predates opt-in" })
-				.where(
-					and(
-						eq(notificationDelivery.notificationId, log.id),
-						eq(notificationDelivery.status, "pending"),
-					),
-				)
-				.run();
-			db.update(notificationLog)
-				.set({ sentAt: now })
-				.where(eq(notificationLog.id, log.id))
-				.run();
+			dropNotification(db, log.id, "Notification predates opt-in", now);
+			continue;
+		}
+		// A held "suggested" push is pointless once the suggestion has been answered or withdrawn.
+		if (
+			log.kind === "suggested" &&
+			!suggestionIsPending(db, log.suggestionId)
+		) {
+			dropNotification(db, log.id, "Suggestion is no longer pending", now);
 			continue;
 		}
 		if (log.kind !== "nudge") {
@@ -257,7 +305,8 @@ async function deliverPending(db: Db, push: PushTransport, now: number) {
 function enqueueNotification(
 	db: Db,
 	input: {
-		taskId: string;
+		taskId: string | null;
+		suggestionId?: string | null;
 		userId: string;
 		occurrenceKey: string;
 		kind: NotificationKind;
@@ -478,4 +527,65 @@ export function validatePushEndpoint(value: unknown): value is string {
 	} catch {
 		return false;
 	}
+}
+
+export async function sendSuggestionNotification(
+	db: Db,
+	push: PushTransport,
+	input: { suggestionId: string; event: SuggestionPushEvent },
+	now: number,
+) {
+	const target = db
+		.select({
+			id: suggestion.id,
+			fromUserId: suggestion.fromUserId,
+			toUserId: suggestion.toUserId,
+			title: suggestion.title,
+		})
+		.from(suggestion)
+		.where(eq(suggestion.id, input.suggestionId))
+		.get();
+	if (!target) return;
+	// "suggested" goes to the recipient about the sender; answers go to the sender about the recipient.
+	const actorId =
+		input.event === "suggested" ? target.fromUserId : target.toUserId;
+	const receiverId =
+		input.event === "suggested" ? target.toUserId : target.fromUserId;
+	const actor =
+		db
+			.select({ displayName: profile.displayName })
+			.from(profile)
+			.where(eq(profile.userId, actorId))
+			.get()?.displayName ?? "A teammate";
+	const copy = {
+		suggested: {
+			kind: "suggested",
+			title: `${actor} suggests a task`,
+		},
+		accepted: {
+			kind: "suggestion_accepted",
+			title: `${actor} accepted your suggestion`,
+		},
+		declined: {
+			kind: "suggestion_declined",
+			title: `${actor} declined your suggestion`,
+		},
+	} as const;
+	const { kind, title } = copy[input.event];
+	enqueueNotification(
+		db,
+		{
+			taskId: null,
+			suggestionId: target.id,
+			userId: receiverId,
+			occurrenceKey: target.id,
+			kind,
+			scheduledAt: now,
+			title,
+			body: target.title,
+			url: "/",
+		},
+		now,
+	);
+	await deliverPending(db, push, now);
 }

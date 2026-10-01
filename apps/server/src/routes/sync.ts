@@ -3,8 +3,15 @@ import { Hono } from "hono";
 import type { Db } from "../db/client";
 import { fail } from "../http/errors";
 import type { AppEnv } from "../http/session";
+import type { SuggestionPushEvent } from "../services/notifications";
 import { pull } from "../services/sync-pull";
 import { applyMutations } from "../services/sync-push";
+
+const SUGGESTION_EVENTS = new Map<string, SuggestionPushEvent>([
+	["suggestion.create", "suggested"],
+	["suggestion.accept", "accepted"],
+	["suggestion.decline", "declined"],
+]);
 
 export interface SyncDeps {
 	db: Db;
@@ -15,6 +22,11 @@ export interface SyncDeps {
 		taskId: string;
 		eventId: string;
 		senderId: string;
+	}) => void | Promise<void>;
+	/** Called for each applied suggestion.create/accept/decline; never for withdraw. */
+	onSuggestion?: (input: {
+		suggestionId: string;
+		event: SuggestionPushEvent;
 	}) => void | Promise<void>;
 }
 
@@ -44,6 +56,7 @@ export function syncRoutes(deps: SyncDeps) {
 			const mutation = input as {
 				id?: unknown;
 				taskId?: unknown;
+				suggestionId?: unknown;
 				type?: unknown;
 			} | null;
 			if (
@@ -60,6 +73,22 @@ export function syncRoutes(deps: SyncDeps) {
 				void Promise.resolve()
 					.then(() => deps.onNudge?.(nudge))
 					.catch((error: unknown) => console.error("Nudge push failed", error));
+			}
+			const event =
+				typeof mutation?.type === "string"
+					? SUGGESTION_EVENTS.get(mutation.type)
+					: undefined;
+			if (
+				results[index]?.status === "applied" &&
+				event &&
+				typeof mutation?.suggestionId === "string"
+			) {
+				const suggestion = { suggestionId: mutation.suggestionId, event };
+				void Promise.resolve()
+					.then(() => deps.onSuggestion?.(suggestion))
+					.catch((error: unknown) =>
+						console.error("Suggestion push failed", error),
+					);
 			}
 		}
 		if (groupIds.size > 0 || userIds.size > 0)

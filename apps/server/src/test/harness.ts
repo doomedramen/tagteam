@@ -4,6 +4,7 @@ import { createAuth } from "../auth";
 import type { Config } from "../config";
 import { type Db, openDb } from "../db/client";
 import type { LiveHub } from "../live";
+import type { PushTransport } from "../services/push";
 
 export const TEST_CONFIG: Config = {
 	port: 0,
@@ -23,7 +24,7 @@ export interface TestContext {
 }
 
 export function createTestContext(
-	options: { webDir?: string; live?: LiveHub } = {},
+	options: { webDir?: string; live?: LiveHub; push?: PushTransport } = {},
 ): TestContext {
 	const clock = { now: Date.UTC(2026, 8, 25, 12) };
 	const { db, close } = openDb(":memory:");
@@ -35,6 +36,7 @@ export function createTestContext(
 		now: () => clock.now,
 		webDir: options.webDir,
 		live: options.live,
+		push: options.push,
 	});
 	return { db, app, clock, close };
 }

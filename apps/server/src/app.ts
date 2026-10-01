@@ -15,7 +15,10 @@ import { liveRoutes } from "./routes/live";
 import { meRoutes } from "./routes/me";
 import { pushRoutes } from "./routes/push";
 import { syncRoutes } from "./routes/sync";
-import { sendNudgeNotification } from "./services/notifications";
+import {
+	sendNudgeNotification,
+	sendSuggestionNotification,
+} from "./services/notifications";
 import type { PushTransport } from "./services/push";
 
 export const MAX_BODY_BYTES = 1024 * 1024;
@@ -69,6 +72,9 @@ export function createApp({
 			now,
 			onNudge: push
 				? (input) => sendNudgeNotification(db, push, input, now())
+				: undefined,
+			onSuggestion: push
+				? (input) => sendSuggestionNotification(db, push, input, now())
 				: undefined,
 			onChange: (groupIds, userIds) => pokeGroups(db, live, groupIds, userIds),
 		}),
