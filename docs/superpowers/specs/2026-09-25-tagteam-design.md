@@ -100,10 +100,13 @@ limited: 1 nudge per sender per task per 30 min).
 ### 3.6 Sync protocol
 
 - Mutations (`@tagteam/core` `Mutation`): `task.create`, `task.update`, `task.schedule`, `task.archive`,
-  `task.complete`, `task.uncomplete`, `task.nudge`. Each has a client UUID `id` and client `at`.
+  `task.complete`, `task.uncomplete`, `task.nudge`, and the suggestion mutations `suggestion.create`,
+  `suggestion.accept`, `suggestion.decline`, `suggestion.withdraw` (see
+  `2026-10-01-task-suggestions-design.md`). Each has a client UUID `id` and client `at`.
 - `POST /api/sync/push { mutations }` (≤ 100) → per-mutation `applied | duplicate | rejected (reason)`.
   Rejected mutations are dropped by the client and its data re-pulled.
-- `GET /api/sync/pull?cursor=N` → `{ cursor, groups, members, tasks, events, removedGroupIds }`.
+- `GET /api/sync/pull?cursor=N` → `{ cursor, groups, members, tasks, events, suggestions, removedGroupIds }`.
+  `suggestions` holds only the suggestions the caller sent or received.
 - Nudges: any other active member, once per sender per task per 30 min.
 
 ## 4. Data model

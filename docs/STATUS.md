@@ -1,8 +1,8 @@
 # Project status
 
-_Last updated: 2026-10-01 (task suggestions design approved; no code yet)._
+_Last updated: 2026-10-01 (Plan 8 task suggestions complete)._
 
-## Done (on `main`; CI green through Plan 7)
+## Done (on `main`; CI green through Plan 7, Plan 8 not yet run in CI)
 
 | Plan | Scope | Notes |
 |---|---|---|
@@ -13,6 +13,7 @@ _Last updated: 2026-10-01 (task suggestions design approved; no code yet)._
 | 05 app foundation + Today | sign-in, groups, Today, offline sync, PWA, Docker hosting | Local e2e flow and hosted CI passed |
 | 06 remaining screens | Team, task history/editing, profile editing, swipe-to-complete | CI passed |
 | 07 push notifications | per-device web-push, due/overdue reminders, team nudges, quiet hours | Requires VAPID environment values to send push |
+| 08 task suggestions | suggest a task to another member from New task; accept or decline on Today; History and task detail say who suggested it; push for suggested, accepted and declined | Spec: `2026-10-01-task-suggestions-design.md` |
 
 ## Complete — Plan 5: `docs/superpowers/plans/2026-09-25-05-app-foundation-today.md`
 
@@ -69,12 +70,30 @@ decisions that matter are summarised below.
   when a task is added after its reminder time. Future due and overdue reminders still apply.
 - Typecheck, lint, server bundle, and PWA build pass.
 
+## Complete — Plan 8: task suggestions
+
+- Four sync mutations (`suggestion.create|accept|decline|withdraw`). The `suggestion` table never
+  deletes rows (status changes instead, so sync needs no tombstones); `task.suggestedBy` records the
+  suggester of an accepted task.
+- Pull returns a suggestion only to its sender and recipient. Accept inserts the task and updates the
+  suggestion in the one push transaction. Leaving a group withdraws pending suggestions to or from
+  the leaver and the declined ones they sent. At most 10 pending per sender and recipient per group.
+- Push: "suggested" (to the recipient), "accepted" and "declined" (to the sender); gated by the
+  receiving user's nudge toggle, held during their quiet hours, a held "suggested" push is dropped
+  if the suggestion is no longer pending, once per suggestion per kind, nothing on withdraw.
+  `notification_log.task_id` is now nullable and a `suggestion_id` column dedupes suggestion pushes.
+- Migration `0004_task_suggestions.sql` is hand-edited: drizzle-kit's generated rebuild of
+  `notification_log` would cascade-delete queued `notification_delivery` rows inside the migrator's
+  transaction, so the file parks deliveries in a backup table first. `src/db/migrations.test.ts`
+  guards this.
+- Web: Dexie `version(2)` `suggestions`; "For" chips in New task (hidden with no other active member
+  and when editing); incoming cards and a "Suggested by you" section on Today; History says
+  "{owner} took on {title}" with "Suggested by {name}"; the Me toggle is "Nudges and suggestions".
+- Checks: unit tests, typecheck, lint, and the two-user Playwright flow (WebKit `iphone` and
+  `chromium` projects) passed. The 375 × 812 light/dark visual check is pending.
+
 ## Next plans
 
-- **Plan 8: task suggestions.** Design approved in
-  `docs/superpowers/specs/2026-10-01-task-suggestions-design.md`. A member suggests a task to
-  another member from the New task sheet ("For" control); the recipient accepts or declines on
-  Today. Implementation plan not written yet; no code changed.
 - "Team up" on shared or dependent tasks was considered and dropped (spec §1): nudges and talking
   cover it.
 
@@ -103,6 +122,12 @@ decisions that matter are summarised below.
   coverage for task creation, simulated keyboard geometry, taps, swipes, undo, and offline sync.
   Native iPhone keyboard animation and installed-PWA behavior still require device verification.
 - Haptics are omitted because iOS PWA scripted switch clicks are unreliable.
+- Suggestions: the recipient's browser computes the accepted task's `startDate` (later of the
+  suggestion's start and today) and sends its own timezone; the server only enforces
+  `startDate >= suggestion.startDate`. A withdraw racing an accept resolves by arrival order and the
+  loser's client re-pulls. After sending a suggestion the New task sheet resets to "Me". History and
+  task detail say "Suggested by you" when the viewer is the suggester. Better Auth user ids are not
+  UUIDs, so `toUserId` is validated as a bounded non-empty string.
 
 ## Remaining follow-ups
 
