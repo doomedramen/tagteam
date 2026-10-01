@@ -14,6 +14,8 @@ const suggestionId = "7c1d2e3f-4a5b-4c6d-8e7f-0a1b2c3d4e5f";
 const toUserId = "k3Jx9mQ2pL7vN1sT5yB8wZ4aC6dE0fGh";
 const at = Date.UTC(2026, 8, 25, 12);
 
+const PLANT = "\u{1FAB4}"; // potted plant
+
 const valid: Mutation[] = [
 	{
 		id,
@@ -67,6 +69,54 @@ const valid: Mutation[] = [
 	},
 	{ id, at, type: "suggestion.decline", suggestionId },
 	{ id, at, type: "suggestion.withdraw", suggestionId },
+	{
+		id,
+		at,
+		type: "task.create",
+		taskId,
+		groupId,
+		title: "Water plants",
+		notes: null,
+		timezone: "Europe/London",
+		startDate: "2026-09-21",
+		dueTime: null,
+		rule: null,
+		emoji: PLANT,
+		color: "teal",
+	},
+	{
+		id,
+		at,
+		type: "task.create",
+		taskId,
+		groupId,
+		title: "Water plants",
+		notes: null,
+		timezone: "Europe/London",
+		startDate: "2026-09-21",
+		dueTime: null,
+		rule: null,
+		emoji: null,
+		color: null,
+	},
+	{ id, at, type: "task.update", taskId, emoji: PLANT },
+	{ id, at, type: "task.update", taskId, color: "blue" },
+	{ id, at, type: "task.update", taskId, emoji: null, color: null },
+	{
+		id,
+		at,
+		type: "suggestion.create",
+		suggestionId,
+		groupId,
+		toUserId,
+		title: "Water plants",
+		notes: null,
+		startDate: "2026-10-01",
+		dueTime: null,
+		rule: null,
+		emoji: PLANT,
+		color: "pink",
+	},
 ];
 
 describe("mutationErrors", () => {
@@ -117,7 +167,7 @@ describe("mutationErrors", () => {
 			"occurrenceKey is required",
 		]);
 		expect(mutationErrors({ id, at, type: "task.update", taskId })).toEqual([
-			"update must change title or notes",
+			"update must change title, notes, emoji or color",
 		]);
 	});
 
@@ -193,12 +243,130 @@ describe("mutationErrors", () => {
 		expect(MAX_PENDING_SUGGESTIONS).toBe(10);
 	});
 
+	it("rejects an emoji that is not exactly one emoji", () => {
+		for (const bad of ["a", "\u{1F600}\u{1F600}", "", 5, "x".repeat(40)]) {
+			expect(
+				mutationErrors({ id, at, type: "task.update", taskId, emoji: bad }),
+			).toEqual(["emoji must be null or a single emoji"]);
+		}
+	});
+
+	it("rejects a color that is not one of the seven hues", () => {
+		for (const bad of ["red", "Blue", "", 3]) {
+			expect(
+				mutationErrors({ id, at, type: "task.update", taskId, color: bad }),
+			).toEqual([
+				"color must be null or one of pink, coral, amber, green, teal, blue, purple",
+			]);
+		}
+	});
+
+	it("reports emoji and color problems on create and suggestion.create", () => {
+		expect(
+			mutationErrors({
+				id,
+				at,
+				type: "task.create",
+				taskId,
+				groupId,
+				title: "Water plants",
+				notes: null,
+				timezone: "Europe/London",
+				startDate: "2026-09-21",
+				dueTime: null,
+				rule: null,
+				emoji: "water",
+				color: "green-ish",
+			}),
+		).toEqual([
+			"emoji must be null or a single emoji",
+			"color must be null or one of pink, coral, amber, green, teal, blue, purple",
+		]);
+		expect(
+			mutationErrors({
+				id,
+				at,
+				type: "suggestion.create",
+				suggestionId,
+				groupId,
+				toUserId,
+				title: "Water plants",
+				notes: null,
+				startDate: "2026-10-01",
+				dueTime: null,
+				rule: null,
+				color: "nope",
+			}),
+		).toEqual([
+			"color must be null or one of pink, coral, amber, green, teal, blue, purple",
+		]);
+	});
+
+	it("treats absent emoji and color as optional on every type that has them", () => {
+		expect(
+			mutationErrors({
+				id,
+				at,
+				type: "task.create",
+				taskId,
+				groupId,
+				title: "Water plants",
+				notes: null,
+				timezone: "Europe/London",
+				startDate: "2026-09-21",
+				dueTime: null,
+				rule: null,
+			}),
+		).toEqual([]);
+		expect(
+			mutationErrors({ id, at, type: "task.update", taskId, title: "Floss" }),
+		).toEqual([]);
+	});
+
+	it("lets an update change only the emoji or only the color, but never nothing", () => {
+		expect(
+			mutationErrors({ id, at, type: "task.update", taskId, emoji: PLANT }),
+		).toEqual([]);
+		expect(
+			mutationErrors({ id, at, type: "task.update", taskId, color: "pink" }),
+		).toEqual([]);
+		expect(mutationErrors({ id, at, type: "task.update", taskId })).toEqual([
+			"update must change title, notes, emoji or color",
+		]);
+	});
+
+	it("does not accept emoji or color on mutations that do not carry them", () => {
+		expect(
+			mutationErrors({
+				id,
+				at,
+				type: "task.archive",
+				taskId,
+				archived: true,
+				emoji: PLANT,
+			}),
+		).toEqual(["unknown field: emoji"]);
+		expect(
+			mutationErrors({
+				id,
+				at,
+				type: "suggestion.accept",
+				suggestionId,
+				taskId,
+				timezone: "Europe/London",
+				startDate: "2026-10-02",
+				color: "teal",
+			}),
+		).toEqual(["unknown field: color"]);
+	});
+
 	it("tells suggestion mutations apart from task mutations", () => {
 		expect(valid.filter(isSuggestionMutation).map((m) => m.type)).toEqual([
 			"suggestion.create",
 			"suggestion.accept",
 			"suggestion.decline",
 			"suggestion.withdraw",
+			"suggestion.create",
 		]);
 	});
 });

@@ -4,6 +4,7 @@ import {
 	isTimeZone,
 	type LocalDate,
 } from "./localDate";
+import { isEmoji, isTaskColor, TASK_COLORS, type TaskColor } from "./look";
 import { type Rule, ruleErrors } from "./rule";
 
 export const MAX_BATCH = 100;
@@ -36,12 +37,16 @@ export type Mutation =
 			startDate: LocalDate;
 			dueTime: string | null;
 			rule: Rule | null;
+			emoji?: string | null;
+			color?: TaskColor | null;
 	  })
 	| (Base & {
 			type: "task.update";
 			taskId: string;
 			title?: string;
 			notes?: string | null;
+			emoji?: string | null;
+			color?: TaskColor | null;
 	  })
 	| (Base & {
 			type: "task.schedule";
@@ -64,6 +69,8 @@ export type Mutation =
 			startDate: LocalDate;
 			dueTime: string | null;
 			rule: Rule | null;
+			emoji?: string | null;
+			color?: TaskColor | null;
 	  })
 	| (Base & {
 			type: "suggestion.accept";
@@ -95,8 +102,10 @@ const FIELDS: Record<MutationType, readonly string[]> = {
 		"startDate",
 		"dueTime",
 		"rule",
+		"emoji",
+		"color",
 	],
-	"task.update": ["taskId", "title", "notes"],
+	"task.update": ["taskId", "title", "notes", "emoji", "color"],
 	"task.schedule": ["taskId", "effectiveFrom", "dueTime", "rule"],
 	"task.archive": ["taskId", "archived"],
 	"task.complete": ["taskId", "occurrenceKey"],
@@ -111,13 +120,24 @@ const FIELDS: Record<MutationType, readonly string[]> = {
 		"startDate",
 		"dueTime",
 		"rule",
+		"emoji",
+		"color",
 	],
 	"suggestion.accept": ["suggestionId", "taskId", "timezone", "startDate"],
 	"suggestion.decline": ["suggestionId"],
 	"suggestion.withdraw": ["suggestionId"],
 };
 
-const OPTIONAL = new Set(["task.update:title", "task.update:notes"]);
+const OPTIONAL = new Set([
+	"task.update:title",
+	"task.update:notes",
+	"task.update:emoji",
+	"task.update:color",
+	"task.create:emoji",
+	"task.create:color",
+	"suggestion.create:emoji",
+	"suggestion.create:color",
+]);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -161,6 +181,14 @@ function fieldError(key: string, v: unknown): string | null {
 			const errors = ruleErrors(v);
 			return errors.length > 0 ? `rule: ${errors.join("; ")}` : null;
 		}
+		case "emoji":
+			return v === null || isEmoji(v)
+				? null
+				: "emoji must be null or a single emoji";
+		case "color":
+			return v === null || isTaskColor(v)
+				? null
+				: `color must be null or one of ${TASK_COLORS.join(", ")}`;
 		case "archived":
 			return typeof v === "boolean" ? null : "archived must be a boolean";
 		default:
@@ -194,7 +222,13 @@ export function mutationErrors(input: unknown): string[] {
 		const problem = fieldError(key, m[key]);
 		if (problem) errors.push(problem);
 	}
-	if (type === "task.update" && !("title" in m) && !("notes" in m))
-		errors.push("update must change title or notes");
+	if (
+		type === "task.update" &&
+		!("title" in m) &&
+		!("notes" in m) &&
+		!("emoji" in m) &&
+		!("color" in m)
+	)
+		errors.push("update must change title, notes, emoji or color");
 	return errors;
 }
