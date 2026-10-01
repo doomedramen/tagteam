@@ -21,6 +21,7 @@ it("creates every table on a fresh database", () => {
 		"profile",
 		"push_subscription",
 		"session",
+		"suggestion",
 		"sync_state",
 		"task",
 		"task_event",

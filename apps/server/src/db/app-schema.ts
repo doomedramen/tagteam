@@ -1,4 +1,4 @@
-import type { RuleVersion } from "@tagteam/core";
+import type { Rule, RuleVersion } from "@tagteam/core";
 import {
 	index,
 	integer,
@@ -112,6 +112,10 @@ export const task = sqliteTable(
 		archivedAt: epochMs("archived_at"),
 		createdAt: epochMs("created_at").notNull(),
 		clocks: text("clocks", { mode: "json" }).$type<TaskClocks>().notNull(),
+		/** Set only when the task was created by accepting a suggestion: the suggester's user id. */
+		suggestedBy: text("suggested_by").references(() => user.id, {
+			onDelete: "set null",
+		}),
 		seq: integer("seq").notNull(),
 	},
 	(t) => [index("task_group_seq_idx").on(t.groupId, t.seq)],
@@ -145,6 +149,45 @@ export const taskEvent = sqliteTable(
 	(t) => [
 		index("task_event_group_seq_idx").on(t.groupId, t.seq),
 		index("task_event_task_idx").on(t.taskId),
+	],
+);
+
+/** A task one member proposes to another. Rows are never deleted; `status` changes instead, so sync needs no tombstones. */
+export const suggestion = sqliteTable(
+	"suggestion",
+	{
+		id: text("id").primaryKey(),
+		groupId: text("group_id")
+			.notNull()
+			.references(() => groups.id, { onDelete: "cascade" }),
+		fromUserId: text("from_user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		toUserId: text("to_user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		title: text("title").notNull(),
+		notes: text("notes"),
+		startDate: text("start_date").notNull(),
+		dueTime: text("due_time"),
+		rule: text("rule", { mode: "json" }).$type<Rule>(),
+		status: text("status", {
+			enum: ["pending", "accepted", "declined", "withdrawn"],
+		}).notNull(),
+		taskId: text("task_id").references(() => task.id, { onDelete: "set null" }),
+		createdAt: epochMs("created_at").notNull(),
+		/** Set on the latest status change. */
+		resolvedAt: epochMs("resolved_at"),
+		seq: integer("seq").notNull(),
+	},
+	(t) => [
+		index("suggestion_group_seq_idx").on(t.groupId, t.seq),
+		index("suggestion_pair_idx").on(
+			t.groupId,
+			t.fromUserId,
+			t.toUserId,
+			t.status,
+		),
 	],
 );
 
@@ -195,15 +238,26 @@ export const notificationLog = sqliteTable(
 	"notification_log",
 	{
 		id: text("id").primaryKey(),
-		taskId: text("task_id")
-			.notNull()
-			.references(() => task.id, { onDelete: "cascade" }),
+		/** Null for suggestion notifications, which have no task yet. */
+		taskId: text("task_id").references(() => task.id, { onDelete: "cascade" }),
+		suggestionId: text("suggestion_id").references(() => suggestion.id, {
+			onDelete: "cascade",
+		}),
 		userId: text("user_id")
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
-		/** Occurrence date for reminders; source event id for nudges. */
+		/** Occurrence date for reminders; source event id for nudges; suggestion id for suggestion kinds. */
 		occurrenceKey: text("occurrence_key").notNull(),
-		kind: text("kind", { enum: ["due", "overdue", "nudge"] }).notNull(),
+		kind: text("kind", {
+			enum: [
+				"due",
+				"overdue",
+				"nudge",
+				"suggested",
+				"suggestion_accepted",
+				"suggestion_declined",
+			],
+		}).notNull(),
 		title: text("title").notNull(),
 		body: text("body").notNull(),
 		url: text("url").notNull(),
@@ -215,6 +269,10 @@ export const notificationLog = sqliteTable(
 		uniqueIndex("notification_log_dedupe_unique").on(
 			t.taskId,
 			t.occurrenceKey,
+			t.kind,
+		),
+		uniqueIndex("notification_log_suggestion_unique").on(
+			t.suggestionId,
 			t.kind,
 		),
 		index("notification_log_pending_idx").on(t.sentAt, t.createdAt),
