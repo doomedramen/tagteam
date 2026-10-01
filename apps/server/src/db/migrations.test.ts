@@ -66,6 +66,18 @@ it("keeps queued notification deliveries when the log is rebuilt for suggestions
 		{ name: "notification_delivery_pending_idx" },
 	]);
 
+	expect(
+		sqlite
+			.prepare(
+				"select name from sqlite_master where type = 'index' and tbl_name = 'notification_log' and name like 'notification_log_%' order by name",
+			)
+			.all(),
+	).toEqual([
+		{ name: "notification_log_dedupe_unique" },
+		{ name: "notification_log_pending_idx" },
+		{ name: "notification_log_suggestion_unique" },
+	]);
+
 	// Suggestion notifications have no task and dedupe by (suggestion, kind).
 	sqlite.exec(`
 		insert into suggestion (id, group_id, from_user_id, to_user_id, title, start_date, status, created_at, seq)

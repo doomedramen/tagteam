@@ -38,13 +38,26 @@ describe("suggestion mutations", () => {
 		api(ctx.app, cookie, "POST", "/api/invites/redeem", {
 			code: await invite(),
 		});
+	/** A second group owned by Sam, with Jo as a member. */
+	const otherGroupWithJo = async () => {
+		const other = (
+			await readJson<{ group: { id: string } }>(
+				await api(ctx.app, sam, "POST", "/api/groups", { name: "Work" }),
+			)
+		).group.id;
+		const { code } = await readJson<{ code: string }>(
+			await api(ctx.app, sam, "POST", `/api/groups/${other}/invites`),
+		);
+		await api(ctx.app, jo, "POST", "/api/invites/redeem", { code });
+		return other;
+	};
 
-	const create = (id = suggestionId, to = joId) =>
+	const create = (id = suggestionId, to = joId, inGroup = groupId) =>
 		mutation(
 			"suggestion.create",
 			{
 				suggestionId: id,
-				groupId,
+				groupId: inGroup,
 				toUserId: to,
 				title: " Wash dishes ",
 				notes: null,
@@ -175,6 +188,43 @@ describe("suggestion mutations", () => {
 		expect(
 			(await push(ctx.app, sam, [create(overId)])).results[0]?.status,
 		).toBe("applied");
+	});
+
+	it("counts only pending suggestions, per group, towards the cap", async () => {
+		const other = await otherGroupWithJo();
+		const filled = await push(
+			ctx.app,
+			sam,
+			Array.from({ length: MAX_PENDING_SUGGESTIONS }, () =>
+				create(randomUUID()),
+			),
+		);
+		expect(filled.results.every((r) => r.status === "applied")).toBe(true);
+		expect(await reason(sam, create(randomUUID()))).toBe(
+			"too many pending suggestions",
+		);
+
+		// The same pair in another group has its own allowance.
+		expect(
+			(await push(ctx.app, sam, [create(randomUUID(), joId, other)])).results[0]
+				?.status,
+		).toBe("applied");
+
+		// Declined and accepted rows no longer count: each frees a slot.
+		const [first, second] = ctx.db
+			.select()
+			.from(suggestion)
+			.where(eq(suggestion.groupId, groupId))
+			.all();
+		await push(ctx.app, jo, [decline(first?.id)]);
+		await push(ctx.app, jo, [accept(second?.id, randomUUID())]);
+		const results = (
+			await push(ctx.app, sam, [create(randomUUID()), create(randomUUID())])
+		).results;
+		expect(results.map((r) => r.status)).toEqual(["applied", "applied"]);
+		expect(await reason(sam, create(randomUUID()))).toBe(
+			"too many pending suggestions",
+		);
 	});
 
 	it("accepting creates the recipient's task and resolves the suggestion together", async () => {
@@ -455,6 +505,40 @@ describe("suggestion mutations", () => {
 		const joAfter = await pullAll(ctx.app, jo, joCursor);
 		expect(joAfter.suggestions).toEqual([]);
 		expect(joAfter.removedGroupIds).toEqual([groupId]);
+	});
+
+	it("leaves suggestions in other groups alone when a member leaves one", async () => {
+		const other = await otherGroupWithJo();
+		const ids = {
+			toJoHere: randomUUID(),
+			toJoElsewhere: randomUUID(),
+			fromJoElsewhere: randomUUID(),
+			fromJoDeclinedElsewhere: randomUUID(),
+		};
+		await push(ctx.app, sam, [
+			create(ids.toJoHere),
+			create(ids.toJoElsewhere, joId, other),
+		]);
+		await push(ctx.app, jo, [
+			create(ids.fromJoElsewhere, samId, other),
+			create(ids.fromJoDeclinedElsewhere, samId, other),
+		]);
+		await push(ctx.app, sam, [decline(ids.fromJoDeclinedElsewhere)]);
+
+		await api(ctx.app, jo, "POST", `/api/groups/${groupId}/leave`);
+
+		expect(row(ids.toJoHere)?.status).toBe("withdrawn");
+		expect(row(ids.toJoElsewhere)?.status).toBe("pending");
+		expect(row(ids.fromJoElsewhere)?.status).toBe("pending");
+		expect(row(ids.fromJoDeclinedElsewhere)?.status).toBe("declined");
+		expect(
+			ctx.db
+				.select()
+				.from(suggestion)
+				.where(eq(suggestion.status, "withdrawn"))
+				.all()
+				.map((s) => s.id),
+		).toEqual([ids.toJoHere]);
 	});
 
 	it("rejects an accept from a recipient who is no longer an active member", async () => {
