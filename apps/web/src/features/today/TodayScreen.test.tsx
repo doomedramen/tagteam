@@ -507,6 +507,101 @@ describe("TodayScreen suggestions", () => {
 		expect(screen.queryByText(/for you$/)).not.toBeInTheDocument();
 	});
 
+	it("keeps the answer toast exposed to assistive technology while the sheet is open", async () => {
+		await store.members.put(jo);
+		await store.suggestions.bulkPut([
+			suggestion(),
+			suggestion({ id: "s2", title: "Bins", ...mine }),
+		]);
+		renderWithSession(<TodayScreen />, { store, engine: fakeEngine() });
+		const sheet = await openSheet(/1 suggestion for you/);
+		await userEvent.click(
+			within(sheet).getByRole("button", { name: "Accept Wash dishes" }),
+		);
+		const toastText = await screen.findByText("Added · Wash dishes");
+		expect(screen.getByRole("dialog", { name: "Suggestions" })).toBeVisible();
+		expect(toastText.closest('[aria-hidden="true"], [inert]')).toBeNull();
+	});
+
+	it("keeps showing the answered cards, inert, while the sheet slides out", async () => {
+		await store.members.put(jo);
+		await store.suggestions.put(suggestion());
+		const engine = fakeEngine();
+		renderWithSession(<TodayScreen />, { store, engine });
+		const sheet = await openSheet(/1 suggestion for you/);
+		await userEvent.click(
+			within(sheet).getByRole("button", { name: "Accept Wash dishes" }),
+		);
+		// Hold the exit animation open so the closing sheet can be inspected.
+		const original = Object.getOwnPropertyDescriptor(
+			Element.prototype,
+			"getAnimations",
+		);
+		Element.prototype.getAnimations = () =>
+			[{ finished: new Promise(() => {}) }] as unknown as Animation[];
+		try {
+			await store.suggestions.update("s1", { status: "accepted" });
+			await waitFor(() =>
+				expect(screen.queryByText(/for you$/)).not.toBeInTheDocument(),
+			);
+			const closing = screen.getByRole("dialog", { name: "Suggestions" });
+			expect(within(closing).getByText("Wash dishes")).toBeInTheDocument();
+			const accept = within(closing).getByRole("button", {
+				name: "Accept Wash dishes",
+			});
+			expect(accept.closest("[inert]")).not.toBeNull();
+			expect(
+				within(closing)
+					.getByRole("button", { name: "Decline Wash dishes" })
+					.closest("[inert]"),
+			).not.toBeNull();
+			expect(engine.enqueue).toHaveBeenCalledTimes(1);
+		} finally {
+			if (original)
+				Object.defineProperty(Element.prototype, "getAnimations", original);
+			else
+				delete (Element.prototype as { getAnimations?: unknown }).getAnimations;
+		}
+	});
+
+	it("moves focus to the next card after one is answered", async () => {
+		await store.members.put(jo);
+		await store.suggestions.bulkPut([
+			suggestion({ id: "s1", title: "Wash dishes", createdAt: 1 }),
+			suggestion({ id: "s2", title: "Water plants", createdAt: 2 }),
+		]);
+		renderWithSession(<TodayScreen />, { store, engine: fakeEngine() });
+		const sheet = await openSheet(/2 suggestions for you/);
+		await userEvent.click(
+			within(sheet).getByRole("button", { name: "Accept Wash dishes" }),
+		);
+		await store.suggestions.update("s1", { status: "accepted" });
+		await waitFor(() =>
+			expect(
+				within(sheet).getByRole("button", { name: "Decline Water plants" }),
+			).toHaveFocus(),
+		);
+	});
+
+	it("moves focus to the previous row when the last row is answered", async () => {
+		await store.members.put(jo);
+		await store.suggestions.bulkPut([
+			suggestion({ id: "s1", title: "Wash dishes" }),
+			suggestion({ id: "s2", title: "Bins", ...mine }),
+		]);
+		renderWithSession(<TodayScreen />, { store, engine: fakeEngine() });
+		const sheet = await openSheet(/1 suggestion for you/);
+		await userEvent.click(
+			within(sheet).getByRole("button", { name: "Withdraw Bins" }),
+		);
+		await store.suggestions.update("s2", { status: "withdrawn" });
+		await waitFor(() =>
+			expect(
+				within(sheet).getByRole("button", { name: "Decline Wash dishes" }),
+			).toHaveFocus(),
+		);
+	});
+
 	it("declines a suggestion from the sheet", async () => {
 		await store.members.put(jo);
 		await store.suggestions.put(suggestion());
@@ -631,5 +726,11 @@ describe("TodayScreen suggestions", () => {
 		expect(
 			within(sheet).getByRole("heading", { name: "Sent by you" }),
 		).toBeInTheDocument();
+		// Sections are named by their visible heading, not a duplicate label.
+		for (const name of ["For you", "Sent by you"]) {
+			const region = within(sheet).getByRole("region", { name });
+			expect(region).not.toHaveAttribute("aria-label");
+			expect(region).toHaveAttribute("aria-labelledby");
+		}
 	});
 });

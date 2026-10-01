@@ -97,6 +97,7 @@ export function Sheet({
 				>
 					<div className="flex min-h-11 shrink-0 items-center justify-between px-4 pt-1">
 						<DrawerTitle
+							tabIndex={-1}
 							className={showTitle ? "text-[17px] font-semibold" : "sr-only"}
 						>
 							{label}

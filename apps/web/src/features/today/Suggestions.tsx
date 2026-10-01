@@ -1,4 +1,5 @@
 import type { LocalDate, MemberDto, SuggestionDto } from "@tagteam/core";
+import { useId } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar } from "../../ui/Avatar";
 import { Button } from "../../ui/Button";
@@ -20,10 +21,13 @@ export function IncomingSuggestions({
 	onAccept: (suggestion: SuggestionDto) => void;
 	onDecline: (suggestion: SuggestionDto) => void;
 }) {
+	const headingId = useId();
 	if (suggestions.length === 0) return null;
 	return (
-		<section aria-label="For you">
-			<h2 className="mb-1 text-[13px] font-medium text-text-2">For you</h2>
+		<section aria-labelledby={headingId}>
+			<h2 id={headingId} className="mb-1 text-[13px] font-medium text-text-2">
+				For you
+			</h2>
 			<ul className="flex flex-col gap-2">
 				{suggestions.map((suggestion) => {
 					const sender = members.find(
@@ -31,7 +35,7 @@ export function IncomingSuggestions({
 					);
 					const name = sender?.displayName ?? "Someone";
 					return (
-						<li key={suggestion.id}>
+						<li key={suggestion.id} data-suggestion-row={suggestion.id}>
 							<Card className="gap-3 rounded-2xl p-4 ring-line">
 								<CardContent className="flex flex-col gap-3 p-0">
 									<div className="flex items-start gap-3">
@@ -82,10 +86,13 @@ export function OutgoingSuggestions({
 	members: MemberDto[];
 	onWithdraw: (suggestion: SuggestionDto) => void;
 }) {
+	const headingId = useId();
 	if (suggestions.length === 0) return null;
 	return (
-		<section aria-label="Sent by you">
-			<h2 className="mb-1 text-[13px] font-medium text-text-2">Sent by you</h2>
+		<section aria-labelledby={headingId}>
+			<h2 id={headingId} className="mb-1 text-[13px] font-medium text-text-2">
+				Sent by you
+			</h2>
 			<Card className="gap-0 overflow-hidden rounded-2xl p-0 ring-line">
 				<CardContent className="px-4 py-0">
 					<ul>
@@ -96,6 +103,7 @@ export function OutgoingSuggestions({
 							return (
 								<li
 									key={suggestion.id}
+									data-suggestion-row={suggestion.id}
 									className="flex items-center gap-3 border-b border-line py-3 last:border-0"
 								>
 									<div className="min-w-0 flex-1">
