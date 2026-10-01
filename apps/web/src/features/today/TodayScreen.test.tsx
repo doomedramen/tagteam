@@ -1,4 +1,4 @@
-import type { TaskDto } from "@tagteam/core";
+import type { MemberDto, SuggestionDto, TaskDto } from "@tagteam/core";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -345,5 +345,207 @@ describe("TodayScreen", () => {
 		);
 		expect(localStorage.getItem("tagteam.showUpcoming")).toBe("true");
 		expect(ME.groups[0]?.name).toBe("Smiths");
+	});
+});
+
+const jo: MemberDto = {
+	groupId: "g1",
+	userId: "u2",
+	displayName: "Jo",
+	avatarColor: "green",
+	role: "member",
+	joinedAt: 0,
+	leftAt: null,
+};
+const suggestion = (patch: Partial<SuggestionDto> = {}): SuggestionDto => ({
+	id: "s1",
+	groupId: "g1",
+	fromUserId: "u2",
+	toUserId: "u1",
+	title: "Wash dishes",
+	notes: null,
+	startDate: iso(today),
+	dueTime: null,
+	rule: { freq: "day", interval: 1 },
+	status: "pending",
+	taskId: null,
+	createdAt: 0,
+	resolvedAt: null,
+	...patch,
+});
+const daysFromNow = (days: number) =>
+	iso(new Date(Date.now() + days * 86_400_000));
+
+describe("TodayScreen suggestions", () => {
+	it("shows a suggestion for me above the task sections, even in an empty group", async () => {
+		await store.members.put(jo);
+		await store.suggestions.put(suggestion());
+		renderWithSession(<TodayScreen />, { store });
+		expect(await screen.findByText("Jo suggests")).toBeInTheDocument();
+		expect(screen.getByText("Wash dishes")).toBeInTheDocument();
+		expect(screen.getByText("Daily")).toBeInTheDocument();
+		expect(screen.getByText("Add your first task")).toBeInTheDocument();
+	});
+
+	it("puts the cards before the task list", async () => {
+		await store.members.put(jo);
+		await store.tasks.put(brushTeeth);
+		await store.suggestions.put(suggestion());
+		renderWithSession(<TodayScreen />, { store });
+		const card = await screen.findByText("Jo suggests");
+		const row = await screen.findByText("Brush teeth");
+		expect(
+			card.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+	});
+
+	it("does not show other people's suggestions or answered ones as cards", async () => {
+		await store.members.put(jo);
+		await store.tasks.put(brushTeeth);
+		await store.suggestions.bulkPut([
+			suggestion({ id: "a", toUserId: "u3", title: "For Kim" }),
+			suggestion({ id: "b", status: "declined", title: "Old one" }),
+		]);
+		renderWithSession(<TodayScreen />, { store });
+		await screen.findByRole("button", { name: "Complete Brush teeth" });
+		expect(screen.queryByText("For Kim")).not.toBeInTheDocument();
+		expect(screen.queryByText("Old one")).not.toBeInTheDocument();
+		expect(screen.queryByText(/suggests/)).not.toBeInTheDocument();
+	});
+
+	it.each([
+		{
+			name: "a past start moves to today",
+			start: daysFromNow(-2),
+			expected: iso(today),
+		},
+		{ name: "today stays today", start: iso(today), expected: iso(today) },
+		{
+			name: "a future start is kept",
+			start: daysFromNow(3),
+			expected: daysFromNow(3),
+		},
+	])(
+		"accepts with the recipient's timezone and start date: $name",
+		async ({ start, expected }) => {
+			await store.members.put(jo);
+			await store.suggestions.put(suggestion({ startDate: start }));
+			const engine = fakeEngine();
+			renderWithSession(<TodayScreen />, { store, engine });
+			await userEvent.click(
+				await screen.findByRole("button", { name: "Accept Wash dishes" }),
+			);
+			expect(engine.enqueue).toHaveBeenCalledTimes(1);
+			expect(engine.enqueue).toHaveBeenCalledWith(
+				expect.objectContaining({
+					type: "suggestion.accept",
+					suggestionId: "s1",
+					taskId: expect.any(String),
+					timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+					startDate: expected,
+				}),
+			);
+		},
+	);
+
+	it("declines a suggestion", async () => {
+		await store.members.put(jo);
+		await store.suggestions.put(suggestion());
+		const engine = fakeEngine();
+		renderWithSession(<TodayScreen />, { store, engine });
+		await userEvent.click(
+			await screen.findByRole("button", { name: "Decline Wash dishes" }),
+		);
+		expect(engine.enqueue).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: "suggestion.decline",
+				suggestionId: "s1",
+			}),
+		);
+	});
+
+	it("ignores a second tap while the first answer is still being written", async () => {
+		await store.members.put(jo);
+		await store.suggestions.put(suggestion());
+		const engine = fakeEngine();
+		let finish: () => void = () => {};
+		engine.enqueue.mockImplementationOnce(
+			() => new Promise<void>((resolve) => (finish = resolve)),
+		);
+		renderWithSession(<TodayScreen />, { store, engine });
+		const accept = await screen.findByRole("button", {
+			name: "Accept Wash dishes",
+		});
+		await userEvent.click(accept);
+		await userEvent.click(accept);
+		await userEvent.click(
+			screen.getByRole("button", { name: "Decline Wash dishes" }),
+		);
+		expect(engine.enqueue).toHaveBeenCalledTimes(1);
+		finish();
+		await screen.findByText("Added · Wash dishes");
+	});
+
+	it("reports a failed answer and allows another try", async () => {
+		await store.members.put(jo);
+		await store.suggestions.put(suggestion());
+		const engine = fakeEngine();
+		engine.enqueue.mockRejectedValueOnce(new Error("disk full"));
+		renderWithSession(<TodayScreen />, { store, engine });
+		const accept = await screen.findByRole("button", {
+			name: "Accept Wash dishes",
+		});
+		await userEvent.click(accept);
+		expect(
+			await screen.findByText("Could not update suggestion. Try again."),
+		).toBeInTheDocument();
+		await userEvent.click(accept);
+		expect(engine.enqueue).toHaveBeenCalledTimes(2);
+	});
+
+	it("lists what I suggested: Withdraw while waiting, Clear once declined", async () => {
+		await store.members.put(jo);
+		const mine = { fromUserId: "u1", toUserId: "u2" };
+		await store.suggestions.bulkPut([
+			suggestion({ id: "s1", title: "Bins", status: "pending", ...mine }),
+			suggestion({ id: "s2", title: "Plants", status: "declined", ...mine }),
+			suggestion({ id: "s3", title: "Took it", status: "accepted", ...mine }),
+			suggestion({ id: "s4", title: "Gone", status: "withdrawn", ...mine }),
+		]);
+		const engine = fakeEngine();
+		renderWithSession(<TodayScreen />, { store, engine });
+		expect(await screen.findByText("Suggested by you")).toBeInTheDocument();
+		expect(screen.getByText("Waiting for Jo")).toBeInTheDocument();
+		expect(screen.getByText("Jo declined")).toBeInTheDocument();
+		expect(screen.queryByText("Took it")).not.toBeInTheDocument();
+		expect(screen.queryByText("Gone")).not.toBeInTheDocument();
+
+		await userEvent.click(
+			screen.getByRole("button", { name: "Withdraw Bins" }),
+		);
+		expect(engine.enqueue).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				type: "suggestion.withdraw",
+				suggestionId: "s1",
+			}),
+		);
+		await userEvent.click(screen.getByRole("button", { name: "Clear Plants" }));
+		expect(engine.enqueue).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				type: "suggestion.withdraw",
+				suggestionId: "s2",
+			}),
+		);
+	});
+
+	it("shows no 'Suggested by you' section when there is nothing to show", async () => {
+		await store.members.put(jo);
+		await store.tasks.put(brushTeeth);
+		await store.suggestions.put(
+			suggestion({ fromUserId: "u1", toUserId: "u2", status: "accepted" }),
+		);
+		renderWithSession(<TodayScreen />, { store });
+		await screen.findByRole("button", { name: "Complete Brush teeth" });
+		expect(screen.queryByText("Suggested by you")).not.toBeInTheDocument();
 	});
 });

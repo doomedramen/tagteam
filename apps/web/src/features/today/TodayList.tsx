@@ -2,6 +2,7 @@ import { ArrowRight, Check, Repeat, Undo2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import {
 	type MouseEvent as ReactMouseEvent,
+	type ReactNode,
 	type PointerEvent as ReactPointerEvent,
 	useRef,
 	useState,
@@ -283,6 +284,8 @@ export function TodayList({
 	onToggle,
 	celebratingKey,
 	onAdd,
+	incoming,
+	outgoing,
 }: {
 	view: TodayView;
 	now: number;
@@ -291,6 +294,10 @@ export function TodayList({
 	onToggle: (row: TodayRow) => void;
 	celebratingKey: string | null;
 	onAdd: () => void;
+	/** Suggestion cards addressed to me, shown above the task sections. */
+	incoming?: ReactNode;
+	/** The "Suggested by you" section, shown at the bottom. */
+	outgoing?: ReactNode;
 }) {
 	const percent =
 		view.total === 0 ? 100 : Math.round((view.done / view.total) * 100);
@@ -308,6 +315,7 @@ export function TodayList({
 					exit={{ opacity: 0, transform: "translateY(-4px)" }}
 					transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
 				>
+					{incoming}
 					<Empty className="mt-20 gap-3 border-0 p-0">
 						<EmptyHeader>
 							<EmptyTitle className="text-lg font-semibold">
@@ -323,6 +331,7 @@ export function TodayList({
 							</Button>
 						</EmptyContent>
 					</Empty>
+					{outgoing}
 				</motion.div>
 			) : (
 				<motion.div
@@ -354,6 +363,7 @@ export function TodayList({
 					<p className="mt-3 text-[13px] text-text-2">
 						Tap a circle to complete or reopen. Swipe right works too.
 					</p>
+					{incoming}
 					<Section
 						title="Overdue"
 						rows={view.overdue}
@@ -396,6 +406,7 @@ export function TodayList({
 							</motion.div>
 						) : null}
 					</AnimatePresence>
+					{outgoing}
 				</motion.div>
 			)}
 		</AnimatePresence>

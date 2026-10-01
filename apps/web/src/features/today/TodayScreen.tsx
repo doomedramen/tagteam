@@ -1,12 +1,19 @@
+import type { Mutation, SuggestionDto } from "@tagteam/core";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router";
 import { readFlag, writeFlag } from "../../lib/storage";
-import { dayBounds, useNow } from "../../lib/time";
+import { browserTimeZone, dayBounds, localDate, useNow } from "../../lib/time";
 import { useSession } from "../../session/session";
 import { fireScreenConfettiCannon } from "../../ui/confetti";
 import { useToast } from "../../ui/Toast";
+import {
+	acceptStartDate,
+	incomingSuggestions,
+	outgoingSuggestions,
+} from "../suggestions/model";
 import { buildToday, type TodayRow } from "./model";
+import { IncomingSuggestions, OutgoingSuggestions } from "./Suggestions";
 import { TodayList } from "./TodayList";
 
 const UPCOMING_KEY = "tagteam.showUpcoming";
@@ -42,7 +49,24 @@ export function TodayScreen() {
 			? []
 			: store.events.where("taskId").anyOf(ids).toArray();
 	}, [store, tasks]);
-	if (!tasks || !events || !activeGroupId) return null;
+	const members = useLiveQuery(
+		() =>
+			store.members
+				.where("groupId")
+				.equals(activeGroupId ?? "")
+				.toArray(),
+		[store, activeGroupId],
+	);
+	const suggestions = useLiveQuery(
+		() =>
+			store.suggestions
+				.where("groupId")
+				.equals(activeGroupId ?? "")
+				.toArray(),
+		[store, activeGroupId],
+	);
+	if (!tasks || !events || !members || !suggestions || !activeGroupId)
+		return null;
 
 	const view = buildToday({
 		tasks,
@@ -110,6 +134,62 @@ export function TodayScreen() {
 		}
 	};
 
+	const answer = async (
+		suggestion: SuggestionDto,
+		mutation: Mutation,
+		message: string,
+	) => {
+		const key = `suggestion:${suggestion.id}`;
+		if (inFlight.current.has(key)) return;
+		inFlight.current.add(key);
+		try {
+			await engine.enqueue(mutation);
+			toast.show({ message });
+		} catch {
+			toast.show({ message: "Could not update suggestion. Try again." });
+		} finally {
+			inFlight.current.delete(key);
+		}
+	};
+	const accept = (suggestion: SuggestionDto) =>
+		answer(
+			suggestion,
+			{
+				id: crypto.randomUUID(),
+				at: Date.now(),
+				type: "suggestion.accept",
+				suggestionId: suggestion.id,
+				taskId: crypto.randomUUID(),
+				timezone: browserTimeZone(),
+				startDate: acceptStartDate(suggestion.startDate, localDate(Date.now())),
+			},
+			`Added · ${suggestion.title}`,
+		);
+	const decline = (suggestion: SuggestionDto) =>
+		answer(
+			suggestion,
+			{
+				id: crypto.randomUUID(),
+				at: Date.now(),
+				type: "suggestion.decline",
+				suggestionId: suggestion.id,
+			},
+			`Declined · ${suggestion.title}`,
+		);
+	const withdraw = (suggestion: SuggestionDto) =>
+		answer(
+			suggestion,
+			{
+				id: crypto.randomUUID(),
+				at: Date.now(),
+				type: "suggestion.withdraw",
+				suggestionId: suggestion.id,
+			},
+			suggestion.status === "declined"
+				? `Cleared · ${suggestion.title}`
+				: `Withdrawn · ${suggestion.title}`,
+		);
+
 	return (
 		<TodayList
 			view={view}
@@ -124,6 +204,30 @@ export function TodayScreen() {
 			}}
 			onToggle={(row) => void onToggle(row)}
 			onAdd={() => outlet?.openAdd?.()}
+			incoming={
+				<IncomingSuggestions
+					suggestions={incomingSuggestions(
+						suggestions,
+						activeGroupId,
+						me.user.id,
+					)}
+					members={members}
+					today={localDate(now)}
+					onAccept={(suggestion) => void accept(suggestion)}
+					onDecline={(suggestion) => void decline(suggestion)}
+				/>
+			}
+			outgoing={
+				<OutgoingSuggestions
+					suggestions={outgoingSuggestions(
+						suggestions,
+						activeGroupId,
+						me.user.id,
+					)}
+					members={members}
+					onWithdraw={(suggestion) => void withdraw(suggestion)}
+				/>
+			}
 		/>
 	);
 }
