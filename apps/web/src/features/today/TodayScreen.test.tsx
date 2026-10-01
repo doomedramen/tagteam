@@ -1,5 +1,5 @@
 import type { MemberDto, SuggestionDto, TaskDto } from "@tagteam/core";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TagTeamDb } from "../../store/db";
@@ -377,61 +377,79 @@ const daysFromNow = (days: number) =>
 	iso(new Date(Date.now() + days * 86_400_000));
 
 describe("TodayScreen suggestions", () => {
-	it("shows a suggestion for me in an empty group without the add-first-task prompt", async () => {
-		await store.members.put(jo);
-		await store.suggestions.put(suggestion());
+	const mine = { fromUserId: "u1", toUserId: "u2" };
+	const openSheet = async (name: RegExp) => {
+		await userEvent.click(await screen.findByRole("button", { name }));
+		return screen.findByRole("dialog", { name: "Suggestions" });
+	};
+
+	it("shows no strip without suggestions", async () => {
+		await store.tasks.put(brushTeeth);
 		renderWithSession(<TodayScreen />, { store });
-		expect(await screen.findByText("Jo suggests")).toBeInTheDocument();
-		expect(screen.getByText("Wash dishes")).toBeInTheDocument();
-		expect(screen.getByText("Daily")).toBeInTheDocument();
-		expect(screen.queryByText("Add your first task")).not.toBeInTheDocument();
+		await screen.findByRole("button", { name: "Complete Brush teeth" });
+		expect(screen.queryByText(/for you$/)).not.toBeInTheDocument();
+		expect(screen.queryByText("Sent by you")).not.toBeInTheDocument();
 	});
 
-	it("still invites adding a first task when only my own suggestions are waiting", async () => {
-		await store.members.put(jo);
-		await store.suggestions.put(
-			suggestion({ fromUserId: "u1", toUserId: "u2" }),
-		);
-		renderWithSession(<TodayScreen />, { store });
-		expect(await screen.findByText("Suggested by you")).toBeInTheDocument();
-		expect(screen.getByText("Add your first task")).toBeInTheDocument();
-	});
-
-	it("brings the add-first-task prompt back once the last incoming card is answered", async () => {
-		await store.members.put(jo);
-		await store.suggestions.put(suggestion());
-		const engine = fakeEngine();
-		renderWithSession(<TodayScreen />, { store, engine });
-		await screen.findByText("Jo suggests");
-		expect(screen.queryByText("Add your first task")).not.toBeInTheDocument();
-		await store.suggestions.update("s1", { status: "declined" });
-		expect(await screen.findByText("Add your first task")).toBeInTheDocument();
-	});
-
-	it("puts the cards before the task list", async () => {
+	it("summarises an incoming suggestion in a strip and keeps the card off Today", async () => {
 		await store.members.put(jo);
 		await store.tasks.put(brushTeeth);
 		await store.suggestions.put(suggestion());
 		renderWithSession(<TodayScreen />, { store });
-		const card = await screen.findByText("Jo suggests");
-		const row = await screen.findByText("Brush teeth");
+		const strip = await screen.findByRole("button", {
+			name: /1 suggestion for you/,
+		});
+		expect(strip).toBeInTheDocument();
+		expect(screen.queryByText("Jo suggests")).not.toBeInTheDocument();
+		expect(screen.queryByText("Wash dishes")).not.toBeInTheDocument();
+		// The strip sits above the task sections.
 		expect(
-			card.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING,
+			strip.compareDocumentPosition(screen.getByText("Brush teeth")) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy();
 	});
 
-	it("does not show other people's suggestions or answered ones as cards", async () => {
+	it("opens the card in a sheet from the strip", async () => {
+		await store.members.put(jo);
+		await store.suggestions.put(suggestion());
+		renderWithSession(<TodayScreen />, { store });
+		const sheet = await openSheet(/1 suggestion for you/);
+		expect(within(sheet).getByText("Jo suggests")).toBeInTheDocument();
+		expect(within(sheet).getByText("Wash dishes")).toBeInTheDocument();
+		expect(within(sheet).getByText("Daily")).toBeInTheDocument();
+		expect(
+			within(sheet).getByRole("heading", { name: "For you" }),
+		).toBeInTheDocument();
+		expect(
+			within(sheet).queryByRole("heading", { name: "Sent by you" }),
+		).not.toBeInTheDocument();
+	});
+
+	it("shows the strip and the add-first-task prompt together when there are no tasks", async () => {
+		await store.members.put(jo);
+		await store.suggestions.put(suggestion());
+		renderWithSession(<TodayScreen />, { store });
+		expect(
+			await screen.findByRole("button", { name: /1 suggestion for you/ }),
+		).toBeInTheDocument();
+		expect(screen.getByText("Add your first task")).toBeInTheDocument();
+	});
+
+	it("does not count other people's suggestions or answered ones", async () => {
 		await store.members.put(jo);
 		await store.tasks.put(brushTeeth);
 		await store.suggestions.bulkPut([
 			suggestion({ id: "a", toUserId: "u3", title: "For Kim" }),
 			suggestion({ id: "b", status: "declined", title: "Old one" }),
+			suggestion({ id: "c", groupId: "g2", title: "Elsewhere" }),
+			suggestion({ id: "d", ...mine, status: "accepted" }),
+			suggestion({ id: "e", ...mine, status: "withdrawn" }),
+			suggestion({ id: "f", ...mine, groupId: "g2" }),
 		]);
 		renderWithSession(<TodayScreen />, { store });
 		await screen.findByRole("button", { name: "Complete Brush teeth" });
-		expect(screen.queryByText("For Kim")).not.toBeInTheDocument();
-		expect(screen.queryByText("Old one")).not.toBeInTheDocument();
-		expect(screen.queryByText(/suggests/)).not.toBeInTheDocument();
+		expect(screen.queryByText(/for you$/)).not.toBeInTheDocument();
+		expect(screen.queryByText("Sent by you")).not.toBeInTheDocument();
 	});
 
 	it.each([
@@ -447,14 +465,15 @@ describe("TodayScreen suggestions", () => {
 			expected: daysFromNow(3),
 		},
 	])(
-		"accepts with the recipient's timezone and start date: $name",
+		"accepts from the sheet with the recipient's timezone and start date: $name",
 		async ({ start, expected }) => {
 			await store.members.put(jo);
 			await store.suggestions.put(suggestion({ startDate: start }));
 			const engine = fakeEngine();
 			renderWithSession(<TodayScreen />, { store, engine });
+			const sheet = await openSheet(/1 suggestion for you/);
 			await userEvent.click(
-				await screen.findByRole("button", { name: "Accept Wash dishes" }),
+				within(sheet).getByRole("button", { name: "Accept Wash dishes" }),
 			);
 			expect(engine.enqueue).toHaveBeenCalledTimes(1);
 			expect(engine.enqueue).toHaveBeenCalledWith(
@@ -469,13 +488,33 @@ describe("TodayScreen suggestions", () => {
 		},
 	);
 
-	it("declines a suggestion", async () => {
+	it("confirms an accept and closes the sheet once nothing is left", async () => {
+		await store.members.put(jo);
+		await store.suggestions.put(suggestion());
+		renderWithSession(<TodayScreen />, { store, engine: fakeEngine() });
+		const sheet = await openSheet(/1 suggestion for you/);
+		await userEvent.click(
+			within(sheet).getByRole("button", { name: "Accept Wash dishes" }),
+		);
+		expect(await screen.findByText("Added · Wash dishes")).toBeInTheDocument();
+		// The fake engine writes nothing, so answer it the way the sync engine would.
+		await store.suggestions.update("s1", { status: "accepted" });
+		await waitFor(() =>
+			expect(
+				screen.queryByRole("dialog", { name: "Suggestions" }),
+			).not.toBeInTheDocument(),
+		);
+		expect(screen.queryByText(/for you$/)).not.toBeInTheDocument();
+	});
+
+	it("declines a suggestion from the sheet", async () => {
 		await store.members.put(jo);
 		await store.suggestions.put(suggestion());
 		const engine = fakeEngine();
 		renderWithSession(<TodayScreen />, { store, engine });
+		const sheet = await openSheet(/1 suggestion for you/);
 		await userEvent.click(
-			await screen.findByRole("button", { name: "Decline Wash dishes" }),
+			within(sheet).getByRole("button", { name: "Decline Wash dishes" }),
 		);
 		expect(engine.enqueue).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -494,13 +533,14 @@ describe("TodayScreen suggestions", () => {
 			() => new Promise<void>((resolve) => (finish = resolve)),
 		);
 		renderWithSession(<TodayScreen />, { store, engine });
-		const accept = await screen.findByRole("button", {
+		const sheet = await openSheet(/1 suggestion for you/);
+		const accept = within(sheet).getByRole("button", {
 			name: "Accept Wash dishes",
 		});
 		await userEvent.click(accept);
 		await userEvent.click(accept);
 		await userEvent.click(
-			screen.getByRole("button", { name: "Decline Wash dishes" }),
+			within(sheet).getByRole("button", { name: "Decline Wash dishes" }),
 		);
 		expect(engine.enqueue).toHaveBeenCalledTimes(1);
 		finish();
@@ -513,7 +553,8 @@ describe("TodayScreen suggestions", () => {
 		const engine = fakeEngine();
 		engine.enqueue.mockRejectedValueOnce(new Error("disk full"));
 		renderWithSession(<TodayScreen />, { store, engine });
-		const accept = await screen.findByRole("button", {
+		const sheet = await openSheet(/1 suggestion for you/);
+		const accept = within(sheet).getByRole("button", {
 			name: "Accept Wash dishes",
 		});
 		await userEvent.click(accept);
@@ -524,9 +565,8 @@ describe("TodayScreen suggestions", () => {
 		expect(engine.enqueue).toHaveBeenCalledTimes(2);
 	});
 
-	it("lists what I suggested: Withdraw while waiting, Clear once declined", async () => {
+	it("summarises what I sent, then lists it: Withdraw while waiting, Clear once declined", async () => {
 		await store.members.put(jo);
-		const mine = { fromUserId: "u1", toUserId: "u2" };
 		await store.suggestions.bulkPut([
 			suggestion({ id: "s1", title: "Bins", status: "pending", ...mine }),
 			suggestion({ id: "s2", title: "Plants", status: "declined", ...mine }),
@@ -535,14 +575,26 @@ describe("TodayScreen suggestions", () => {
 		]);
 		const engine = fakeEngine();
 		renderWithSession(<TodayScreen />, { store, engine });
-		expect(await screen.findByText("Suggested by you")).toBeInTheDocument();
-		expect(screen.getByText("Waiting for Jo")).toBeInTheDocument();
-		expect(screen.getByText("Jo declined")).toBeInTheDocument();
-		expect(screen.queryByText("Took it")).not.toBeInTheDocument();
-		expect(screen.queryByText("Gone")).not.toBeInTheDocument();
+		const strip = await screen.findByRole("button", {
+			name: /Sent by you.*1 waiting, 1 declined/,
+		});
+		expect(strip).toHaveTextContent("1 waiting, 1 declined");
+		expect(screen.queryByText("Waiting for Jo")).not.toBeInTheDocument();
+
+		const sheet = await openSheet(/Sent by you/);
+		expect(
+			within(sheet).getByRole("heading", { name: "Sent by you" }),
+		).toBeInTheDocument();
+		expect(
+			within(sheet).queryByRole("heading", { name: "For you" }),
+		).not.toBeInTheDocument();
+		expect(within(sheet).getByText("Waiting for Jo")).toBeInTheDocument();
+		expect(within(sheet).getByText("Jo declined")).toBeInTheDocument();
+		expect(within(sheet).queryByText("Took it")).not.toBeInTheDocument();
+		expect(within(sheet).queryByText("Gone")).not.toBeInTheDocument();
 
 		await userEvent.click(
-			screen.getByRole("button", { name: "Withdraw Bins" }),
+			within(sheet).getByRole("button", { name: "Withdraw Bins" }),
 		);
 		expect(engine.enqueue).toHaveBeenLastCalledWith(
 			expect.objectContaining({
@@ -550,7 +602,9 @@ describe("TodayScreen suggestions", () => {
 				suggestionId: "s1",
 			}),
 		);
-		await userEvent.click(screen.getByRole("button", { name: "Clear Plants" }));
+		await userEvent.click(
+			within(sheet).getByRole("button", { name: "Clear Plants" }),
+		);
 		expect(engine.enqueue).toHaveBeenLastCalledWith(
 			expect.objectContaining({
 				type: "suggestion.withdraw",
@@ -559,14 +613,23 @@ describe("TodayScreen suggestions", () => {
 		);
 	});
 
-	it("shows no 'Suggested by you' section when there is nothing to show", async () => {
+	it("shows both sections and the combined strip when I have incoming and outgoing", async () => {
 		await store.members.put(jo);
-		await store.tasks.put(brushTeeth);
-		await store.suggestions.put(
-			suggestion({ fromUserId: "u1", toUserId: "u2", status: "accepted" }),
-		);
+		await store.suggestions.bulkPut([
+			suggestion(),
+			suggestion({ id: "s2", title: "Bins", ...mine }),
+		]);
 		renderWithSession(<TodayScreen />, { store });
-		await screen.findByRole("button", { name: "Complete Brush teeth" });
-		expect(screen.queryByText("Suggested by you")).not.toBeInTheDocument();
+		const strip = await screen.findByRole("button", {
+			name: /1 suggestion for you/,
+		});
+		expect(strip).toHaveTextContent("Sent by you: 1 waiting");
+		const sheet = await openSheet(/1 suggestion for you/);
+		expect(
+			within(sheet).getByRole("heading", { name: "For you" }),
+		).toBeInTheDocument();
+		expect(
+			within(sheet).getByRole("heading", { name: "Sent by you" }),
+		).toBeInTheDocument();
 	});
 });

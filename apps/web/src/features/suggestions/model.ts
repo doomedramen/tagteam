@@ -48,6 +48,29 @@ export function outgoingSuggestions(
 		.sort((a, b) => a.createdAt - b.createdAt);
 }
 
+/**
+ * Text for Today's single suggestions strip, or null when there is nothing to show.
+ * `waiting` and `declined` count suggestions I sent that are still unanswered or were turned down.
+ */
+export function suggestionsStripText(
+	incoming: number,
+	waiting: number,
+	declined: number,
+): { title: string; detail: string | null } | null {
+	const parts = [
+		waiting > 0 ? `${waiting} waiting` : null,
+		declined > 0 ? `${declined} declined` : null,
+	].filter(Boolean);
+	const sent = parts.join(", ");
+	if (incoming > 0) {
+		return {
+			title: `${incoming} ${incoming === 1 ? "suggestion" : "suggestions"} for you`,
+			detail: sent ? `Sent by you: ${sent}` : null,
+		};
+	}
+	return sent ? { title: "Sent by you", detail: sent } : null;
+}
+
 /** The later of the suggested start and today, so an accepted task never begins with missed occurrences. */
 export function acceptStartDate(
 	suggestedStart: string,

@@ -1,6 +1,6 @@
 import type { Mutation, SuggestionDto } from "@tagteam/core";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router";
 import { readFlag, writeFlag } from "../../lib/storage";
 import { browserTimeZone, dayBounds, localDate, useNow } from "../../lib/time";
@@ -13,7 +13,8 @@ import {
 	outgoingSuggestions,
 } from "../suggestions/model";
 import { buildToday, type TodayRow } from "./model";
-import { IncomingSuggestions, OutgoingSuggestions } from "./Suggestions";
+import { SuggestionsSheet } from "./SuggestionsSheet";
+import { SuggestionsStrip } from "./SuggestionsStrip";
 import { TodayList } from "./TodayList";
 
 const UPCOMING_KEY = "tagteam.showUpcoming";
@@ -27,6 +28,8 @@ export function TodayScreen() {
 		readFlag(UPCOMING_KEY, false),
 	);
 	const [celebratingKey, setCelebratingKey] = useState<string | null>(null);
+	const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+	const closeSuggestions = useCallback(() => setSuggestionsOpen(false), []);
 	const inFlight = useRef(new Set<string>());
 	const celebrationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	useEffect(
@@ -191,42 +194,43 @@ export function TodayScreen() {
 		);
 
 	const incoming = incomingSuggestions(suggestions, activeGroupId, me.user.id);
+	const outgoing = outgoingSuggestions(suggestions, activeGroupId, me.user.id);
 
 	return (
-		<TodayList
-			view={view}
-			now={now}
-			celebratingKey={celebratingKey}
-			showUpcoming={showUpcoming}
-			onToggleUpcoming={() => {
-				setShowUpcoming((value) => {
-					writeFlag(UPCOMING_KEY, !value);
-					return !value;
-				});
-			}}
-			onToggle={(row) => void onToggle(row)}
-			onAdd={() => outlet?.openAdd?.()}
-			hasIncoming={incoming.length > 0}
-			incoming={
-				<IncomingSuggestions
-					suggestions={incoming}
-					members={members}
-					today={localDate(now)}
-					onAccept={(suggestion) => void accept(suggestion)}
-					onDecline={(suggestion) => void decline(suggestion)}
-				/>
-			}
-			outgoing={
-				<OutgoingSuggestions
-					suggestions={outgoingSuggestions(
-						suggestions,
-						activeGroupId,
-						me.user.id,
-					)}
-					members={members}
-					onWithdraw={(suggestion) => void withdraw(suggestion)}
-				/>
-			}
-		/>
+		<>
+			<TodayList
+				view={view}
+				now={now}
+				celebratingKey={celebratingKey}
+				showUpcoming={showUpcoming}
+				onToggleUpcoming={() => {
+					setShowUpcoming((value) => {
+						writeFlag(UPCOMING_KEY, !value);
+						return !value;
+					});
+				}}
+				onToggle={(row) => void onToggle(row)}
+				onAdd={() => outlet?.openAdd?.()}
+				strip={
+					<SuggestionsStrip
+						incoming={incoming.length}
+						waiting={outgoing.filter((s) => s.status === "pending").length}
+						declined={outgoing.filter((s) => s.status === "declined").length}
+						onOpen={() => setSuggestionsOpen(true)}
+					/>
+				}
+			/>
+			<SuggestionsSheet
+				open={suggestionsOpen}
+				onClose={closeSuggestions}
+				incoming={incoming}
+				outgoing={outgoing}
+				members={members}
+				today={localDate(now)}
+				onAccept={(suggestion) => void accept(suggestion)}
+				onDecline={(suggestion) => void decline(suggestion)}
+				onWithdraw={(suggestion) => void withdraw(suggestion)}
+			/>
+		</>
 	);
 }

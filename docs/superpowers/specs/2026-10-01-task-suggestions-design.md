@@ -148,13 +148,31 @@ next to the footer action and does not enqueue.
 
 ### Today
 
-- **Incoming.** Each pending suggestion addressed to me renders as a card above the task
-  sections: the sender's avatar, "{name} suggests", the title, a schedule summary, and Decline and
-  Accept buttons. Accept turns it into a task in the list; Decline removes the card.
-  While incoming cards are shown and the user has no tasks, the empty-state prompt is hidden.
-- **Suggested by you.** A section at the bottom of Today, shown only when it has rows. Pending
-  rows read "Waiting for {name}" with a Withdraw action. Declined rows read "{name} declined" with
-  a Clear action.
+Today shows one **suggestions strip** and nothing else about suggestions. The strip is a single
+tappable row (at least 44 px tall) with an inbox icon and a chevron, placed below the date heading and
+progress and above the task sections. It also shows in the empty state, above "Add your first task",
+which is unaffected by suggestions.
+
+- **Shown** when I have at least one pending incoming suggestion, or at least one suggestion I sent
+  that is pending or declined, in the active group. Hidden otherwise. Accepted and withdrawn
+  suggestions never count.
+- **Text** (status is always words, never colour alone). With incoming suggestions: "{n} suggestion
+  for you" or "{n} suggestions for you", and, if I sent any, a second line "Sent by you: {parts}".
+  With none incoming: "Sent by you", then "{parts}". `{parts}` joins the non-zero counts with ", "
+  in the order "{w} waiting", "{d} declined", for example "2 waiting, 1 declined".
+- **Surface.** Accent-tinted when something is incoming, neutral when it only summarises what I sent.
+
+Tapping the strip opens a bottom sheet titled "Suggestions". Its header stays visible while the body
+scrolls. It has two sections, each rendered only when it has rows:
+
+- **For you.** Each pending incoming suggestion as a card: the sender's avatar, "{name} suggests",
+  the title, a schedule summary, and Decline and Accept buttons. Accept turns it into a task in the
+  list; Decline removes the card.
+- **Sent by you.** Pending rows read "Waiting for {name}" with a Withdraw action. Declined rows read
+  "{name} declined" with a Clear action.
+
+Actions behave as specified elsewhere (same mutations, toasts, double-tap guard, start date and
+timezone on accept). When both sections become empty while the sheet is open, the sheet closes.
 
 Accepted and withdrawn suggestions are not shown anywhere.
 
@@ -197,7 +215,7 @@ suggestion. Withdraw and Clear send nothing.
   returning suggestions to sender and recipient and to no one else; the three push kinds, the
   toggle, quiet hours, and the dropped held push.
 - **Web:** store handling of the four mutations and rebase; the "For" control, button label, and
-  cap error in the sheet; Today cards and the "Suggested by you" section with their actions;
+  cap error in the sheet; the Today strip and Suggestions sheet with their actions;
   History and task detail wording.
 - **End to end:** two users in one group; one suggests, the other accepts, and the task appears on
   the recipient's Today and in group History. Visual check at 375 × 812, light and dark.

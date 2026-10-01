@@ -7,6 +7,7 @@ import {
 	pendingSuggestionCount,
 	suggesterLabel,
 	suggestionSummary,
+	suggestionsStripText,
 } from "./model";
 
 const suggestion = (patch: Partial<SuggestionDto> = {}): SuggestionDto => ({
@@ -182,5 +183,41 @@ describe("suggesterLabel", () => {
 		expect(suggesterLabel("u1", "u1", members)).toBe("you");
 		expect(suggesterLabel("u2", "u1", members)).toBe("Jo");
 		expect(suggesterLabel("u9", "u1", members)).toBe("a former member");
+	});
+});
+
+describe("suggestionsStripText", () => {
+	it("is hidden when there is nothing to show", () => {
+		expect(suggestionsStripText(0, 0, 0)).toBeNull();
+	});
+
+	it("counts incoming suggestions, singular and plural", () => {
+		expect(suggestionsStripText(1, 0, 0)).toEqual({
+			title: "1 suggestion for you",
+			detail: null,
+		});
+		expect(suggestionsStripText(3, 0, 0)?.title).toBe("3 suggestions for you");
+	});
+
+	it("adds what I sent as a second line", () => {
+		expect(suggestionsStripText(3, 2, 1)).toEqual({
+			title: "3 suggestions for you",
+			detail: "Sent by you: 2 waiting, 1 declined",
+		});
+		expect(suggestionsStripText(1, 0, 4)?.detail).toBe(
+			"Sent by you: 4 declined",
+		);
+	});
+
+	it("leads with what I sent when nothing is incoming", () => {
+		expect(suggestionsStripText(0, 2, 0)).toEqual({
+			title: "Sent by you",
+			detail: "2 waiting",
+		});
+		expect(suggestionsStripText(0, 0, 1)).toEqual({
+			title: "Sent by you",
+			detail: "1 declined",
+		});
+		expect(suggestionsStripText(0, 2, 1)?.detail).toBe("2 waiting, 1 declined");
 	});
 });

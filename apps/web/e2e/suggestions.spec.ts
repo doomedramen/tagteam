@@ -52,25 +52,37 @@ test("one member suggests a task, the other accepts it, and both see it", async 
 		);
 		await sam.screenshot({ path: testInfo.outputPath("sam-suggest.png") });
 		await sheet.getByRole("button", { name: "Suggest to Jo" }).click();
-		await expect(sam.getByText("Waiting for Jo")).toBeVisible();
+		// Sam's Today shows a strip; the sheet it opens says who the suggestion waits on.
+		const samStrip = sam.getByRole("button", { name: /Sent by you/ });
+		await expect(samStrip).toContainText("1 waiting");
+		await samStrip.click();
+		const samSheet = sam.getByRole("dialog", { name: "Suggestions" });
+		await expect(samSheet.getByText("Waiting for Jo")).toBeVisible();
+		await sam.screenshot({ path: testInfo.outputPath("sam-sheet.png") });
+		await samSheet.getByRole("button", { name: "Close" }).click();
+		await expect(samSheet).toHaveCount(0);
 		await expect(sam.getByText(/queued|Syncing/)).toHaveCount(0);
 
-		// Jo sees the card, accepts, and the task lands on Jo's Today.
+		// Jo sees the strip, opens the sheet, accepts, and the task lands on Jo's Today.
 		await jo.goto("/");
-		await expect(jo.getByText("Sam suggests")).toBeVisible({ timeout: 15_000 });
-		await expect(jo.getByText("Wash dishes")).toBeVisible();
+		const joStrip = jo.getByRole("button", { name: /1 suggestion for you/ });
+		await expect(joStrip).toBeVisible({ timeout: 15_000 });
+		await jo.screenshot({ path: testInfo.outputPath("jo-strip.png") });
+		await joStrip.click();
+		const joSheet = jo.getByRole("dialog", { name: "Suggestions" });
+		await expect(joSheet.getByText("Sam suggests")).toBeVisible();
+		await expect(joSheet.getByText("Wash dishes")).toBeVisible();
 		await jo.screenshot({ path: testInfo.outputPath("jo-card.png") });
-		await jo.getByRole("button", { name: "Accept Wash dishes" }).click();
+		await joSheet.getByRole("button", { name: "Accept Wash dishes" }).click();
+		await expect(joSheet).toHaveCount(0);
 		await expect(
 			jo.getByRole("button", { name: "Complete Wash dishes" }),
 		).toBeVisible();
 		await expect(jo.getByText("Sam suggests")).toHaveCount(0);
 		await expect(jo.getByText(/queued|Syncing/)).toHaveCount(0);
 
-		// Sam's waiting row disappears; both histories say who took it on and who suggested it.
-		await expect(sam.getByText("Waiting for Jo")).toHaveCount(0, {
-			timeout: 15_000,
-		});
+		// Sam's strip disappears; both histories say who took it on and who suggested it.
+		await expect(samStrip).toHaveCount(0, { timeout: 15_000 });
 		await sam.getByRole("link", { name: "History" }).click();
 		await expect(sam.getByText("Jo took on Wash dishes.")).toBeVisible();
 		await expect(sam.getByText("Suggested by you")).toBeVisible();

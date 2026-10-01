@@ -22,10 +22,8 @@ export function IncomingSuggestions({
 }) {
 	if (suggestions.length === 0) return null;
 	return (
-		<section aria-label="Suggested for you" className="mt-5">
-			<h2 className="mb-1 text-[13px] font-medium text-text-2">
-				Suggested for you
-			</h2>
+		<section aria-label="For you">
+			<h2 className="mb-1 text-[13px] font-medium text-text-2">For you</h2>
 			<ul className="flex flex-col gap-2">
 				{suggestions.map((suggestion) => {
 					const sender = members.find(
@@ -86,10 +84,8 @@ export function OutgoingSuggestions({
 }) {
 	if (suggestions.length === 0) return null;
 	return (
-		<section aria-label="Suggested by you" className="mt-6">
-			<h2 className="mb-1 text-[13px] font-medium text-text-2">
-				Suggested by you
-			</h2>
+		<section aria-label="Sent by you">
+			<h2 className="mb-1 text-[13px] font-medium text-text-2">Sent by you</h2>
 			<Card className="gap-0 overflow-hidden rounded-2xl p-0 ring-line">
 				<CardContent className="px-4 py-0">
 					<ul>
