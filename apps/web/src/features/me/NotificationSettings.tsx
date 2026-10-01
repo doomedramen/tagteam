@@ -300,8 +300,8 @@ export function NotificationSettings() {
 								}
 							/>
 							<SettingToggle
-								label="Nudges from your team"
-								description="A teammate nudges you about a task"
+								label="Nudges and suggestions"
+								description="A teammate nudges you or suggests a task"
 								checked={status.settings.nudgesEnabled}
 								disabled={busy}
 								onChange={(checked) =>
@@ -340,8 +340,8 @@ export function NotificationSettings() {
 									/>
 								</Field>
 								<p className="text-[12px] text-text-3">
-									Reminders wait until quiet hours end. Nudges arrive right
-									away.
+									Reminders and suggestions wait until quiet hours end. Nudges
+									arrive right away.
 								</p>
 								<div className="flex flex-wrap items-center justify-between gap-2">
 									<p className="text-[12px] text-text-3">

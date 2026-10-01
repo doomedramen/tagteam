@@ -1,10 +1,11 @@
-import type { SuggestionDto } from "@tagteam/core";
+import type { MemberDto, SuggestionDto } from "@tagteam/core";
 import { describe, expect, it } from "vitest";
 import {
 	acceptStartDate,
 	incomingSuggestions,
 	outgoingSuggestions,
 	pendingSuggestionCount,
+	suggesterLabel,
 	suggestionSummary,
 } from "./model";
 
@@ -162,5 +163,24 @@ describe("suggestionSummary", () => {
 		expect(
 			summary({ rule: { freq: "day", interval: 1 }, startDate: "2026-09-01" }),
 		).toBe("Daily");
+	});
+});
+
+describe("suggesterLabel", () => {
+	const members: MemberDto[] = [
+		{
+			groupId: "g1",
+			userId: "u2",
+			displayName: "Jo",
+			avatarColor: "green",
+			role: "member",
+			joinedAt: 0,
+			leftAt: null,
+		},
+	];
+	it("says you for me, the display name for a member, and a generic name otherwise", () => {
+		expect(suggesterLabel("u1", "u1", members)).toBe("you");
+		expect(suggesterLabel("u2", "u1", members)).toBe("Jo");
+		expect(suggesterLabel("u9", "u1", members)).toBe("a former member");
 	});
 });

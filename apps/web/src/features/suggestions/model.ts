@@ -1,4 +1,4 @@
-import type { LocalDate, Rule, SuggestionDto } from "@tagteam/core";
+import type { LocalDate, MemberDto, Rule, SuggestionDto } from "@tagteam/core";
 
 /** Suggestions from `fromUserId` to `toUserId` in `groupId` that are still waiting for an answer. */
 export function pendingSuggestionCount(
@@ -113,4 +113,17 @@ export function suggestionSummary(
 	]
 		.filter(Boolean)
 		.join(" · ");
+}
+
+/** Who to name as the suggester: "you" for the viewer, else their display name. */
+export function suggesterLabel(
+	userId: string,
+	meId: string,
+	members: MemberDto[],
+): string {
+	if (userId === meId) return "you";
+	return (
+		members.find((member) => member.userId === userId)?.displayName ??
+		"a former member"
+	);
 }

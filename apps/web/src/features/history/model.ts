@@ -20,6 +20,8 @@ export interface ActivityItem {
 	kind: ActivityKind;
 	at: number;
 	completionStatus?: "on_time" | "late";
+	/** On a "created" item: the member who suggested the task, when it began as a suggestion. */
+	suggestedById?: string;
 }
 
 export interface ActivityDay {
@@ -82,6 +84,7 @@ export function buildActivityFeed(input: {
 			actorName: displayName(members.get(task.ownerId)),
 			kind: "created",
 			at: task.createdAt,
+			...(task.suggestedBy ? { suggestedById: task.suggestedBy } : {}),
 		});
 
 		for (const event of events) {

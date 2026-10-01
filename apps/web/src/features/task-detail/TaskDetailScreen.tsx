@@ -43,6 +43,7 @@ import { useSession } from "../../session/session";
 import { Button } from "../../ui/Button";
 import { useToast } from "../../ui/Toast";
 import { AddTaskSheet } from "../add-task/AddTaskSheet";
+import { suggesterLabel } from "../suggestions/model";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAYS = [
@@ -463,6 +464,12 @@ export function TaskDetailScreen() {
 						) : null}
 					</div>
 					<p className="text-[14px] text-text-2">{ruleSummary(task, now)}</p>
+					{task.suggestedBy ? (
+						<p className="mt-1 text-[13px] text-text-2">
+							Suggested by{" "}
+							{suggesterLabel(task.suggestedBy, me.user.id, members)}
+						</p>
+					) : null}
 					{!owner ? (
 						<p className="mt-1 text-[12px] text-text-3">Owned by {ownerName}</p>
 					) : null}

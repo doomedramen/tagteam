@@ -18,6 +18,7 @@ import {
 	useNow,
 } from "../../lib/time";
 import { useSession } from "../../session/session";
+import { suggesterLabel } from "../suggestions/model";
 import {
 	type ActivityItem,
 	buildActivityFeed,
@@ -54,7 +55,9 @@ function activityText(item: ActivityItem, currentUserId: string) {
 			return `${actor} nudged ${target} about ${item.taskTitle}.`;
 		}
 		case "created":
-			return `${actor} added ${item.taskTitle}.`;
+			return item.suggestedById
+				? `${actor} took on ${item.taskTitle}.`
+				: `${actor} added ${item.taskTitle}.`;
 	}
 }
 
@@ -199,6 +202,16 @@ export function HistoryScreen() {
 															{activityText(item, me.user.id)}
 														</Link>
 													</p>
+													{item.suggestedById ? (
+														<p className="mt-0.5 text-[13px] text-text-2">
+															Suggested by{" "}
+															{suggesterLabel(
+																item.suggestedById,
+																me.user.id,
+																members,
+															)}
+														</p>
+													) : null}
 													<p className="mt-1 text-[12px] text-text-2">
 														{formatTime(item.at)}
 													</p>
