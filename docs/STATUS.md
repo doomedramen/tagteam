@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-09-28 (iOS task creation and completion interactions)._
+_Last updated: 2026-10-01 (task suggestions design approved; no code yet)._
 
 ## Done (on `main`; CI green through Plan 7)
 
@@ -71,7 +71,12 @@ decisions that matter are summarised below.
 
 ## Next plans
 
-- All currently planned work is complete.
+- **Plan 8: task suggestions.** Design approved in
+  `docs/superpowers/specs/2026-10-01-task-suggestions-design.md`. A member suggests a task to
+  another member from the New task sheet ("For" control); the recipient accepts or declines on
+  Today. Implementation plan not written yet; no code changed.
+- "Team up" on shared or dependent tasks was considered and dropped (spec §1): nudges and talking
+  cover it.
 
 ## Decisions to know (made during execution)
 
