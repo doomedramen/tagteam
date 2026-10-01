@@ -15,7 +15,7 @@ export function mutation<T extends MutationType>(
 	fields: Fields<T>,
 	at: number,
 ): Mutation {
-	return { id: randomUUID(), at, type, ...fields } as Mutation;
+	return { id: randomUUID(), at, type, ...fields } as unknown as Mutation;
 }
 
 export async function push(app: Hono, cookie: string, mutations: unknown[]) {

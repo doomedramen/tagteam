@@ -1,4 +1,4 @@
-import type { RuleVersion } from "./rule";
+import type { Rule, RuleVersion } from "./rule";
 
 /** JSON shapes exchanged between apps/server and apps/web. */
 
@@ -74,6 +74,28 @@ export interface EventDto {
 	occurrenceKey: string | null;
 	refEventId: string | null;
 	at: number;
+}
+
+export type SuggestionStatus =
+	| "pending"
+	| "accepted"
+	| "declined"
+	| "withdrawn";
+
+export interface SuggestionDto {
+	id: string;
+	groupId: string;
+	fromUserId: string;
+	toUserId: string;
+	title: string;
+	notes: string | null;
+	startDate: string;
+	dueTime: string | null;
+	rule: Rule | null;
+	status: SuggestionStatus;
+	taskId: string | null;
+	createdAt: number;
+	resolvedAt: number | null;
 }
 
 export interface PullResponse {

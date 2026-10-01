@@ -13,6 +13,10 @@ export const MAX_NOTES = 1000;
 export const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
 /** One nudge per sender per task per this interval. */
 export const NUDGE_INTERVAL_MS = 30 * 60 * 1000;
+/** A sender may have at most this many pending suggestions to one recipient in one group. */
+export const MAX_PENDING_SUGGESTIONS = 10;
+/** Better Auth ids are opaque strings; this only bounds what `suggestion.create` accepts. */
+const MAX_USER_ID_LENGTH = 128;
 
 interface Base {
 	/** Client-generated UUID; also the id of the event a completion/uncompletion/nudge creates. */
@@ -49,9 +53,37 @@ export type Mutation =
 	| (Base & { type: "task.archive"; taskId: string; archived: boolean })
 	| (Base & { type: "task.complete"; taskId: string; occurrenceKey: LocalDate })
 	| (Base & { type: "task.uncomplete"; taskId: string; refEventId: string })
-	| (Base & { type: "task.nudge"; taskId: string });
+	| (Base & { type: "task.nudge"; taskId: string })
+	| (Base & {
+			type: "suggestion.create";
+			suggestionId: string;
+			groupId: string;
+			toUserId: string;
+			title: string;
+			notes: string | null;
+			startDate: LocalDate;
+			dueTime: string | null;
+			rule: Rule | null;
+	  })
+	| (Base & {
+			type: "suggestion.accept";
+			suggestionId: string;
+			taskId: string;
+			timezone: string;
+			startDate: LocalDate;
+	  })
+	| (Base & { type: "suggestion.decline"; suggestionId: string })
+	| (Base & { type: "suggestion.withdraw"; suggestionId: string });
 
 export type MutationType = Mutation["type"];
+
+export type SuggestionMutation = Extract<
+	Mutation,
+	{ type: `suggestion.${string}` }
+>;
+
+export const isSuggestionMutation = (m: Mutation): m is SuggestionMutation =>
+	m.type.startsWith("suggestion.");
 
 const FIELDS: Record<MutationType, readonly string[]> = {
 	"task.create": [
@@ -70,6 +102,19 @@ const FIELDS: Record<MutationType, readonly string[]> = {
 	"task.complete": ["taskId", "occurrenceKey"],
 	"task.uncomplete": ["taskId", "refEventId"],
 	"task.nudge": ["taskId"],
+	"suggestion.create": [
+		"suggestionId",
+		"groupId",
+		"toUserId",
+		"title",
+		"notes",
+		"startDate",
+		"dueTime",
+		"rule",
+	],
+	"suggestion.accept": ["suggestionId", "taskId", "timezone", "startDate"],
+	"suggestion.decline": ["suggestionId"],
+	"suggestion.withdraw": ["suggestionId"],
 };
 
 const OPTIONAL = new Set(["task.update:title", "task.update:notes"]);
@@ -84,7 +129,14 @@ function fieldError(key: string, v: unknown): string | null {
 		case "taskId":
 		case "groupId":
 		case "refEventId":
+		case "suggestionId":
 			return isId(v) ? null : `${key} must be a UUID`;
+		case "toUserId":
+			return typeof v === "string" &&
+				v.length >= 1 &&
+				v.length <= MAX_USER_ID_LENGTH
+				? null
+				: "toUserId must be a user id";
 		case "title": {
 			const length = typeof v === "string" ? v.trim().length : 0;
 			return length >= 1 && length <= MAX_TITLE

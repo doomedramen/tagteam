@@ -11,6 +11,7 @@ it("exposes the public API", () => {
 		"isTimeZone",
 		"isId",
 		"mutationErrors",
+		"isSuggestionMutation",
 		"ruleErrors",
 		"scheduleErrors",
 		"occurrenceKeys",

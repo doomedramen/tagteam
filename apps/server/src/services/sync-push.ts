@@ -1,4 +1,5 @@
 import {
+	isSuggestionMutation,
 	MAX_CLOCK_SKEW_MS,
 	type Mutation,
 	type MutationResult,
@@ -82,6 +83,8 @@ function applyOne(
 	at: number,
 	now: number,
 ): Outcome {
+	if (isSuggestionMutation(m))
+		return { reason: "suggestions are not supported yet" };
 	if (m.type === "task.create") {
 		if (!isActiveMember(tx, m.groupId, userId))
 			return { reason: "not a member of this group" };

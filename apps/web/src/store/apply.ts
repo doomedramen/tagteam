@@ -17,11 +17,12 @@ export async function applyLocal(
 	me: LocalUser,
 ): Promise<void> {
 	const event = (
+		taskId: string,
 		fields: Pick<EventDto, "type" | "occurrenceKey" | "refEventId">,
 	) =>
 		store.events.put({
 			id: m.id,
-			taskId: m.taskId,
+			taskId,
 			userId: me.userId,
 			at: m.at,
 			...fields,
@@ -69,7 +70,7 @@ export async function applyLocal(
 			return;
 		case "task.complete":
 			if (await store.tasks.get(m.taskId))
-				await event({
+				await event(m.taskId, {
 					type: "completed",
 					occurrenceKey: m.occurrenceKey,
 					refEventId: null,
@@ -77,7 +78,7 @@ export async function applyLocal(
 			return;
 		case "task.uncomplete":
 			if (await store.tasks.get(m.taskId))
-				await event({
+				await event(m.taskId, {
 					type: "uncompleted",
 					occurrenceKey: null,
 					refEventId: m.refEventId,
@@ -85,7 +86,11 @@ export async function applyLocal(
 			return;
 		case "task.nudge":
 			if (await store.tasks.get(m.taskId))
-				await event({ type: "nudged", occurrenceKey: null, refEventId: null });
+				await event(m.taskId, {
+					type: "nudged",
+					occurrenceKey: null,
+					refEventId: null,
+				});
 			return;
 	}
 }
