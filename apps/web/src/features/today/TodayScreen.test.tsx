@@ -47,6 +47,25 @@ describe("TodayScreen", () => {
 		expect(await screen.findByText("Add your first task")).toBeInTheDocument();
 	});
 
+	it("drops the divider under the last row of a section only", async () => {
+		await store.tasks.bulkPut([
+			brushTeeth,
+			{ ...brushTeeth, id: "t2", title: "Floss" },
+		]);
+		renderWithSession(<TodayScreen />, { store });
+		await screen.findByRole("button", { name: "Complete Brush teeth" });
+		const contents = Array.from(
+			document.querySelectorAll<HTMLElement>("[data-swipe-content]"),
+		);
+		expect(contents).toHaveLength(2);
+		// The border sits on a div inside each <li>, so the last row is told it is last.
+		expect(contents[0]).toHaveClass("border-b");
+		expect(contents[1]).not.toHaveClass("border-b");
+		expect(contents[0]?.parentElement?.nextElementSibling).toBe(
+			contents[1]?.parentElement,
+		);
+	});
+
 	it("completes a task and offers undo", async () => {
 		await store.tasks.put(brushTeeth);
 		const engine = fakeEngine();

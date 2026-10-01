@@ -80,11 +80,13 @@ function Row({
 	now,
 	onToggle,
 	celebrating,
+	last,
 }: {
 	row: TodayRow;
 	now: number;
 	onToggle: (row: TodayRow) => void;
 	celebrating: boolean;
+	last: boolean;
 }) {
 	const done = row.kind === "done";
 	const swipe = useRef<ActiveSwipe | null>(null);
@@ -198,7 +200,9 @@ function Row({
 			<div
 				data-swipe-content
 				className={cx(
-					"relative z-10 flex items-center gap-3 border-b border-line bg-card px-4 py-3",
+					"relative z-10 flex items-center gap-3 border-line bg-card px-4 py-3",
+					// The border lives on this div, not the <li>, so `last:` cannot do this.
+					!last && "border-b",
 					!dragging &&
 						"motion-safe:transition-transform motion-safe:duration-150",
 				)}
@@ -260,13 +264,14 @@ function Section({
 			<Card className="gap-0 overflow-hidden rounded-2xl p-0 ring-line">
 				<CardContent className="px-4 py-0">
 					<ul>
-						{rows.map((row) => (
+						{rows.map((row, index) => (
 							<Row
 								key={`${row.kind}-${row.task.id}-${row.key}`}
 								row={row}
 								now={now}
 								onToggle={onToggle}
 								celebrating={celebratingKey === `${row.task.id}:${row.key}`}
+								last={index === rows.length - 1}
 							/>
 						))}
 					</ul>
