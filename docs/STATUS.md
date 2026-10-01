@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-01 (Plan 8 complete; final fixes)._
+_Last updated: 2026-10-01 (Plan 8 complete; final fixes; task look and emoji spec drafted)._
 
 ## Done (on `main`; CI green through Plan 7, Plan 8 not yet run in CI)
 
@@ -99,7 +99,21 @@ decisions that matter are summarised below.
 
 ## Next plans
 
-- None planned.
+- **Task look and emoji suggestions** — spec approved 2026-10-01:
+  `docs/superpowers/specs/2026-10-01-task-look-and-emoji-design.md` (all section 14 decisions
+  made). Two plans:
+  - **Plan 09 "task look"** — written, not started:
+    `docs/superpowers/plans/2026-10-01-09-task-look.md` (11 tasks: per-task `emoji` and `color`
+    end to end, seven-hue tokens and contrast script, emoji picker, restyled New/Edit task sheet
+    with header action pill, Today/detail/suggestion rendering, `navigator.storage.persist()`).
+    Its code was trial-run in a scratch clone (tests, typecheck, lint, e2e green) but nothing is
+    applied to `main` yet.
+  - **Plan 10 "emoji suggestions"** — not written. On-device `bge-small-en-v1.5` in a Web Worker,
+    automatic emoji for new tasks only, late picks, failure handling (spec sections 7 and 9).
+    Plan 09's last task leaves carry-over notes for it.
+- A spike on 2026-10-01 measured the emoji model (accuracy, size, iOS simulator behaviour); the
+  numbers are in the spec, sections 7 and 9. The spike code lived in a temporary session folder and
+  is not in the repo; Plan 10 would rebuild its evaluation script.
 
 ## Considered and dropped
 
