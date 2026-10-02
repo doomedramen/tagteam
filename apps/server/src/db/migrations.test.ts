@@ -90,3 +90,43 @@ it("keeps queued notification deliveries when the log is rebuilt for suggestions
 	expect(insertLog.run("n3").changes).toBe(0);
 	sqlite.close();
 });
+
+it("adds nullable emoji and color to task and suggestion without touching existing rows", () => {
+	const migration = files.find((name) => name.startsWith("0005_"));
+	expect(migration).toBeDefined();
+
+	const sqlite = new Database(":memory:");
+	sqlite.pragma("foreign_keys = ON");
+	for (const name of files.filter((name) => name < "0004_"))
+		for (const statement of statements(name)) sqlite.exec(statement);
+	// The app's migrator runs each migration inside one transaction; mirror that.
+	const apply = (name: string) =>
+		sqlite.transaction(() => {
+			for (const statement of statements(name)) sqlite.exec(statement);
+		})();
+	apply(files.find((name) => name.startsWith("0004_")) as string);
+	sqlite.exec(`
+		insert into user (id, name, email) values ('u1', 'Sam', 'sam@example.com');
+		insert into groups (id, name, created_by, created_at) values ('g1', 'Home', 'u1', 0);
+		insert into task (id, group_id, owner_id, title, timezone, start_date, rules, created_at, clocks, seq)
+			values ('t1', 'g1', 'u1', 'Wash dishes', 'UTC', '2026-09-27', '[]', 0, '{"title":0,"notes":0,"schedule":0,"archive":0}', 1);
+		insert into suggestion (id, group_id, from_user_id, to_user_id, title, start_date, status, created_at, seq)
+			values ('sg1', 'g1', 'u1', 'u1', 'Wash dishes', '2026-09-27', 'pending', 0, 2);
+	`);
+
+	apply(migration as string);
+
+	expect(
+		sqlite.prepare("select id, title, emoji, color from task").all(),
+	).toEqual([{ id: "t1", title: "Wash dishes", emoji: null, color: null }]);
+	expect(
+		sqlite.prepare("select id, title, emoji, color from suggestion").all(),
+	).toEqual([{ id: "sg1", title: "Wash dishes", emoji: null, color: null }]);
+
+	sqlite.exec("update task set emoji = '🪴', color = 'teal' where id = 't1'");
+	expect(
+		sqlite.prepare("select emoji, color from task where id = 't1'").get(),
+	).toEqual({ emoji: "🪴", color: "teal" });
+	expect(sqlite.pragma("foreign_key_check")).toEqual([]);
+	sqlite.close();
+});

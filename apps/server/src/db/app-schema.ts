@@ -1,4 +1,4 @@
-import type { Rule, RuleVersion } from "@tagteam/core";
+import type { Rule, RuleVersion, TaskColor } from "@tagteam/core";
 import {
 	index,
 	integer,
@@ -92,6 +92,9 @@ export interface TaskClocks {
 	notes: number;
 	schedule: number;
 	archive: number;
+	/** Rows written before migration 0005 have no emoji or color clock; a missing clock reads as 0. */
+	emoji?: number;
+	color?: number;
 }
 
 export const task = sqliteTable(
@@ -106,6 +109,8 @@ export const task = sqliteTable(
 			.references(() => user.id, { onDelete: "cascade" }),
 		title: text("title").notNull(),
 		notes: text("notes"),
+		emoji: text("emoji"),
+		color: text("color").$type<TaskColor>(),
 		timezone: text("timezone").notNull(),
 		startDate: text("start_date").notNull(),
 		rules: text("rules", { mode: "json" }).$type<RuleVersion[]>().notNull(),
@@ -168,6 +173,8 @@ export const suggestion = sqliteTable(
 			.references(() => user.id, { onDelete: "cascade" }),
 		title: text("title").notNull(),
 		notes: text("notes"),
+		emoji: text("emoji"),
+		color: text("color").$type<TaskColor>(),
 		startDate: text("start_date").notNull(),
 		dueTime: text("due_time"),
 		rule: text("rule", { mode: "json" }).$type<Rule>(),

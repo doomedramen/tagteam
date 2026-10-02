@@ -109,6 +109,8 @@ function applyOne(
 				ownerId: userId,
 				title: m.title.trim(),
 				notes: m.notes,
+				emoji: m.emoji ?? null,
+				color: m.color ?? null,
 				timezone: m.timezone,
 				startDate: m.startDate,
 				rules: [
@@ -116,7 +118,14 @@ function applyOne(
 				],
 				archivedAt: null,
 				createdAt: at,
-				clocks: { title: at, notes: at, schedule: at, archive: at },
+				clocks: {
+					title: at,
+					notes: at,
+					schedule: at,
+					archive: at,
+					emoji: at,
+					color: at,
+				},
 				seq: nextSeq(tx),
 			})
 			.run();
@@ -130,7 +139,8 @@ function applyOne(
 	if (OWNER_ONLY.has(m.type) && current.ownerId !== userId)
 		return { reason: "not your task" };
 
-	const clocks = { ...current.clocks };
+	// Rows from before migration 0005 have no emoji or color clock: they read as 0.
+	const clocks = { emoji: 0, color: 0, ...current.clocks };
 	const writeTask = (changes: Partial<typeof task.$inferInsert>) => {
 		tx.update(task)
 			.set({ ...changes, clocks, seq: nextSeq(tx) })
@@ -169,6 +179,14 @@ function applyOne(
 			if (m.notes !== undefined && at >= clocks.notes) {
 				changes.notes = m.notes;
 				clocks.notes = at;
+			}
+			if (m.emoji !== undefined && at >= clocks.emoji) {
+				changes.emoji = m.emoji;
+				clocks.emoji = at;
+			}
+			if (m.color !== undefined && at >= clocks.color) {
+				changes.color = m.color;
+				clocks.color = at;
 			}
 			return Object.keys(changes).length > 0
 				? writeTask(changes)

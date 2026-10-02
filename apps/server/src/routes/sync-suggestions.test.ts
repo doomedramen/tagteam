@@ -397,6 +397,8 @@ describe("suggestion mutations", () => {
 			toUserId: joId,
 			title: "Wash dishes",
 			notes: null,
+			emoji: null,
+			color: null,
 			startDate: "2026-10-01",
 			dueTime: "19:00",
 			rule: { freq: "day", interval: 1 },

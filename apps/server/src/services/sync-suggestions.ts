@@ -65,6 +65,8 @@ export function applySuggestionMutation(
 				toUserId: m.toUserId,
 				title: m.title.trim(),
 				notes: m.notes,
+				emoji: m.emoji ?? null,
+				color: m.color ?? null,
 				startDate: m.startDate,
 				dueTime: m.dueTime,
 				rule: m.rule,
@@ -109,6 +111,8 @@ export function applySuggestionMutation(
 					ownerId: userId,
 					title: current.title,
 					notes: current.notes,
+					emoji: current.emoji,
+					color: current.color,
 					timezone: m.timezone,
 					startDate: m.startDate,
 					rules: [
@@ -120,7 +124,14 @@ export function applySuggestionMutation(
 					],
 					archivedAt: null,
 					createdAt: at,
-					clocks: { title: at, notes: at, schedule: at, archive: at },
+					clocks: {
+						title: at,
+						notes: at,
+						schedule: at,
+						archive: at,
+						emoji: at,
+						color: at,
+					},
 					suggestedBy: current.fromUserId,
 					seq: nextSeq(tx),
 				})
