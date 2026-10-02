@@ -254,9 +254,10 @@ What shipped:
 - Visual checks: Chromium at 375 x 812 (dark and light) and the iOS 27 Simulator (WebKit, light, real keyboard):
   Me off, downloading, on, update available (dark), Remove; New task sheet suggests an emoji while typing and a colour
   tap with the keyboard open works on the first tap. The failed state was covered by unit and e2e tests only.
-- Not run: `docker build`, GitHub Actions and `actionlint` for this branch (run `docker build -t tagteam:local .`
-  and check `curl -I` on a file under `/assets/emoji/<version>/ort/` before pushing; CI never requests the model from
-  the built image).
+- Docker (2026-10-02): `docker build -t tagteam:local .` succeeds; the running image serves `/assets/emoji/<version>/`
+  with the right sizes and content types (wasm `application/wasm`, mjs `text/javascript`, onnx and json), immutable
+  caching, and a 404 for a missing file. Not run for this branch: GitHub Actions and `actionlint`. CI never requests the
+  model from the built image.
 - Not verified: a real iPhone (speed, memory, eviction over days), the installed-app `persist()` grant.
 
 Follow-ups and owner questions:
