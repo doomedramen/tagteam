@@ -66,7 +66,7 @@ function TaskRows({
 				return (
 					<li
 						key={`${row.task.id}:${row.key}:${row.kind}`}
-						className="flex min-h-14 items-center gap-3 border-b border-line py-2 last:border-0"
+						className="flex min-h-14 items-center gap-3 border-b border-line px-4 py-2 last:border-0"
 					>
 						<span
 							aria-hidden
@@ -193,7 +193,7 @@ function MemberRow({
 						animate={{ opacity: 1, transform: "translateY(0px)" }}
 						exit={{ opacity: 0, transform: "translateY(-4px)" }}
 						transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
-						className="border-t border-line pb-3 pl-16 pr-5"
+						className="border-t border-line pb-3"
 					>
 						{children}
 					</motion.div>
@@ -306,7 +306,7 @@ export function TeamScreen() {
 														key={grouping.title}
 														className="pt-3 first:pt-4"
 													>
-														<h3 className="mb-1 text-[12px] font-semibold text-text-2">
+														<h3 className="mb-1 px-4 text-[12px] font-semibold text-text-2">
 															{grouping.title}
 														</h3>
 														<TaskRows

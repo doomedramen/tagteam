@@ -38,7 +38,7 @@ describe("TeamScreen full-width rows", () => {
 		expect(toggle).not.toHaveClass("px-0");
 	});
 
-	it("insets an expanded member's task list to match the member name", async () => {
+	it("gives an expanded member's task rows the standard inset", async () => {
 		const user = userEvent.setup();
 		renderWithSession(<TeamScreen />, { store });
 		const toggle = (
@@ -49,7 +49,9 @@ describe("TeamScreen full-width rows", () => {
 		const panel = document.getElementById(
 			toggle.getAttribute("aria-controls") ?? "",
 		);
-		expect(panel).toHaveClass("pl-16");
-		expect(panel).toHaveClass("pr-5");
+		expect(panel).not.toHaveClass("pl-16");
+		const row = panel?.querySelector("li");
+		expect(row).toBeTruthy();
+		expect(row).toHaveClass("px-4");
 	});
 });
