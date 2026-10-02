@@ -149,10 +149,21 @@ follow-ups below). Per-task ledger (rulings, review findings): git-ignored
   `task-look.spec.ts` covers: create with an emoji and a colour, the `persist()` spy (called once),
   the tinted tile on Today, task detail, editing the colour, and a fresh browser context (empty
   IndexedDB) that can only learn the emoji and colour from the server.
-- Known flake: twice during this plan a full `pnpm test` run had one unexplained web failure (once
-  an `AddTaskSheet` test hit the 5 s timeout) that passed alone and on re-run. Not diagnosed.
-- Visual check at 375 x 812 (light and dark) and iOS Simulator check: see the line the controller
-  adds below; not asserted here by the implementer.
+  - 11b `98052e7` sheet taps work while the keyboard is open: `ui/useKeepKeyboardTaps.ts` handles a
+    one-finger tap on a button, link, label or radio on `touchend` (prevent default, then `.click()`)
+    when a text field in the same sheet is focused, so iOS no longer dismisses the keyboard and drops
+    the tap. Selects, date/time inputs and text fields keep native focus.
+  - 11c `3516069` the task sheet shows the emoji large (64 px) with no circle behind it.
+- Known flake: three times during this plan a full `pnpm test` run had one web test time out at 5 s
+  (twice "builds a custom weekly schedule with a due time" in `AddTaskSheet.test.tsx`); it passed
+  alone and on re-run. Not diagnosed; likely load-sensitive.
+- Visual check (controller, 2026-10-02, browser pane at 375 x 812, light and dark): New/Edit sheet,
+  all screens' header bands, Today tiles, task detail, Team, History and Me checked after each change.
+- iOS Simulator (controller, 2026-10-02, iPhone 18 Pro, iOS 27, Safari tab and an earlier spike as
+  an installed web app): the sheet opens with the title focused and the keyboard up, header and
+  action stay above the keyboard. Before 11b, any tap with the keyboard open only dismissed it (owner
+  confirmed); after 11b, colour, Repeat row, Create, emoji circle and picking from the picker's search
+  results all work on the first tap and keep the keyboard up.
 
 ## Next plans
 
@@ -187,8 +198,10 @@ follow-ups below). Per-task ledger (rulings, review findings): git-ignored
   - A tinted `Sheet` drops the grey swipe handle (swipe still dismisses). The picker is a nested
     drawer inside the add-task sheet; if a future Base UI changes nested stacking, make it a sibling.
     The submit button inside the form is `aria-hidden`, `tabIndex={-1}` on purpose.
-  - Not verified: native iOS keyboard behaviour with the header pill beyond what the Simulator
-    showed, the installed-PWA `persist()` grant and eviction over days; a real iPhone is a follow-up.
+  - Not verified: a real iPhone (keyboard behaviour was verified on the iOS 27 Simulator only),
+    the installed-PWA `persist()` grant for TagTeam itself, and eviction over days.
+  - Open from review: `useKeepKeyboardTaps` ignores taps held longer than 700 ms, so a slow tap with
+    the keyboard open still loses the tap; consider raising or dropping that cutoff.
   - Out of scope (spec §13): subtasks, goals, tags, automatic colour, notes in the sheet, per-task
     reminder row, custom emoji, skin tones.
 
@@ -215,9 +228,11 @@ follow-ups below). Per-task ledger (rulings, review findings): git-ignored
   settings card (For / Repeat / Starts / Due by, one row open at a time); editing opens with
   "Repeat" expanded. The action pill and inline save failures sit in the header, outside the
   scrolling body (there is no footer).
-- The sheet lifts and caps its height using the keyboard inset, keeping its header visible. Button taps retain input focus so keyboard dismissal cannot move the hit target
-  before release. Extra keyboard scroll padding is suppressed because the sheet already clears
-  the keyboard. Drafts survive closing/reopening within the current group and page session.
+- The sheet lifts and caps its height using the keyboard inset, keeping its header visible. With
+  the keyboard open, taps on buttons, links, labels and radios inside a sheet are handled on
+  `touchend` (`useKeepKeyboardTaps`) so the keyboard stays up and the tap is not lost on iOS; the
+  older `pointerdown` guard covers mouse input. Extra keyboard scroll padding is suppressed because
+  the sheet already clears the keyboard. Drafts survive closing/reopening within the current group and page session.
 - Interaction design: `docs/superpowers/specs/2026-09-28-task-interactions.md`.
 - Task look: `emoji: null` means "not decided yet" and renders as the clipboard; the app never
   picks a colour (new drafts start blue; editing a colourless task shows no option selected and
