@@ -35,6 +35,7 @@ export function useAutoEmoji({
 					if (current && first !== undefined && isEmoji(first))
 						onSuggest(first, clean);
 				})
+				// Suggestions are best-effort: no UI for a failure, and Create never waits for one.
 				.catch(() => {});
 		}, AUTO_EMOJI_DEBOUNCE_MS);
 		return () => {

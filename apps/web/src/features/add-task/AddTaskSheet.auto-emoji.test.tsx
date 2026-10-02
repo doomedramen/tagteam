@@ -1,47 +1,80 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useMemo, useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	describe,
+	expect,
+	it,
+	vi,
+} from "vitest";
 import { fakeEmojiEngine } from "../../test/emoji";
 import { fakeEngine, fakeTask, renderWithSession } from "../../test/fakes";
+import { loadCatalog } from "../emoji/catalog";
 import { type EmojiEngine, EmojiEngineProvider } from "../emoji/engine";
 import { AddTaskSheet } from "./AddTaskSheet";
 import { AUTO_EMOJI_DEBOUNCE_MS } from "./useAutoEmoji";
 
 const PLANT = "\u{1FAB4}"; // potted plant
 const DOG = "\u{1F415}"; // dog
-const LONG_WAIT = AUTO_EMOJI_DEBOUNCE_MS * 2;
+const DEBOUNCE = AUTO_EMOJI_DEBOUNCE_MS;
+
+// Only the timers the debounce uses are faked, and only while a test drives time by hand: the
+// picker and the submit path are exercised with real timers, so waitFor keeps working there.
+const fake = () => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+const real = () => vi.useRealTimers();
+// Moves the clock and lets the promises the engine answers with settle, inside act.
+const advance = (ms: number) =>
+	act(async () => {
+		await vi.advanceTimersByTimeAsync(ms);
+	});
+const user = () => userEvent.setup({ delay: null });
+
+// Testing Library's own waiting (inside userEvent and waitFor) only copes with fake timers when a
+// `jest` global tells it how to advance them; Vitest has none, so give it the one function it uses.
+const globals = globalThis as { jest?: unknown };
+// The emoji names come from a lazily imported catalog, which needs real time to load once.
+beforeAll(async () => {
+	await loadCatalog();
+	globals.jest = { advanceTimersByTime: vi.advanceTimersByTime };
+});
+afterAll(() => {
+	delete globals.jest;
+});
+afterEach(() => real());
 
 function setup(
 	emoji: EmojiEngine,
 	props: Partial<Parameters<typeof AddTaskSheet>[0]> = {},
 ) {
 	const sync = fakeEngine();
-	renderWithSession(
+	const view = renderWithSession(
 		<EmojiEngineProvider value={emoji}>
 			<AddTaskSheet open onClose={vi.fn()} {...props} />
 		</EmojiEngineProvider>,
 		{ engine: sync },
 	);
-	return { sync };
+	return { sync, view };
 }
 const emojiButton = (name: string | RegExp) =>
 	screen.getByRole("button", { name });
 const title = () => screen.getByLabelText("Task");
-const pause = (ms: number) => act(() => new Promise((r) => setTimeout(r, ms)));
 
 describe("automatic emoji in the New task sheet", () => {
 	it("fills the emoji 300 ms after the title stops changing", async () => {
 		const engine = fakeEmojiEngine({ suggest: vi.fn(async () => [PLANT]) });
 		setup(engine);
-		await userEvent.type(title(), "Water the plants");
+		fake();
+		await user().type(title(), "Water the plants");
+		await advance(DEBOUNCE - 1);
 		expect(engine.suggest).not.toHaveBeenCalled();
 		expect(
 			emojiButton("Emoji: clipboard, default, change"),
 		).toBeInTheDocument();
-		await waitFor(() =>
-			expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument(),
-		);
+		await advance(1);
+		expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument();
 		expect(engine.suggest).toHaveBeenCalledTimes(1);
 		expect(engine.suggest).toHaveBeenCalledWith("Water the plants", {
 			autoPick: true,
@@ -51,16 +84,31 @@ describe("automatic emoji in the New task sheet", () => {
 	it("asks only once for a title typed in a burst", async () => {
 		const engine = fakeEmojiEngine({ suggest: vi.fn(async () => [PLANT]) });
 		setup(engine);
-		await userEvent.type(title(), "Water the plants", { delay: 20 });
-		await pause(LONG_WAIT);
+		fake();
+		const typist = user();
+		// 400 ms pass in total, but never 300 ms between two keystrokes.
+		await typist.type(title(), "Water");
+		await advance(DEBOUNCE - 100);
+		await typist.type(title(), " the");
+		await advance(DEBOUNCE - 100);
+		await typist.type(title(), " plants");
+		await advance(DEBOUNCE - 100);
+		expect(engine.suggest).not.toHaveBeenCalled();
+		await advance(100);
+		expect(engine.suggest).toHaveBeenCalledTimes(1);
+		expect(engine.suggest).toHaveBeenCalledWith("Water the plants", {
+			autoPick: true,
+		});
+		await advance(DEBOUNCE * 3);
 		expect(engine.suggest).toHaveBeenCalledTimes(1);
 	});
 
 	it("does not ask for a title shorter than three characters", async () => {
 		const engine = fakeEmojiEngine({ suggest: vi.fn(async () => [PLANT]) });
 		setup(engine);
-		await userEvent.type(title(), "ab");
-		await pause(LONG_WAIT);
+		fake();
+		await user().type(title(), "ab");
+		await advance(DEBOUNCE * 2);
 		expect(engine.suggest).not.toHaveBeenCalled();
 	});
 
@@ -70,15 +118,13 @@ describe("automatic emoji in the New task sheet", () => {
 				status,
 				suggest: vi.fn(async () => [PLANT]),
 			});
-			const view = renderWithSession(
-				<EmojiEngineProvider value={engine}>
-					<AddTaskSheet open onClose={vi.fn()} />
-				</EmojiEngineProvider>,
-			);
-			await userEvent.type(screen.getByLabelText("Task"), "Water the plants");
-			await pause(LONG_WAIT);
+			const { view } = setup(engine);
+			fake();
+			await user().type(screen.getByLabelText("Task"), "Water the plants");
+			await advance(DEBOUNCE * 2);
 			expect(engine.suggest).not.toHaveBeenCalled();
 			view.unmount();
+			real();
 		}
 	});
 
@@ -99,13 +145,13 @@ describe("automatic emoji in the New task sheet", () => {
 			);
 		}
 		renderWithSession(<Harness />);
-		await userEvent.type(title(), "Water the plants");
-		await pause(LONG_WAIT);
+		fake();
+		await user().type(title(), "Water the plants");
+		await advance(DEBOUNCE * 2);
 		expect(suggest).not.toHaveBeenCalled();
 		act(() => makeReady());
-		await waitFor(() =>
-			expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument(),
-		);
+		await advance(DEBOUNCE);
+		expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument();
 	});
 
 	it("drops the result for a title that has since changed", async () => {
@@ -118,13 +164,15 @@ describe("automatic emoji in the New task sheet", () => {
 			.mockImplementationOnce(async () => first)
 			.mockImplementation(async () => [DOG]);
 		setup(fakeEmojiEngine({ suggest }));
-		await userEvent.type(title(), "Water the plants");
-		await waitFor(() => expect(suggest).toHaveBeenCalledTimes(1));
-		await userEvent.clear(title());
-		await userEvent.type(title(), "Walk the dog");
-		await waitFor(() =>
-			expect(emojiButton("Emoji: dog, change")).toBeInTheDocument(),
-		);
+		fake();
+		const typist = user();
+		await typist.type(title(), "Water the plants");
+		await advance(DEBOUNCE);
+		expect(suggest).toHaveBeenCalledTimes(1);
+		await typist.clear(title());
+		await typist.type(title(), "Walk the dog");
+		await advance(DEBOUNCE);
+		expect(emojiButton("Emoji: dog, change")).toBeInTheDocument();
 		await act(async () => release([PLANT]));
 		expect(emojiButton("Emoji: dog, change")).toBeInTheDocument();
 	});
@@ -140,12 +188,43 @@ describe("automatic emoji in the New task sheet", () => {
 		await waitFor(() =>
 			expect(emojiButton("Emoji: dog, change")).toBeInTheDocument(),
 		);
-		await userEvent.type(title(), "Water the plants");
-		await pause(LONG_WAIT);
+		fake();
+		await user().type(title(), "Water the plants");
+		await advance(DEBOUNCE * 2);
 		expect(engine.suggest).not.toHaveBeenCalledWith("Water the plants", {
 			autoPick: true,
 		});
 		expect(emojiButton("Emoji: dog, change")).toBeInTheDocument();
+	});
+
+	it("keeps an emoji picked by hand while a suggestion is still in flight, and creates the task with it", async () => {
+		let release: (emoji: string[]) => void = () => {};
+		const pending = new Promise<string[]>((resolve) => {
+			release = resolve;
+		});
+		const engine = fakeEmojiEngine({ suggest: vi.fn(() => pending) });
+		const { sync } = setup(engine);
+		fake();
+		await user().type(title(), "Water the plants");
+		await advance(DEBOUNCE);
+		expect(engine.suggest).toHaveBeenCalledTimes(1);
+		real();
+		await userEvent.click(emojiButton(/^Emoji:/));
+		await userEvent.type(
+			await screen.findByLabelText("Type or paste an emoji"),
+			DOG,
+		);
+		await waitFor(() =>
+			expect(emojiButton("Emoji: dog, change")).toBeInTheDocument(),
+		);
+		await act(async () => release([PLANT]));
+		expect(emojiButton("Emoji: dog, change")).toBeInTheDocument();
+		await userEvent.click(screen.getByRole("button", { name: "Create" }));
+		await waitFor(() => expect(sync.enqueue).toHaveBeenCalledTimes(1));
+		expect(sync.enqueue.mock.calls[0][0]).toMatchObject({
+			type: "task.create",
+			emoji: DOG,
+		});
 	});
 
 	it("stops following the title once the person picks, even after an automatic fill", async () => {
@@ -155,10 +234,12 @@ describe("automatic emoji in the New task sheet", () => {
 				text.startsWith("Walk") ? [DOG] : [PLANT],
 			);
 		setup(fakeEmojiEngine({ suggest }));
-		await userEvent.type(title(), "Water the plants");
-		await waitFor(() =>
-			expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument(),
-		);
+		fake();
+		const typist = user();
+		await typist.type(title(), "Water the plants");
+		await advance(DEBOUNCE);
+		expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument();
+		real();
 		await userEvent.click(emojiButton(/^Emoji:/));
 		await userEvent.click(
 			await screen.findByRole("button", { name: "Use default" }),
@@ -166,9 +247,14 @@ describe("automatic emoji in the New task sheet", () => {
 		await waitFor(() =>
 			expect(emojiButton("Emoji: clipboard, change")).toBeInTheDocument(),
 		);
-		await userEvent.clear(title());
-		await userEvent.type(title(), "Walk the dog");
-		await pause(LONG_WAIT);
+		fake();
+		await typist.clear(title());
+		await typist.type(title(), "Walk the dog");
+		await advance(DEBOUNCE * 2);
+		// The picker asks for its own "Suggested" row without autoPick; only the sheet's fill counts.
+		expect(
+			suggest.mock.calls.filter(([, options]) => options?.autoPick),
+		).toEqual([["Water the plants", { autoPick: true }]]);
 		expect(emojiButton("Emoji: clipboard, change")).toBeInTheDocument();
 	});
 
@@ -176,14 +262,15 @@ describe("automatic emoji in the New task sheet", () => {
 		const engine = fakeEmojiEngine({ suggest: vi.fn(async () => [PLANT]) });
 		const { sync } = setup(engine);
 		await userEvent.click(screen.getByRole("radio", { name: "Teal" }));
-		await userEvent.type(title(), "Water the plants");
-		await waitFor(() =>
-			expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument(),
-		);
+		fake();
+		await user().type(title(), "Water the plants");
+		await advance(DEBOUNCE);
+		expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument();
 		expect(screen.getByRole("dialog", { name: "New task" })).toHaveAttribute(
 			"data-task-color",
 			"teal",
 		);
+		real();
 		await userEvent.click(screen.getByRole("button", { name: "Create" }));
 		await waitFor(() => expect(sync.enqueue).toHaveBeenCalledTimes(1));
 		expect(sync.enqueue.mock.calls[0][0]).toMatchObject({
@@ -199,8 +286,11 @@ describe("automatic emoji in the New task sheet", () => {
 			suggest: vi.fn(() => new Promise<string[]>(() => {})),
 		});
 		const { sync } = setup(engine);
-		await userEvent.type(title(), "Water the plants");
-		await waitFor(() => expect(engine.suggest).toHaveBeenCalled());
+		fake();
+		await user().type(title(), "Water the plants");
+		await advance(DEBOUNCE);
+		expect(engine.suggest).toHaveBeenCalled();
+		real();
 		await userEvent.click(screen.getByRole("button", { name: "Create" }));
 		await waitFor(() => expect(sync.enqueue).toHaveBeenCalledTimes(1));
 		expect(sync.enqueue.mock.calls[0][0]).not.toHaveProperty("emoji");
@@ -211,12 +301,14 @@ describe("automatic emoji in the New task sheet", () => {
 			suggest: vi.fn(async () => ["not an emoji"]),
 		});
 		const { sync } = setup(engine);
-		await userEvent.type(title(), "Water the plants");
-		await waitFor(() => expect(engine.suggest).toHaveBeenCalled());
-		await pause(50);
+		fake();
+		await user().type(title(), "Water the plants");
+		await advance(DEBOUNCE);
+		expect(engine.suggest).toHaveBeenCalled();
 		expect(
 			emojiButton("Emoji: clipboard, default, change"),
 		).toBeInTheDocument();
+		real();
 		await userEvent.click(screen.getByRole("button", { name: "Create" }));
 		await waitFor(() => expect(sync.enqueue).toHaveBeenCalledTimes(1));
 		expect(sync.enqueue.mock.calls[0][0]).not.toHaveProperty("emoji");
@@ -227,8 +319,11 @@ describe("automatic emoji in the New task sheet", () => {
 			suggest: vi.fn(async () => Promise.reject(new Error("worker gone"))),
 		});
 		const { sync } = setup(engine);
-		await userEvent.type(title(), "Water the plants");
-		await waitFor(() => expect(engine.suggest).toHaveBeenCalled());
+		fake();
+		await user().type(title(), "Water the plants");
+		await advance(DEBOUNCE);
+		expect(engine.suggest).toHaveBeenCalled();
+		real();
 		await userEvent.click(screen.getByRole("button", { name: "Create" }));
 		await waitFor(() => expect(sync.enqueue).toHaveBeenCalledTimes(1));
 	});
@@ -236,9 +331,11 @@ describe("automatic emoji in the New task sheet", () => {
 	it("never fills the emoji when editing, whatever the task's age", async () => {
 		const engine = fakeEmojiEngine({ suggest: vi.fn(async () => [PLANT]) });
 		setup(engine, { task: fakeTask({ emoji: null }) });
-		await userEvent.clear(title());
-		await userEvent.type(title(), "Water the plants");
-		await pause(LONG_WAIT);
+		fake();
+		const typist = user();
+		await typist.clear(title());
+		await typist.type(title(), "Water the plants");
+		await advance(DEBOUNCE * 2);
 		expect(engine.suggest).not.toHaveBeenCalled();
 		expect(
 			emojiButton("Emoji: clipboard, default, change"),

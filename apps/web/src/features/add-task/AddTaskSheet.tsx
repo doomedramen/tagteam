@@ -208,7 +208,9 @@ export function AddTaskSheet({
 	const fillEmoji = useCallback(
 		(emoji: string, forTitle: string) =>
 			setDraft((d) =>
-				d.emojiChosen || d.title.trim() !== forTitle ? d : { ...d, emoji },
+				d.emojiChosen || d.title.trim() !== forTitle || d.emoji === emoji
+					? d
+					: { ...d, emoji },
 			),
 		[],
 	);
