@@ -304,6 +304,11 @@ export function TodayList({
 		view.total > 0 &&
 		view.overdue.length === 0 &&
 		view.today.every((r) => r.kind === "done");
+	const dateHeading = (
+		<h1 className="text-[26px] font-semibold tracking-tight">
+			{new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(now)}
+		</h1>
+	);
 	return (
 		<AnimatePresence initial={false} mode="sync">
 			{!view.hasTasks ? (
@@ -314,6 +319,7 @@ export function TodayList({
 					exit={{ opacity: 0, transform: "translateY(-4px)" }}
 					transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
 				>
+					<PageHeader>{dateHeading}</PageHeader>
 					{strip}
 					<Empty className="mt-20 gap-3 border-0 p-0">
 						<EmptyHeader>
@@ -340,11 +346,7 @@ export function TodayList({
 					transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
 				>
 					<PageHeader>
-						<h1 className="text-[26px] font-semibold tracking-tight">
-							{new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(
-								now,
-							)}
-						</h1>
+						{dateHeading}
 						<p className="min-h-5 text-[14px] text-text-2">
 							{allDone
 								? "All done for today"
@@ -354,7 +356,7 @@ export function TodayList({
 							value={percent}
 							aria-label="Done today"
 							className="mt-2 gap-0"
-							trackClassName="h-1.5 bg-surface dark:bg-surface-2"
+							trackClassName="h-1.5 bg-text/15"
 							indicatorClassName="bg-success motion-safe:transition-transform duration-300 ease-[var(--ease-in-out)]"
 						/>
 						<p className="mt-3 text-[13px] text-text-2">

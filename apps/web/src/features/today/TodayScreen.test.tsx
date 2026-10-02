@@ -49,6 +49,20 @@ describe("TodayScreen", () => {
 		expect(await screen.findByText("Add your first task")).toBeInTheDocument();
 	});
 
+	it("keeps the date heading in the page header band in the empty state", async () => {
+		renderWithSession(<TodayScreen />, { store });
+		await screen.findByText("Add your first task");
+		const heading = screen.getByRole("heading", { level: 1 });
+		const header = heading.closest('[data-slot="page-header"]');
+		expect(header).toHaveClass("bg-header", "rounded-none");
+		expect(header).not.toContainElement(
+			screen.getByText("Add your first task"),
+		);
+		expect(header).not.toContainElement(
+			screen.getByRole("button", { name: "Add task" }),
+		);
+	});
+
 	it("paints the date, progress and hint in the app-colour page header", async () => {
 		await store.tasks.put(brushTeeth);
 		renderWithSession(<TodayScreen />, { store });
@@ -56,6 +70,9 @@ describe("TodayScreen", () => {
 		const header = heading.closest('[data-slot="page-header"]');
 		expect(header).toHaveClass("bg-header", "rounded-none");
 		expect(within(header as HTMLElement).getByText(/done today/)).toBeTruthy();
+		const track = header?.querySelector('[data-slot="progress-track"]');
+		expect(track).toHaveClass("bg-text/15");
+		expect(track).not.toHaveClass("bg-surface");
 		expect(
 			within(header as HTMLElement).getByRole("progressbar", {
 				name: "Done today",
