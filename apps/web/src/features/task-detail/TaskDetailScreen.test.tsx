@@ -93,6 +93,15 @@ describe("TaskDetailScreen look", () => {
 		).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
 	});
 
+	it("runs the panel flush up to the top bar with a square top edge", async () => {
+		await store.tasks.put(task({ color: "teal" }));
+		renderDetail();
+		await screen.findByRole("heading", { name: "Wash dishes" });
+		const root = document.querySelector('[data-slot="task-detail"]');
+		expect(root).not.toHaveClass("mt-3");
+		expect(root).not.toHaveClass("rounded-t-[32px]");
+	});
+
 	it("shows the default emoji on neutral surfaces for a task with no emoji or color", async () => {
 		await store.tasks.put(task());
 		renderDetail();
