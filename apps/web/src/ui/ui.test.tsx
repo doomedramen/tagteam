@@ -150,4 +150,90 @@ describe("UI kit", () => {
 			screen.queryByRole("dialog", { name: "Done" }),
 		).not.toBeInTheDocument();
 	});
+
+	it("a tinted sheet has the close button and the action in its header and the notice under it", async () => {
+		const onClose = vi.fn();
+		render(
+			<Sheet
+				open
+				onClose={onClose}
+				label="New task"
+				tint="teal"
+				action={<button type="submit">Create</button>}
+				notice={<p role="alert">Could not add task. Try again.</p>}
+			>
+				<p>Body</p>
+			</Sheet>,
+		);
+		const dialog = screen.getByRole("dialog", { name: "New task" });
+		expect(dialog).toHaveAttribute("data-task-color", "teal");
+		const close = screen.getByRole("button", { name: "Close" });
+		const create = screen.getByRole("button", { name: "Create" });
+		expect(
+			close.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+		const body = dialog.querySelector('[data-slot="sheet-body"]');
+		expect(body).not.toBeNull();
+		expect(body?.contains(close)).toBe(false);
+		expect(body?.contains(create)).toBe(false);
+		const notice = screen.getByRole("alert");
+		expect(body?.contains(notice)).toBe(false);
+		expect(dialog.querySelector('[data-slot="sheet-notice"]')).toContainElement(
+			notice,
+		);
+		expect(dialog.querySelector('[data-slot="sheet-footer"]')).toBeNull();
+		expect(
+			dialog.querySelector('[data-slot="drawer-swipe-handle"]'),
+		).toBeNull();
+		await userEvent.click(close);
+		expect(onClose).toHaveBeenCalled();
+	});
+
+	it("keeps the title as the dialog name but hides it when the header has an action", () => {
+		render(
+			<Sheet
+				open
+				onClose={vi.fn()}
+				label="Edit task"
+				showTitle
+				tint="blue"
+				action={<button type="submit">Save</button>}
+			>
+				<p>Body</p>
+			</Sheet>,
+		);
+		expect(
+			screen.getByRole("dialog", { name: "Edit task" }),
+		).toBeInTheDocument();
+		expect(screen.getByText("Edit task")).toHaveClass("sr-only");
+	});
+
+	it("a tinted sheet with no color wears no hue but still uses the task surface", () => {
+		render(
+			<Sheet open onClose={vi.fn()} label="Edit task" tint={null}>
+				<p>Body</p>
+			</Sheet>,
+		);
+		const dialog = screen.getByRole("dialog", { name: "Edit task" });
+		expect(dialog).not.toHaveAttribute("data-task-color");
+		expect(dialog.querySelector('[data-slot="sheet-surface"]')).toHaveClass(
+			"bg-task-sheet",
+		);
+	});
+
+	it("an ordinary sheet is unchanged: no hue, no tinted surface, swipe handle shown", () => {
+		render(
+			<Sheet open onClose={vi.fn()} label="Add task">
+				<p>Body</p>
+			</Sheet>,
+		);
+		const dialog = screen.getByRole("dialog", { name: "Add task" });
+		expect(dialog).not.toHaveAttribute("data-task-color");
+		expect(dialog.querySelector('[data-slot="sheet-surface"]')).not.toHaveClass(
+			"bg-task-sheet",
+		);
+		expect(
+			dialog.querySelector('[data-slot="drawer-swipe-handle"]'),
+		).not.toBeNull();
+	});
 });

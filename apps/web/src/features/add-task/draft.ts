@@ -5,6 +5,7 @@ import {
 	MAX_TITLE,
 	type Mutation,
 	type Rule,
+	type TaskColor,
 	type TaskDto,
 	type Weekday,
 	weekdayOf,
@@ -25,6 +26,12 @@ export interface TaskDraft {
 	dueTime: string | null;
 	/** Another member to suggest this task to; `null` means the task is for me. */
 	forUserId: string | null;
+	/** The emoji on the sheet; `null` shows the default and stores nothing. */
+	emoji: string | null;
+	/** True once the person picked or typed an emoji by hand (Plan 10 never overwrites those). */
+	emojiChosen: boolean;
+	/** The hue on the sheet; `null` only when editing a task that has none. */
+	color: TaskColor | null;
 }
 
 export const newDraft = (today: LocalDate): TaskDraft => ({
@@ -37,6 +44,9 @@ export const newDraft = (today: LocalDate): TaskDraft => ({
 	startDate: today,
 	dueTime: null,
 	forUserId: null,
+	emoji: null,
+	emojiChosen: false,
+	color: "blue",
 });
 
 export function taskDraft(task: TaskDto, effectiveFrom: LocalDate): TaskDraft {
@@ -47,6 +57,9 @@ export function taskDraft(task: TaskDto, effectiveFrom: LocalDate): TaskDraft {
 			.at(-1) ?? task.rules[0];
 	const draft = newDraft(effectiveFrom);
 	draft.title = task.title;
+	draft.emoji = task.emoji ?? null;
+	draft.emojiChosen = draft.emoji !== null;
+	draft.color = task.color ?? null;
 	if (!activeVersion) return draft;
 	draft.dueTime = activeVersion.dueTime;
 	const rule = activeVersion.rule;
@@ -132,6 +145,12 @@ export function draftErrors(d: TaskDraft): {
 	return errors;
 }
 
+/** The look fields a create or suggestion carries: only the ones that are set. */
+const lookFields = (d: TaskDraft) => ({
+	...(d.emoji !== null ? { emoji: d.emoji } : {}),
+	...(d.color !== null ? { color: d.color } : {}),
+});
+
 export function draftMutation(
 	d: TaskDraft,
 	ctx: { groupId: string; timezone: string; at: number },
@@ -148,6 +167,7 @@ export function draftMutation(
 		startDate: d.startDate,
 		dueTime: d.dueTime,
 		rule: draftRule(d),
+		...lookFields(d),
 	};
 }
 
@@ -167,6 +187,30 @@ export function suggestionMutation(
 		startDate: d.startDate,
 		dueTime: d.dueTime,
 		rule: draftRule(d),
+		...lookFields(d),
+	};
+}
+
+/** One task.update with only what changed, or null. A draft color of null never clears a stored color. */
+export function taskUpdateMutation(
+	d: TaskDraft,
+	task: TaskDto,
+	at: number,
+): Mutation | null {
+	const changes: { title?: string; emoji?: string; color?: TaskColor } = {};
+	const title = d.title.trim();
+	if (title !== task.title) changes.title = title;
+	if (d.emoji !== null && d.emoji !== (task.emoji ?? null))
+		changes.emoji = d.emoji;
+	if (d.color !== null && d.color !== (task.color ?? null))
+		changes.color = d.color;
+	if (Object.keys(changes).length === 0) return null;
+	return {
+		id: crypto.randomUUID(),
+		at,
+		type: "task.update",
+		taskId: task.id,
+		...changes,
 	};
 }
 
