@@ -1,5 +1,9 @@
-import { vi } from "vitest";
-import type { WorkerLike } from "../features/emoji/controller";
+import { type Mock, vi } from "vitest";
+import type {
+	EmojiController,
+	EmojiSnapshot,
+	WorkerLike,
+} from "../features/emoji/controller";
 import type { EmojiEngine } from "../features/emoji/engine";
 import type {
 	EngineStorage,
@@ -101,4 +105,53 @@ export function fakeEmojiEngine(
 		search: ReturnType<typeof vi.fn>;
 		wake: ReturnType<typeof vi.fn>;
 	};
+}
+
+/** An EmojiController for host and Me tests: `change()` publishes a new snapshot to subscribers. */
+export function fakeEmojiController(initial: Partial<EmojiSnapshot> = {}) {
+	let snapshot: EmojiSnapshot = {
+		engine: {
+			status: "off",
+			suggest: async () => [],
+			search: async () => [],
+		},
+		optedIn: false,
+		download: { kind: "notDownloaded", note: null },
+		...initial,
+	};
+	const listeners = new Set<() => void>();
+	const controller: EmojiController & {
+		wake: Mock<() => void>;
+		warmUp: Mock<() => void>;
+		download: Mock<() => Promise<void>>;
+		remove: Mock<() => Promise<void>>;
+		dispose: Mock<() => void>;
+	} = {
+		getSnapshot: () => snapshot,
+		subscribe: (listener) => {
+			listeners.add(listener);
+			return () => {
+				listeners.delete(listener);
+			};
+		},
+		wake: vi.fn<() => void>(),
+		warmUp: vi.fn<() => void>(),
+		download: vi.fn<() => Promise<void>>(async () => {}),
+		remove: vi.fn<() => Promise<void>>(async () => {}),
+		dispose: vi.fn<() => void>(),
+	};
+	const change = (
+		next: Partial<Omit<EmojiSnapshot, "engine">> & {
+			status?: EmojiEngine["status"];
+		},
+	) => {
+		const { status, ...rest } = next;
+		snapshot = {
+			...snapshot,
+			...rest,
+			engine: { ...snapshot.engine, status: status ?? snapshot.engine.status },
+		};
+		for (const listener of listeners) listener();
+	};
+	return { controller, change };
 }

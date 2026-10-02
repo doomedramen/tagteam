@@ -2,6 +2,7 @@ import type { MeResponse } from "@tagteam/core";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, Outlet, useNavigate } from "react-router";
+import { EmojiEngineHost } from "../features/emoji/EmojiEngineHost";
 import { apiFetch } from "../lib/api";
 import { authClient } from "../lib/auth";
 import { requestPersistentStorage } from "../lib/persist-storage";
@@ -110,7 +111,9 @@ function SignedIn({ initialMe }: { initialMe: MeResponse }) {
 	return (
 		<SessionContext.Provider value={session}>
 			<ToastProvider>
-				<Outlet />
+				<EmojiEngineHost>
+					<Outlet />
+				</EmojiEngineHost>
 			</ToastProvider>
 		</SessionContext.Provider>
 	);
