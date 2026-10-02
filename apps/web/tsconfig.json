@@ -3,14 +3,18 @@
 	"compilerOptions": {
 		"lib": ["ES2023", "DOM", "DOM.Iterable"],
 		"jsx": "react-jsx",
+		"allowImportingTsExtensions": true,
 		"paths": { "@/*": ["./src/*"] },
 		"types": ["vite/client"]
 	},
 	"include": [
 		"src",
 		"e2e",
+		"e2e-smoke",
+		"build-plugins",
 		"vite.config.ts",
 		"vitest.config.ts",
-		"playwright.config.ts"
+		"playwright.config.ts",
+		"playwright.smoke.config.ts"
 	]
 }

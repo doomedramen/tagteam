@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Emoji worker smoke test</title>
+	</head>
+	<body>
+		<pre id="result">pending</pre>
+		<script type="module">
+			// Only the smoke build (EMOJI_SMOKE=1) includes this page.
+			const worker = new Worker(
+				new URL("./src/features/emoji/worker.ts", import.meta.url),
+				{ type: "module" },
+			);
+			const show = (value) => {
+				document.getElementById("result").textContent = JSON.stringify(value);
+			};
+			worker.onmessage = (event) => show(event.data);
+			worker.onerror = (event) =>
+				show({ ok: false, name: "WorkerError", message: event.message });
+			worker.postMessage({ text: "Water the plants" });
+		</script>
+	</body>
+</html>

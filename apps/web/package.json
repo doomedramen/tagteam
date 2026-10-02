@@ -12,11 +12,13 @@
 		"typecheck": "tsc -p . && tsc -p tsconfig.sw.json",
 		"icons": "node scripts/icons.mjs",
 		"check:palette": "node scripts/check-task-palette.mjs",
-		"emoji:catalog": "node scripts/build-emoji-catalog.mjs"
+		"emoji:catalog": "node scripts/build-emoji-catalog.mjs",
+		"smoke:emoji-worker": "EMOJI_SMOKE=1 vite build && playwright test --config playwright.smoke.config.ts"
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.8.0",
 		"@better-auth/passkey": "^1.7.6",
+		"@huggingface/transformers": "4.3.0",
 		"@serwist/window": "^9.5.12",
 		"@tagteam/core": "workspace:*",
 		"better-auth": "^1.7.6",

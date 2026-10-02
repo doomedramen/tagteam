@@ -9,3 +9,5 @@ coverage/
 data/
 test-results/
 playwright-report/
+dist-smoke/
+apps/web/public/assets/emoji/
