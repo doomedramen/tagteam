@@ -300,6 +300,9 @@ Follow-ups and owner questions:
 
 - **Later (owner, 2026-10-02):** an in-app tutorial for using the app, which can include the emoji suggestions
   download option that today lives only on Me.
+- **Later idea (owner, 2026-10-02):** custom emoji (spec §13 lists it as out of scope today; the picker already
+  accepts any standard emoji typed or pasted). Needs a decision on what "custom" means (own images or stickers,
+  or a personal favourites list) and how it syncs between members.
 - Open items from Plan 9 that are still open:
   - Without `Intl.Segmenter` (Firefox before 125) the client skips the grapheme-count check; the
     server always checks, so a two-emoji paste in the typed field is rejected by the server there.
