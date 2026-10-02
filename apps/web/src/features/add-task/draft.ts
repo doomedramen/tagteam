@@ -1,4 +1,5 @@
 import {
+	isEmoji,
 	isTimeOfDay,
 	type LocalDate,
 	MAX_INTERVAL,
@@ -28,7 +29,7 @@ export interface TaskDraft {
 	forUserId: string | null;
 	/** The emoji on the sheet; `null` shows the default and stores nothing. */
 	emoji: string | null;
-	/** True once the person picked or typed an emoji by hand (Plan 10 never overwrites those). */
+	/** True once the person picked or typed an emoji by hand. The automatic pick never overwrites those. */
 	emojiChosen: boolean;
 	/** The hue on the sheet; `null` only when editing a task that has none. */
 	color: TaskColor | null;
@@ -145,9 +146,12 @@ export function draftErrors(d: TaskDraft): {
 	return errors;
 }
 
-/** The look fields a create or suggestion carries: only the ones that are set. */
+/**
+ * The look fields a create or suggestion carries: only the ones that are set. An emoji that
+ * fails core validation is left out, so a bad suggestion can never stop a task from saving.
+ */
 const lookFields = (d: TaskDraft) => ({
-	...(d.emoji !== null ? { emoji: d.emoji } : {}),
+	...(d.emoji !== null && isEmoji(d.emoji) ? { emoji: d.emoji } : {}),
 	...(d.color !== null ? { color: d.color } : {}),
 });
 
@@ -200,7 +204,7 @@ export function taskUpdateMutation(
 	const changes: { title?: string; emoji?: string; color?: TaskColor } = {};
 	const title = d.title.trim();
 	if (title !== task.title) changes.title = title;
-	if (d.emoji !== null && d.emoji !== (task.emoji ?? null))
+	if (d.emoji !== null && isEmoji(d.emoji) && d.emoji !== (task.emoji ?? null))
 		changes.emoji = d.emoji;
 	if (d.color !== null && d.color !== (task.color ?? null))
 		changes.color = d.color;

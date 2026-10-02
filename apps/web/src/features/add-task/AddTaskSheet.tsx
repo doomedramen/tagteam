@@ -14,6 +14,7 @@ import {
 import {
 	type FormEvent,
 	type ReactNode,
+	useCallback,
 	useEffect,
 	useId,
 	useRef,
@@ -42,6 +43,7 @@ import { Spinner } from "../../ui/Spinner";
 import { useToast } from "../../ui/Toast";
 import { useEmojiName } from "../emoji/catalog";
 import { EmojiPicker } from "../emoji/EmojiPicker";
+import { useEmojiEngine } from "../emoji/engine";
 import { ColorOptions } from "../look/ColorOptions";
 import { TaskEmoji } from "../look/TaskEmoji";
 import { pendingSuggestionCount } from "../suggestions/model";
@@ -57,6 +59,7 @@ import {
 	taskUpdateMutation,
 	type Unit,
 } from "./draft";
+import { useAutoEmoji } from "./useAutoEmoji";
 
 const REPEATS: { value: Repeat; label: string }[] = [
 	{ value: "once", label: "Once" },
@@ -196,6 +199,24 @@ export function AddTaskSheet({
 	}, [activeGroupId, task, today]);
 	const update = (patch: Partial<TaskDraft>) =>
 		setDraft((d) => ({ ...d, ...patch }));
+	// A new task's emoji follows its title until the person picks one. Editing never fills it.
+	const emojiEngine = useEmojiEngine();
+	const wakeEmoji = emojiEngine.wake;
+	useEffect(() => {
+		if (open && !task) wakeEmoji?.();
+	}, [open, task, wakeEmoji]);
+	const fillEmoji = useCallback(
+		(emoji: string, forTitle: string) =>
+			setDraft((d) =>
+				d.emojiChosen || d.title.trim() !== forTitle ? d : { ...d, emoji },
+			),
+		[],
+	);
+	useAutoEmoji({
+		active: open && !task && !draft.emojiChosen,
+		title: draft.title,
+		onSuggest: fillEmoji,
+	});
 	const toggleRow = (id: RowId) =>
 		setOpenRow((current) => (current === id ? null : id));
 	const close = () => {
