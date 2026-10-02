@@ -216,7 +216,7 @@ function Row({
 				>
 					<p
 						className={cx(
-							"truncate text-[15px]",
+							"truncate text-[15px] font-semibold",
 							row.kind === "done" && "text-text-2 line-through",
 							row.kind === "upcoming" && "text-text-2",
 						)}
@@ -225,7 +225,7 @@ function Row({
 					</p>
 					<p
 						className={cx(
-							"text-[13px]",
+							"text-[13px] font-medium",
 							row.kind === "overdue" ? "text-danger" : "text-text-2",
 						)}
 					>

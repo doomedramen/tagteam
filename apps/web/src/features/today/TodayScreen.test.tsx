@@ -109,6 +109,16 @@ describe("TodayScreen", () => {
 		expect(content).toHaveClass("px-4");
 	});
 
+	it("sets task titles in semibold and the meta line in medium weight", async () => {
+		await store.tasks.put(brushTeeth);
+		renderWithSession(<TodayScreen />, { store });
+		const title = await screen.findByText("Brush teeth");
+		expect(title).toHaveClass("font-semibold");
+		const meta = title.nextElementSibling;
+		expect(meta).toBeTruthy();
+		expect(meta).toHaveClass("font-medium");
+	});
+
 	it("completes a task and offers undo", async () => {
 		await store.tasks.put(brushTeeth);
 		const engine = fakeEngine();
