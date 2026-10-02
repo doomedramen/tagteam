@@ -47,7 +47,7 @@ Each hue has five roles. Body text keeps `--text`, `--text-2`, and `--text-3`.
 |---|---|
 | `sheet` | background of the New task sheet and task detail |
 | `card` | the settings card and other grouped rows on a tinted background |
-| `swatch` | colour option fill, emoji circle fill |
+| `swatch` | colour option fill (never behind an emoji or text other than the selected check) |
 | `ring` | 2 px border of a colour option, so it stays visible on the sheet |
 | `fg` | tinted text and icons, the header action pill, the selected check |
 
@@ -161,7 +161,7 @@ One component as now. Top to bottom:
    hide it. Behaviour carried over from the footer button it replaces: pointer-down on the pill
    keeps the title input focused, duplicate submissions are blocked until the local write
    finishes, and Enter in the title still submits.
-2. **Emoji circle.** 60 px, `swatch` fill. Tapping opens the emoji picker. Its accessible name is
+2. **Emoji circle.** 60 px, `card` fill (the sheet around it already carries the colour). Tapping opens the emoji picker. Its accessible name is
    "Emoji: {name}, change". With no emoji stored it shows the default and the name reads
    "Emoji: clipboard, default, change".
 3. **Title.** The existing input, centred and styled as a heading, same placeholder, same focus,
@@ -226,10 +226,13 @@ adds meaning-based matches after them. Off-screen groups are not rendered until 
 
 - **Today row.** A 36 px emoji circle sits between the complete circle and the title. It is
   decorative and not a separate tap target. A task without a stored emoji shows the default
-  emoji, so rows stay aligned.
+  emoji, so rows stay aligned. With a colour, the circle has a pale `sheet` fill and a 2 px
+  `ring` border; without one it is neutral (`surface-2`, no border). Decided by the owner on
+  2026-10-02 after a strong `swatch` fill made emoji hard to see, especially in dark mode.
 - **Task detail.** The screen carries `data-task-color`: `sheet` background, `card` surfaces, the
-  emoji circle above the title.
-- **Suggestion cards.** The emoji shows beside the title. Accepting copies emoji and colour.
+  emoji circle (`card` fill) above the title. Small icon circles inside cards use `sheet`, never
+  `swatch`, so `--text-3` icons stay readable.
+- **Suggestion cards.** The emoji shows beside the title, in the same circle as a Today row. Accepting copies emoji and colour.
 
 History is unchanged.
 
