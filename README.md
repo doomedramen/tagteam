@@ -141,12 +141,23 @@ cp apps/server/.env.example apps/server/.env   # set AUTH_SECRET and BASE_URL=ht
 pnpm --filter @tagteam/server dev              # API on :3000
 pnpm --filter @tagteam/web dev                 # app on http://localhost:5173 (proxies /api)
 pnpm test && pnpm typecheck && pnpm lint
+pnpm --filter @tagteam/web emoji:assets        # emoji model files (49 MB, from Hugging Face; git-ignored)
 ```
 
-Build and run the image locally:
+Emoji suggestions are opt-in: a person turns them on from **Me → Emoji suggestions → Download**, which
+downloads a small model (about 49 MB) from your own TagTeam server once; nothing is downloaded
+otherwise. The model is not in git: the build fetches `Xenova/bge-small-en-v1.5` from Hugging Face at the
+revision pinned in `apps/web/emoji-assets.json`, verifies every file's SHA-256, and copies the ONNX
+Runtime wasm from `node_modules`. Run `pnpm --filter @tagteam/web emoji:assets` once in a checkout to try
+the feature in `pnpm --filter @tagteam/web dev`; without the files the app works and the Download button
+reports that it could not download.
+
+Build and run the image locally (the build needs network access to huggingface.co; the image grows
+by about 49 MB):
 
 ```bash
 docker build -t tagteam:local .
+docker build --build-arg SKIP_EMOJI_MODEL=1 -t tagteam:local .   # without the model: the Download button fails for everyone
 ```
 
 Images are built by GitHub Actions and published to `ghcr.io/doomedramen/tagteam` on every push to `main` (`latest`, `sha-…`) and on `v*` tags (`X.Y.Z`, `X.Y`).

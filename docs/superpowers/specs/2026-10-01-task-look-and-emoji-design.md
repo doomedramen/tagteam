@@ -34,7 +34,7 @@ Tasks stay standalone. Subtasks, goals, and tags from the reference app are not 
 | Primary action | Moves from the pinned footer to a pill in the sheet header, which already stays above the keyboard |
 | Model | `bge-small-en-v1.5` (quantised ONNX) run with transformers.js in a Web Worker. Served from the TagTeam image, never from a third party at runtime |
 | Language | English titles only. Other languages get weak suggestions; the picker still works |
-| Opt-out | A device-local toggle in Me. Off means no model download on that device |
+| Opt-in | The model is not downloaded unless the person presses "Download" in an "Emoji suggestions" section on Me (owner decision, 2026-10-02). Default off: a device that has not opted in behaves as without the feature, and nothing is ever downloaded automatically. "Remove download" deletes it and returns to the default |
 | Persistent storage | The app asks the browser to keep its data (`navigator.storage.persist()`) after sign-in |
 
 ## 3. Palette and shape
@@ -194,8 +194,10 @@ that already existed are left alone.
   arrived, it is created with no stored emoji and shows the default.
 - **Late pick.** A task can be saved before the picker has anything, for example while the model
   is still downloading on a new device. When this device creates a task with no stored emoji (from
-  the sheet, or by accepting a suggestion), it adds the task's id to a device-local "awaiting
-  emoji" list. When the engine becomes ready, the device takes each listed task that its user
+  the sheet, or by accepting a suggestion) while the engine status is not `off`, it adds the task's
+  id to a device-local "awaiting emoji" list. A device that has not downloaded the model has status
+  `off` and lists nothing, so tasks created before the person opts in are never late-picked; tasks
+  created while the model is downloading, loading or waiting for an update are. When the engine becomes ready, the device takes each listed task that its user
   still owns, that is not archived, and that still has no stored emoji, suggests an emoji from the
   title, and enqueues an ordinary `task.update` with it. The id leaves the list after one attempt,
   or as soon as the task gains an emoji any other way. Late picks run one at a time in the
@@ -266,8 +268,34 @@ Decided while checking the look in the browser; they apply to every main page, n
 
 ### Me
 
-A toggle "Emoji suggestions", on by default, stored on the device. Turning it off stops the engine
-and deletes the cached model on that device.
+A section "Emoji suggestions", device-local. Not downloaded (the default): a helper sentence (about
+49 MB, one-time, works offline afterwards, Wi-Fi is best) and a "Download" button. Downloading:
+progress and "Cancel". Ready: "Emoji suggestions are on" and "Remove download", which stops the
+engine, deletes the stored model of every version, and returns to the default. Failed: one plain
+sentence (offline, storage full, could not load, stopped after repeated problems) and "Try again".
+A switch-off after two crashes, a browser that evicted the stored model, and an update (a new asset
+version; the old download is unusable with the new build) show their explanation here, with
+"Download" again. This section is the only place any of that is shown. A device that has not
+downloaded the model has engine status `off`: the sheet shows the default emoji, the picker has no
+"Suggested" row, and no task is listed for a late pick, so tasks created before the person opts in
+are never late-picked.
+
+States, copy and accessibility (as shipped). One status line (`role="status"`) and one button of at
+least 44 px:
+
+| State | Status line | Button |
+|---|---|---|
+| Not downloaded | "Emoji suggestions are off." (plus the crash or eviction explanation when there is one) | Download |
+| Update available | "An update is available." and "Suggestions are paused until you download it. It is about 49 MB, so Wi-Fi is best." | Download |
+| Downloading | "Downloading…" with a progress bar and the percentage beside it | Cancel |
+| Loading | "Getting emoji suggestions ready…" | Remove download |
+| Ready | "Emoji suggestions are on" and "They work offline." | Remove download |
+| Failed | "Couldn't download. You're offline. Connect and try again." / "Couldn't download. This device is out of storage." / "Couldn't load emoji suggestions." / "Emoji suggestions stopped after repeated problems." | Try again |
+| Unsupported browser | "This browser can't run emoji suggestions." | none |
+
+The live region announces the state only; the percentage is `aria-hidden` and the progress bar
+(`role="progressbar"`, labelled "Download progress") carries the value, so a screen reader is not
+read a new number at every percent. Status is words, never colour alone.
 
 ## 7. Emoji suggestion engine
 
@@ -283,32 +311,38 @@ screens and tests never touch the model directly.
 - **Auto-pick candidates.** Flags, the symbols group, and clock faces are excluded from automatic
   suggestions because literal word matches on them caused the worst picks in the spike. They remain
   in the picker. This exclusion is adopted only if first-pick accuracy on the evaluation set does
-  not drop.
+  not drop. Evaluated on 2026-10-02 on the shipped index (Plan 10, `pnpm --filter @tagteam/web emoji:eval`): first pick right 46 of 79 without and 45 with the exclusion, so it is **not adopted** and the flag `AUTO_PICK_EXCLUSION` is `false`; the code stays, tested.
 - **Runtime.** A module Web Worker. One thread; no cross-origin isolation headers are added.
-- **Loading.** The worker starts when the New task sheet first opens, and about five seconds after
-  the first successful sync when the device is online, so the first download happens in the
-  background. A failed download is retried on the next app start, not in a loop.
+- **Loading.** Only on a device that has downloaded the model, and only from its stored copy: the worker starts when the New task sheet first opens and about five seconds after the first successful sync. Neither ever uses the network; the one download is the person's "Download" press. A failed download shows its reason on Me with "Try again" and is never retried automatically.
+- **The worker never touches the network on its own.** `init` carries `allowNetwork`, true only for
+  the Download, Update and Try again buttons. With it false the worker first checks that all six
+  files are stored and answers `uncached` otherwise, and a guard around its `fetch` rejects any
+  request under `/assets/emoji/` even if a file were evicted between that check and the load. With
+  it true it fetches each missing file itself (one streamed request per file, so it can count
+  bytes) and stores it in the Cache API only after its last byte arrived, so nothing partial is
+  ever stored. Progress `loaded` starts from the sizes of files already stored, so a retry after a
+  partial download continues the bar instead of restarting it.
 
 ### Failure handling
 
 Rule: the engine can never block, delay, or break creating or editing a task. Every failure ends
 in the same safe state, "no suggestions", in which the sheet works exactly as it does with the Me
-toggle off: the emoji stays as it is, the person can still pick an emoji by hand, and the
+no model downloaded: the emoji stays as it is, the person can still pick an emoji by hand, and the
 task saves. Failures are quiet in the sheet; no error is shown there.
 
-The engine has four states: `off` (toggle), `loading`, `ready`, `unavailable`.
+The engine has four states: `off` (the person has not downloaded the model), `loading`, `ready`, `unavailable`.
 
 | What goes wrong | Handling |
 |---|---|
-| Model or wasm files missing, download fails, device offline on first use | `unavailable` for this app start; retried on the next start |
+| Model or wasm files missing, download fails, device offline on first use | `unavailable` for this app start; Me shows the reason with "Try again"; an opt-in whose first download never finished lapses at the next start |
 | Browser lacks WebAssembly, module workers, or the Cache API | `unavailable`; not retried |
-| Load takes longer than 60 s | worker terminated, `unavailable` |
+| A load, or a download, makes no progress for 60 s | worker terminated, `unavailable` |
 | Worker throws or posts an error at any time | worker terminated, `unavailable`; no restart in this app start |
 | One suggestion takes longer than 2 s, or returns malformed output | that result is dropped; three in a row make the engine `unavailable` |
-| Cached model is corrupt or partial (load fails with files present) | this version's Cache API entries are deleted so the next start downloads again |
+| Cached model is corrupt or partial (load fails with all files stored) | this version's Cache API entries are deleted and the download is forgotten, so "Try again" downloads again. Any other load failure, including a failed fetch of the index files, is the non-destructive kind `load`: the stored model is kept |
 | Storage quota error while caching | `unavailable`; nothing else in the app is affected because task data is written separately |
-| Loading the model crashes or reloads the app (for example memory pressure on an older phone) | a "loading" marker is written before load and cleared after; finding it still set at start counts as a strike. Two strikes turn the Me toggle off on that device with a one-line explanation there |
-| Three app starts in a row end `unavailable` | the engine stops trying on that device until the asset version changes or the person toggles it off and on |
+| Loading the model crashes or reloads the app (for example memory pressure on an older phone) | a "loading" marker is written before load and cleared after; finding it still set at start counts as a strike. For a user download the marker is written only once all bytes have arrived (the model load that follows is what can crash the tab), so a closed tab or a page the browser discarded mid-download never counts as a strike and simply returns to "off". Two strikes switch suggestions off on that device, delete the stored model, and Me shows a one-line explanation with "Download" again |
+| Three app starts in a row end `unavailable` | the engine stops trying on that device until the asset version changes or the person presses "Download" again |
 | Suggested or picked emoji fails core validation | it is replaced by no emoji before the mutation is enqueued; the task still saves |
 | A late pick fails for one task | that task keeps the default; the next task is tried |
 | Catalog files fail to load | the picker shows only its keyboard field (below); search and the grid are hidden |
@@ -320,7 +354,7 @@ The background warm-up after sign-in is skipped when the "loading" marker shows 
 so a device that cannot hold the model does not crash on every launch.
 
 An operator can switch the feature off for everyone by building the image without the model
-files: every device then lands in `unavailable`.
+files: the "Download" button then fails (the files answer 404) and devices stay at the default.
 
 Each row above has a web test using a fake worker.
 
@@ -330,6 +364,8 @@ accuracy; bits alone did not. Model-written task descriptions per emoji gave no 
 are not used. On the iOS 27 simulator a title took about 9 ms and a cached model loaded in about
 0.75 s.
 
+Re-measured in Plan 10 on the repo's catalog with the node-built index (79 titles): right emoji first 58% (46), in the top three 78% (62); full precision 57% and 78%; sign bits alone 44% and 75%. The weak spots are cleaning verbs, which drift to shower, bath and broom ("Wash the car" gives 🚿), and activity nouns ("Pay rent" gives 🏪, "Bake bread" gives 🥪).
+
 ## 8. Colour is the person's choice
 
 Decided by the owner on 2026-10-01: the app never picks a task's colour. Deriving the colour from
@@ -338,23 +374,22 @@ tapping a colour option, apart from the fixed starting colour of a new draft.
 
 ## 9. Assets, caching, and build
 
-Served under one versioned path, `/assets/emoji/{version}/`, which the server already marks
-immutable because it contains `/assets/`.
+The model and the wasm are served under one versioned path, `/assets/emoji/{version}/` (the version is a hash of every model and runtime file checksum, so a revision bump with identical files keeps it), which the server marks immutable because it contains `/assets/`. A device fetches them only when the person presses "Download". A missing file under `/assets/` answers 404, never the app shell.
 
 | File | Size | In git | Cached on device by |
 |---|---|---|---|
-| `catalog.json`, `bits.bin`, `int8.bin` | about 0.9 MB | yes | service worker precache |
+| `catalog.json` (a hashed chunk), `bits.bin`, `int8.bin` (hashed assets committed under `src/features/emoji/index/`) | about 0.9 MB | yes | service worker precache |
 | model (`model_quantized.onnx`, tokenizer, configs) | 34.7 MB | no | transformers.js, Cache API |
 | ONNX Runtime wasm and glue | 14.3 MB | no | transformers.js, Cache API |
 
 - A script fetches the model at a pinned Hugging Face revision, verifies SHA-256, and copies the
   wasm from `node_modules`. It runs before the web build, so the Docker build and CI need network
-  access to huggingface.co. Without the files the app works and the engine reports unavailable.
+  access to huggingface.co. Without the files the app works and the "Download" button fails (the files answer 404). The pin lives in `apps/web/emoji-assets.json` (revision, sizes, SHA-256); the script fails the build on a checksum mismatch or a failed download and `SKIP_EMOJI_MODEL=1` is the explicit opt-out. The committed index records a digest of the model files it was built for.
 - A second script rebuilds the catalog files; its output is committed.
 - `@huggingface/transformers` is pinned to an exact version and imported only by the worker.
-- Serwist's precache glob gains the three catalog files. The model and wasm stay out of it, so
+- Serwist's precache glob gains `bin` (the index files); the worker bundle is a `.js` and the catalog a chunk, both already matched. The model and wasm stay out of it, so
   installing the app is not blocked by a 49 MB download.
-- On a version change the engine deletes Cache API entries from older versions.
+- On a version change the engine deletes Cache API entries from older versions. A device that downloaded an older version does not use it with a newer build (the index and the runtime are bound to the model files): Me shows "An update is available." with "Download", nothing else in the app shows it, and the old files are deleted when the new version is installed or the person removes the download.
 - The image grows by about 49 MB.
 
 Known library behaviour to encode (found in the spike): `env.localModelPath` must be a path, not
@@ -396,7 +431,7 @@ Two plans, each shippable.
 - **Plan 09, task look.** Fields, mutations, migration, tokens, the restyled sheet, the picker with
   name and keyword search, Today and task detail, suggestion cards, `persist()`.
 - **Plan 10, emoji suggestions.** Model and wasm delivery, catalog build, the worker and engine,
-  automatic emoji in the sheet, late picks, the Me toggle, the evaluation script.
+  automatic emoji in the sheet, late picks, the Me "Emoji suggestions" section (Download and Remove download), the evaluation script.
 
 ## 13. Out of scope
 
@@ -419,8 +454,11 @@ inference.
   loaded, switched off, or any failure) the task shows a default "task" emoji instead of nothing.
   This draft uses 📋. A keyword guess from the catalog was considered and dropped: in the spike it
   answered 62 of 79 titles and was right first on 21 of them. The owner confirmed 📋 as the glyph.
-- **Bundling risk.** The spike loaded the library's prebuilt bundle directly. Importing it through
-  Vite in a worker is untested and is the first task of Plan 10.
+- **Bundling risk.** Resolved in Plan 10, Task 1. The spike loaded the library's prebuilt bundle
+  directly; importing `@huggingface/transformers` through Vite in a module worker works in dev and
+  in the production build, in Chromium and WebKit, with `worker.format: "es"` (the library
+  code-splits) and the `noOrtDefaultWasm` plugin, which keeps ONNX Runtime's 27 MB default wasm out
+  of `dist`. The self-hosted plain wasm is the only one the app ships and loads.
 - **Wrong picks.** Roughly one automatic pick in four was clearly wrong in the spike. The mitigation
   is that it is a suggestion one tap from the alternatives.
 - **Real-device unknowns.** Speed and memory on an actual iPhone, and eviction behaviour over days.

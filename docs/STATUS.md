@@ -1,8 +1,8 @@
 # Project status
 
-_Last updated: 2026-10-02 (Plan 9 task look complete)._
+_Last updated: 2026-10-02 (Plan 10 emoji suggestions complete)._
 
-## Done (on `main`; CI green through Plan 7, Plans 8 and 9 not yet run in CI)
+## Done (on `main`; CI green through Plan 7, Plans 8, 9 and 10 not yet run in CI)
 
 | Plan | Scope | Notes |
 |---|---|---|
@@ -15,6 +15,7 @@ _Last updated: 2026-10-02 (Plan 9 task look complete)._
 | 07 push notifications | per-device web-push, due/overdue reminders, team nudges, quiet hours | Requires VAPID environment values to send push |
 | 08 task suggestions | suggest a task to another member from New task; accept or decline on Today; History and task detail say who suggested it; push for suggested, accepted and declined | Spec: `2026-10-01-task-suggestions-design.md` |
 | 09 task look | per-task emoji and color; tinted New/Edit task sheet with emoji picker; emoji and color on Today tiles, task detail and suggestion cards; page header bands; persistent-storage request | Spec: `2026-10-01-task-look-and-emoji-design.md` |
+| 10 emoji suggestions | opt-in on-device emoji suggestions from the task title (bge-small-en-v1.5 in a Web Worker, downloaded from Me), automatic emoji in the New task sheet, late picks, evaluation script | Spec: `2026-10-01-task-look-and-emoji-design.md` |
 
 ## Complete — Plan 5: `docs/superpowers/plans/2026-09-25-05-app-foundation-today.md`
 
@@ -171,33 +172,111 @@ follow-ups below). Per-task ledger (rulings, review findings): git-ignored
   confirmed); after 11b, colour, Repeat row, Create, emoji circle and picking from the picker's search
   results all work on the first tap and keep the keyboard up.
 
+## Complete — Plan 10: emoji suggestions
+
+Plan: `docs/superpowers/plans/2026-10-02-10-emoji-suggestions.md` (Tasks 1-11). Per-task ledger: git-ignored
+`.superpowers/sdd/2026-10-02-10-emoji-suggestions/` in the working checkout (briefs, reports, `progress.md`).
+Earlier tasks of this plan did not update STATUS; this section covers the whole plan.
+
+Commits (`git log --oneline dc61933..HEAD`, oldest first, then the Task 11 commit):
+
+| Commit | Subject |
+|---|---|
+| `8072bb1` | feat(web): bundle transformers.js in a module worker and smoke-test it |
+| `55042f4` | feat(web): fetch and verify the emoji model at build time, serve it from a versioned path |
+| `839bd5f` | feat(web): build the emoji search index from the catalog and test the search math |
+| `5687d81` | feat(web): emoji worker that loads the model and ranks the catalog |
+| `3d3444d` | fix(web): close the emoji worker's opt-in gaps |
+| `d463d52` | feat(web): emoji engine controller with opt-in download and the spec's failure handling |
+| `07ffc5b` | fix(web): stop counting interrupted emoji downloads as crashes |
+| `4d81586` | feat(web): provide the emoji engine and Me settings to the app |
+| `3e9f260` | feat(web): Me section to download and remove emoji suggestions |
+| `967a238` | fix(web): quieter progress announcements for emoji download |
+| `c20736f` | feat(web): fill a new task's emoji from its title while the person has not picked one |
+| `07ab52f` | test(web): make the auto-emoji sheet tests deterministic |
+| `c7895d4` | feat(web): late emoji picks for tasks saved before the model is ready |
+| `39b736c` | feat(web): evaluation script for emoji suggestions and the auto-pick exclusion gate |
+| (Task 11) | test(web): cover emoji suggestions end to end; CI fetches the model; update status, README and spec |
+
+What shipped:
+
+- **Opt-in (owner decision 2026-10-02):** nothing downloads unless the person presses Download in the
+  "Emoji suggestions" section on Me (Cancel while downloading, Remove download when ready, Try again after a
+  failure; an update is shown only there). A device that has not opted in behaves as in Plan 9 (engine status
+  `off`, no worker, no request for a model file). Only a device that already downloaded the model loads it, from
+  its stored copy, on the New task sheet or 5 s after the first sync. The worker never touches the network unless
+  `init` carries `allowNetwork` (only the Download, Update and Try again buttons), and a guard around its `fetch`
+  blocks `/assets/emoji/` otherwise.
+- Model delivery: `@huggingface/transformers` 4.3.0 (exact) is imported only by `src/features/emoji/worker.ts`
+  (a module worker; Vite `worker.format: "es"` plus `build-plugins/no-ort-default-wasm.ts`, which keeps ORT's
+  26.9 MB default wasm out of the build). The model files are **not in git**: `apps/web/emoji-assets.json` pins
+  `Xenova/bge-small-en-v1.5` at revision `ea104dacec62c0de699686887e3f920caeb4f3e3` with SHA-256s;
+  `pnpm --filter @tagteam/web emoji:assets` (`-- --update` re-pins) downloads and verifies them and copies the ORT
+  wasm from `node_modules` into `apps/web/public/assets/emoji/<version>/` (git-ignored; the version hashes the file
+  checksums, currently `db5f70d71a67`). The Dockerfile runs it in its own layer after `pnpm install`
+  (`--build-arg SKIP_EMOJI_MODEL=1` builds without it); CI's `e2e` job runs it, then the worker smoke test
+  (`smoke:emoji-worker`, model required), then the Playwright suite. The server answers 404 for a missing
+  `/assets/` file. On Download the worker fetches the six files itself (one request each, with progress) into the
+  Cache API; progress `loaded` starts from the sizes of files already stored.
+- Index: `search.ts` (sign-bit Hamming shortlist of 40, int8 re-rank), `index/{bits.bin,int8.bin,index.json}` built
+  by `pnpm --filter @tagteam/web emoji:index` from `catalog.json` (a test fails if the catalog or the model files
+  change without a rebuild), delivered as hashed assets and precached with the `bin` glob.
+- Engine: `controller.ts` implements the spec §7 failure table (tests with a `FakeWorker`); persisted state in
+  `localStorage` (`tagteam.emoji.optedIn|installed|autoOff|state`); `EmojiEngineHost` provides the engine, the Me
+  settings, the warm-up and `LatePicks`. A stored copy of an older asset version is never used ("An update is
+  available." on Me only). Failure kind `load` (including a failed fetch of the index files) keeps the download;
+  only `corrupt` deletes it. For a user download the crash marker is written only once all bytes have arrived, so a
+  closed tab or an iOS page discard mid-download never counts as a strike.
+- Me section: states "Emoji suggestions are off." / "Downloading…" (bar and percentage) / "Getting emoji
+  suggestions ready…" / "Emoji suggestions are on" / failure sentences with Try again / "An update is available.";
+  the live region announces the state only, the percentage is `aria-hidden`, the progressbar carries the value.
+- Sheet and tasks: automatic emoji (300 ms, 3+ characters, never Edit, never colour, stale results dropped);
+  device-local awaiting list in Dexie `meta` (`awaitingEmoji`) for tasks created without an emoji (sheet or accepted
+  suggestion) while the engine status is not `off`; late picks one at a time, one attempt, emoji only, after a
+  successful sync.
+- Evaluation: `pnpm --filter @tagteam/web emoji:eval` on 79 labelled titles (`scripts/emoji-eval-titles.json`),
+  first pick right / in the top 3: full precision 45 (57%) / 62 (78%); sign bits only 35 (44%) / 59 (75%);
+  **shipped (bits shortlist + int8 re-rank) 46 (58%) / 62 (78%)**; shipped with the auto-pick exclusion 45 (57%) /
+  62 (78%). The exclusion (flags, symbols, clock faces) is **rejected** (46 to 45): `AUTO_PICK_EXCLUSION` is `false`.
+- Checks (Task 11, 2026-10-02): `pnpm test`, `pnpm typecheck`, format, lint, the worker smoke test and the
+  Playwright suite (WebKit `iphone` and `chromium`, 18 tests: `app`, `suggestions`, `task-look` and six emoji specs,
+  with the real model) passed. The emoji e2e specs prove "nothing is requested or started until Download" with a
+  controlled clock (no sleeps) and "works from the stored copy" by reloading with `/assets/emoji/**` blocked.
+  The spec and README are amended. Not run by the implementer of Task 11: the 375 x 812 light and dark visual check
+  and the iOS Simulator check (the controller records them), `docker build`, GitHub Actions, `actionlint`.
+- Not verified: a real iPhone (speed, memory, eviction over days), the installed-app `persist()` grant, the Docker
+  build, GitHub Actions.
+
+Follow-ups and owner questions:
+
+1. Wi-Fi-only download option: out of scope now; connection-type APIs are unreliable on iOS Safari. The helper
+   text only says "Wi-Fi is best".
+2. A future in-app tutorial may offer the emoji download option (today it lives only on Me).
+3. **Owner question:** when the title is cleared or the engine returns nothing, the auto-filled emoji stays (the
+   spec says leave it alone). Should it fall back to the clipboard?
+4. **Owner question:** the awaiting-emoji list is not cleared when the person removes the download or turns
+   suggestions off, so tasks created while opted in but not ready are late-picked after a later re-Download.
+   Should Remove clear it?
+5. Accuracy: 58% first pick, 78% in the top 3 on 79 labelled titles (33 first picks wrong). Weak spots: cleaning
+   verbs drift to shower, bath or broom ("Wash the car" gives a shower) and activity nouns ("Pay rent" gives a
+   convenience store, "Bake bread" a sandwich). The full wrong-pick list is in the plan workspace
+   (`.superpowers/sdd/2026-10-02-10-emoji-suggestions/task-10-report.md`). Ideas: extra keywords on catalogue
+   entries, a hand-curated override list.
+6. Test debt (known, not fixed): real fixed-sleep negative assertions in `AddTaskSheet.auto-emoji.test.tsx`,
+   `TodayScreen.accept-emoji.test.tsx` and `LatePicks.test.tsx` (false-green risk, not flake); `eval-emoji.mjs`
+   checks only the index count (not `catalogSha256` or the model revision) and gives no friendly message when the
+   model files are missing; the shared `norm()` has no direct test; nothing pins `AUTO_PICK_EXCLUSION === false`.
+7. Known flakiness from Plan 9 (a single unexplained `AddTaskSheet` test failure that passed on rerun) still
+   applies.
+8. Dev-server note: on first use the Vite dev server may reload the page (dependency optimisation) mid-download;
+   an interrupted download simply returns to "off" with no strike. Production builds are unaffected.
+9. If Hugging Face rate-limits CI, add an `actions/cache` step for `apps/web/public/assets/emoji` in the `e2e` job.
+
 ## Next plans
 
-- **Plan 10: emoji suggestions** — not written. Spec
-  `docs/superpowers/specs/2026-10-01-task-look-and-emoji-design.md` (§7 engine, §9 assets, §6 emoji
-  behaviour, §11 evaluation): on-device `bge-small-en-v1.5` in a Web Worker, automatic emoji for new
-  tasks only, late picks, failure handling. The spike (2026-10-01) measured the model; numbers are in
-  the spec §7 and §9, its code is not in the repo and Plan 10 rebuilds the evaluation script.
-  Carry-over notes from Plan 9 (also at the end of the plan file):
-  - Seam: `features/emoji/engine.ts` (`EmojiEngine`, `EmojiEngineProvider`, `useEmojiEngine`).
-    Provide a real engine from `SessionGate`/`SignedIn` and hand out a new object whenever its status
-    changes (the picker re-reads through context, there is no subscribe API). The picker already
-    calls `engine.suggest(title)` (up to 3, titles of 3+ characters, only while `ready`) and
-    `engine.search(q)` (appended after keyword matches).
-  - The sheet does not auto-fill yet. Plan 10 adds the 300 ms debounce, the stale-result drop, and
-    uses `draft.emojiChosen` (set on pick, typed or "Use default", kept through dismissal) so a
-    hand-picked emoji is never overwritten. Edit mode must never auto-fill (`taskDraft` sets
-    `emojiChosen` from the stored emoji; Plan 10 must still skip editing explicitly).
-  - The catalog is the index's key: `apps/web/src/features/emoji/catalog.json` (1,794 entries, CLDR
-    order). `bits.bin`/`int8.bin` must be built from this exact file and order; rebuilding the
-    catalog invalidates them. Spec §9 says the catalog is served from `/assets/emoji/{version}/`;
-    Plan 9 ships it as a hashed JS chunk instead.
-  - Emoji identity: the catalog spells the clipboard U+1F4CB U+FE0F, `DEFAULT_EMOJI` is bare
-    U+1F4CB; compare through `emojiKey()`. Any suggested or picked emoji must pass `isEmoji` before a
-    mutation is enqueued.
-  - The device-local "awaiting emoji" list (spec §6 late pick) is not started: it belongs in the web
-    store's device metadata (`MetaKey` in `src/store/db.ts`), never synced. Tasks created by Plan 9
-    without an emoji are on no list, so none is late-picked until Plan 10 lists them.
+- **Later (owner, 2026-10-02):** an in-app tutorial for using the app, which can include the emoji suggestions
+  download option that today lives only on Me.
+- Open items from Plan 9 that are still open:
   - Without `Intl.Segmenter` (Firefox before 125) the client skips the grapheme-count check; the
     server always checks, so a two-emoji paste in the typed field is rejected by the server there.
     A client-side guard is optional.
@@ -208,8 +287,7 @@ follow-ups below). Per-task ledger (rulings, review findings): git-ignored
     the installed-PWA `persist()` grant for TagTeam itself, and eviction over days.
   - Open from review: `useKeepKeyboardTaps` ignores taps held longer than 700 ms, so a slow tap with
     the keyboard open still loses the tap; consider raising or dropping that cutoff.
-  - Out of scope (spec §13): subtasks, goals, tags, automatic colour, notes in the sheet, per-task
-    reminder row, custom emoji, skin tones.
+- Out of scope (spec §13): subtasks, goals, tags, automatic colour, notes in the sheet, per-task reminder row, custom emoji, skin tones, non-English suggestion quality, multi-threaded inference.
 
 ## Considered and dropped
 
@@ -259,6 +337,23 @@ follow-ups below). Per-task ledger (rulings, review findings): git-ignored
   loser's client re-pulls. After sending a suggestion the New task sheet resets to "Me". History and
   task detail say "Suggested by you" when the viewer is the suggester. Better Auth user ids are not
   UUIDs, so `toUserId` is validated as a bounded non-empty string.
+- Emoji suggestions are opt-in (Me → Download); the model is fetched at build time, never committed; the folder name
+  is a hash of every model and runtime file checksum, so a new model is a new immutable URL and a revision bump with
+  identical files changes nothing. The engine's persisted state is in `localStorage` (synchronous, survives a crash,
+  not cleared by sign-out); the awaiting-emoji list is in Dexie `meta`. The auto-pick exclusion list exists but is off
+  (`AUTO_PICK_EXCLUSION`) because the evaluation did not allow it. The picker's "Suggested" row and search are never
+  filtered. A late pick stamps `Date.now()` and only runs after a successful sync. An older download is never used by a
+  newer build.
+
+## Notes for the owner
+
+- Emoji suggestions are opt-in on Me (your 2026-10-02 decision); a later in-app tutorial can include the download
+  option. The download is about 49 MB from your own server, on whatever network the device is on (the helper text
+  says Wi-Fi is best; there is no Wi-Fi-only check). An update to the model shows only on Me. Questions on the
+  auto-filled emoji staying after the title is cleared, and on Remove download and the awaiting list, are in the
+  Plan 10 follow-ups above.
+- The active group is visible only on Me (owner's request, 7bb5050), so a user in several groups cannot see which
+  group Today and Team show. Team's Nudge button is 40 px tall, under the 44 px tap-target rule (pre-existing).
 
 ## Remaining follow-ups
 
@@ -269,3 +364,5 @@ follow-ups below). Per-task ledger (rulings, review findings): git-ignored
 - Suggestion pushes have no per-sender throttle (the cap counts only pending suggestions; acceptable
   for small trusted groups).
 - Suggestion rows are never pruned, so pulls carry the full history between pairs.
+- Emoji suggestions: check on a real iPhone (speed, memory, eviction over days); the stored model can be evicted by
+  the browser, in which case Me offers Download again.

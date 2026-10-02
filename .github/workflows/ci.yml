@@ -39,7 +39,13 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Fetch the emoji model
+        run: pnpm --filter @tagteam/web emoji:assets
       - run: pnpm --filter @tagteam/web exec playwright install --with-deps chromium webkit
+      - name: Emoji worker smoke test
+        run: pnpm --filter @tagteam/web smoke:emoji-worker
+        env:
+          EMOJI_SMOKE_REQUIRE_MODEL: "1"
       - run: pnpm --filter @tagteam/web e2e
       - uses: actions/upload-artifact@v7
         if: failure()
