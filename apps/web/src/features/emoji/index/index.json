@@ -1,0 +1,11 @@
+{
+	"count": 1794,
+	"dim": 384,
+	"shortlist": 40,
+	"int8Scale": 291.89562697640633,
+	"catalogSha256": "a6705eb14b1e529d41ddb752c0fb1b6a63f0dc2281eac204abcfe93283771cd3",
+	"modelId": "Xenova/bge-small-en-v1.5",
+	"modelFilesDigest": "080def9216e3db03431b08399663c9e1655a7334feec997b5cddf0909a929d30",
+	"modelRevision": "ea104dacec62c0de699686887e3f920caeb4f3e3",
+	"docText": "name: keywords"
+}
