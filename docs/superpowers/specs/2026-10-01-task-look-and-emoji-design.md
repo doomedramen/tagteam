@@ -224,15 +224,20 @@ adds meaning-based matches after them. Off-screen groups are not rendered until 
 
 ### Today, task detail, suggestions
 
-- **Today row.** A 36 px emoji circle sits between the complete circle and the title. It is
-  decorative and not a separate tap target. A task without a stored emoji shows the default
-  emoji, so rows stay aligned. With a colour, the circle has a pale `sheet` fill and a 2 px
-  `ring` border; without one it is neutral (`surface-2`, no border). Decided by the owner on
-  2026-10-02 after a strong `swatch` fill made emoji hard to see, especially in dark mode.
+- **Today tiles.** Each task on Today is its own rounded tile (about 22 px radius), separated
+  from the next by a 10–12 px gap, with no divider lines and no shared card. Left to right: the
+  emoji (bare, no circle; the default 📋 when none is stored), the title with its meta line,
+  the repeat icon when it recurs, and the completion checkmark on the right. A coloured task's
+  tile is filled with `sheet` in light mode and `card` in dark mode (the dark `sheet` is almost
+  the page colour); a colourless task's tile uses the neutral card surface. Swipe right to
+  complete still works and its reveal is clipped to the tile. Decided by the owner on
+  2026-10-02 (reference: a habit app's routine list): two circles side by side — the
+  checkbox and an emoji circle — read as two checkboxes, so the colour moved to the tile and
+  the checkmark to the right. This replaces an earlier same-day choice of a ringed emoji circle.
 - **Task detail.** The screen carries `data-task-color`: `sheet` background, `card` surfaces, the
   emoji circle (`card` fill) above the title. Small icon circles inside cards use `sheet`, never
   `swatch`, so `--text-3` icons stay readable.
-- **Suggestion cards.** The emoji shows beside the title, in the same circle as a Today row. Accepting copies emoji and colour.
+- **Suggestion cards.** The emoji shows beside the title, bare as on Today. Accepting copies emoji and colour.
 
 History is unchanged.
 
