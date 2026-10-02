@@ -275,6 +275,24 @@ describe("AddTaskSheet", () => {
 			);
 		});
 
+		it("shows the emoji bare, without a background, and the button still opens the picker", async () => {
+			renderWithSession(<AddTaskSheet open onClose={vi.fn()} />);
+			const button = screen.getByRole("button", {
+				name: "Emoji: clipboard, default, change",
+			});
+			const glyph = button.querySelector<HTMLElement>(
+				'[data-slot="task-emoji"]',
+			);
+			expect(glyph).toHaveTextContent(DEFAULT_EMOJI);
+			for (const name of Array.from(glyph?.classList ?? [])) {
+				expect(name).not.toMatch(/^(bg-|border|rounded|ring)/);
+			}
+			await userEvent.click(button);
+			expect(
+				await screen.findByRole("dialog", { name: "Choose emoji" }),
+			).toBeInTheDocument();
+		});
+
 		it("opens the picker from the emoji circle and keeps a hand-picked emoji", async () => {
 			const engine = fakeEngine();
 			renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, { engine });

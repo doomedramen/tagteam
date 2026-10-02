@@ -339,7 +339,7 @@ export function AddTaskSheet({
 					aria-label={`Emoji: ${emojiLabel}, change`}
 					aria-haspopup="dialog"
 					onClick={() => setPickerOpen(true)}
-					className="mx-auto block rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-task-ring"
+					className="mx-auto block rounded-3xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-task-ring motion-safe:transition-transform motion-safe:active:scale-95"
 				>
 					<TaskEmoji emoji={draft.emoji} size="sheet" />
 				</button>

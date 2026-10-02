@@ -39,20 +39,25 @@ describe("TaskEmoji", () => {
 		}
 	});
 
-	it("is a circle of the requested size on tinted surfaces", () => {
-		const sheet = render(<TaskEmoji emoji={null} size="sheet" />);
-		expect(circle(sheet.container)).toHaveClass("size-15", "rounded-full");
-		const detail = render(<TaskEmoji emoji={null} size="detail" />);
-		expect(circle(detail.container)).toHaveClass("size-16", "rounded-full");
+	it("is a large bare glyph in an 80 px box on the sheet, with no background or circle", () => {
+		const { container } = render(<TaskEmoji emoji={null} size="sheet" />);
+		const element = circle(container);
+		expect(element).toHaveClass("size-20", "text-[64px]", "leading-none");
+		for (const name of Array.from(element.classList)) {
+			expect(name).not.toMatch(/^(bg-|border|rounded|ring)/);
+		}
 	});
 
-	it("uses the card color on tinted surfaces, without a ring", () => {
-		for (const size of ["sheet", "detail"] as const) {
-			const { container } = render(<TaskEmoji emoji={null} size={size} />);
-			const element = circle(container);
-			expect(element).toHaveClass("bg-task-card");
-			expect(element).not.toHaveClass("border-2");
-			expect(element).not.toHaveClass("bg-task-swatch");
-		}
+	it("is a card-colored circle on the task detail", () => {
+		const { container } = render(<TaskEmoji emoji={null} size="detail" />);
+		const element = circle(container);
+		expect(element).toHaveClass(
+			"size-16",
+			"rounded-full",
+			"bg-task-card",
+			"text-[32px]",
+		);
+		expect(element).not.toHaveClass("border-2");
+		expect(element).not.toHaveClass("bg-task-swatch");
 	});
 });

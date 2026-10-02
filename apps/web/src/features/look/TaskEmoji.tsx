@@ -3,7 +3,7 @@ import { cx } from "../../lib/cx";
 
 const SIZES = {
 	bare: "h-9 w-9 text-[28px]",
-	sheet: "size-15 rounded-full bg-task-card text-[30px]",
+	sheet: "size-20 text-[64px] leading-none",
 	detail: "size-16 rounded-full bg-task-card text-[32px]",
 } as const;
 
@@ -14,7 +14,8 @@ export type TaskEmojiSize = keyof typeof SIZES;
  * It carries no accessible name: the control around it (or the row's title) does.
  * - `bare`: Today tiles and suggestion cards. The glyph alone in a 36 px wide slot, with no
  *   fill, ring or hue of its own (the colour lives on the Today tile around it).
- * - `sheet` and `detail`: a round holder that sits on a tinted surface and inherits its hue,
+ * - `sheet`: the hero glyph on the task sheet, 64 px in an 80 px box with no fill or circle.
+ * - `detail`: a round holder that sits on a tinted surface and inherits its hue,
  *   so the circle takes the `task-card` colour with no ring.
  */
 export function TaskEmoji({
