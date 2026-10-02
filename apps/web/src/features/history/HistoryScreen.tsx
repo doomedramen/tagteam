@@ -100,7 +100,7 @@ function MemberFilter({
 				value={value}
 				onChange={(event) => onChange(event.target.value)}
 			>
-				<NativeSelectOption value="all">All members</NativeSelectOption>
+				<NativeSelectOption value="all">Everyone</NativeSelectOption>
 				{[...members]
 					.sort((a, b) => a.displayName.localeCompare(b.displayName))
 					.map((member) => (

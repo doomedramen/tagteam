@@ -1,5 +1,5 @@
 import type { MemberDto, TaskDto } from "@tagteam/core";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { TagTeamDb } from "../../store/db";
 import { renderWithSession } from "../../test/fakes";
@@ -97,5 +97,16 @@ describe("HistoryScreen member filter", () => {
 		const select = await screen.findByLabelText("Member");
 		expect(select).toHaveClass("pr-7");
 		expect(select).not.toHaveClass("px-0");
+	});
+
+	it("labels the default option Everyone so it fits the field", async () => {
+		renderWithSession(<HistoryScreen />, { store });
+		const select = await screen.findByLabelText("Member");
+		expect(
+			within(select).getByRole("option", { name: "Everyone" }),
+		).toHaveValue("all");
+		expect(
+			within(select).queryByRole("option", { name: "All members" }),
+		).toBeNull();
 	});
 });
