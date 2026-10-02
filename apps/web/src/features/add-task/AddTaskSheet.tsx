@@ -617,7 +617,7 @@ export function AddTaskSheet({
 						id={`${formId}-due`}
 						icon={<Clock />}
 						label="Due by"
-						value={draft.dueTime ?? "No time"}
+						value={draft.dueTime || "No time"}
 						open={openRow === "due"}
 						onToggle={() => toggleRow("due")}
 					>

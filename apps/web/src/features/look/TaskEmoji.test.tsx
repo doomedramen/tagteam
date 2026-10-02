@@ -32,7 +32,7 @@ describe("TaskEmoji", () => {
 	it("is a bare glyph in a 36 px slot, with no fill, ring or hue", () => {
 		const { container } = render(<TaskEmoji emoji={null} size="bare" />);
 		const element = circle(container);
-		expect(element).toHaveClass("h-9", "w-9", "text-[28px]");
+		expect(element).toHaveClass("h-9", "w-9", "text-[28px]", "overflow-hidden");
 		expect(element).not.toHaveAttribute("data-task-color");
 		for (const name of Array.from(element.classList)) {
 			expect(name).not.toMatch(/^(bg-|border|rounded|ring)/);

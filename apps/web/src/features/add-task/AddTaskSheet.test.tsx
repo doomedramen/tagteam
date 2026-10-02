@@ -112,6 +112,7 @@ describe("AddTaskSheet", () => {
 		await userEvent.click(row(/^Due by/));
 		await userEvent.click(screen.getByRole("button", { name: "Add time" }));
 		await userEvent.clear(screen.getByLabelText("Due by"));
+		expect(row(/^Due by/)).toHaveTextContent("No time");
 		await userEvent.click(create());
 		expect(screen.getByText("Enter a time like 08:00")).toBeInTheDocument();
 		expect(engine.enqueue).not.toHaveBeenCalled();

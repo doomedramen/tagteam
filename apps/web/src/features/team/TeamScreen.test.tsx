@@ -56,6 +56,21 @@ describe("TeamScreen full-width rows", () => {
 	});
 });
 
+describe("TeamScreen empty member", () => {
+	it("insets the no-tasks message like the rows", async () => {
+		const user = userEvent.setup();
+		await store.tasks.clear();
+		renderWithSession(<TeamScreen />, { store });
+		const toggle = (
+			await screen.findAllByRole("button", { expanded: false })
+		)[0];
+		if (!toggle) throw new Error("no member row");
+		await user.click(toggle);
+		expect(await screen.findAllByText("No tasks to show.")).not.toHaveLength(0);
+		expect(screen.getAllByText("No tasks to show.")[0]).toHaveClass("px-4");
+	});
+});
+
 describe("TeamScreen page header", () => {
 	it("paints the title block and Invite button in the app-colour band", async () => {
 		renderWithSession(<TeamScreen />, { store });

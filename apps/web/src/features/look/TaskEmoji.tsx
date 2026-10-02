@@ -2,7 +2,7 @@ import { DEFAULT_EMOJI } from "@tagteam/core";
 import { cx } from "../../lib/cx";
 
 const SIZES = {
-	bare: "h-9 w-9 text-[28px]",
+	bare: "h-9 w-9 overflow-hidden text-[28px]",
 	sheet: "size-20 text-[64px] leading-none",
 	detail: "size-16 rounded-full bg-task-card text-[32px]",
 } as const;

@@ -21,7 +21,7 @@ describe("the emoji engine seam", () => {
 		const ready: EmojiEngine = {
 			status: "ready",
 			suggest: async () => ["\u{1F9FC}"],
-			search: async () => ["\u{1F37D}️"],
+			search: async () => ["\u{1F37D}\uFE0F"],
 		};
 		const { result } = renderHook(() => useEmojiEngine(), {
 			wrapper: ({ children }: { children: ReactNode }) => (

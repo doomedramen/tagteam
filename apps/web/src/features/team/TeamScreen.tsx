@@ -322,7 +322,7 @@ export function TeamScreen() {
 												);
 											})
 										) : (
-											<p className="py-4 text-[14px] text-text-2">
+											<p className="px-4 py-4 text-[14px] text-text-2">
 												No tasks to show.
 											</p>
 										)}

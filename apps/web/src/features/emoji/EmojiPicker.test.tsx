@@ -169,6 +169,11 @@ describe("EmojiPicker", () => {
 		await waitFor(() =>
 			expect(screen.queryByText("Loading emoji")).not.toBeInTheDocument(),
 		);
+		expect(
+			screen.getByText(
+				"Could not load the emoji list. You can still type one below.",
+			),
+		).toBeInTheDocument();
 		expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
 		expect(
 			screen.queryByRole("heading", { name: "Objects" }),
@@ -178,6 +183,40 @@ describe("EmojiPicker", () => {
 			"\u{1F9FA}",
 		);
 		expect(onPick).toHaveBeenCalledWith(BASKET);
+	});
+
+	it("retries the catalog when the picker is opened again after a failed load", async () => {
+		const loader = vi
+			.fn<() => Promise<EmojiEntry[]>>()
+			.mockRejectedValueOnce(new Error("offline"))
+			.mockResolvedValue(fixture);
+		const element = (open: boolean) => (
+			<EmojiPicker
+				open={open}
+				onClose={vi.fn()}
+				onPick={vi.fn()}
+				value={null}
+				title=""
+				load={loader}
+			/>
+		);
+		const view = render(element(true));
+		expect(
+			await screen.findByText(
+				"Could not load the emoji list. You can still type one below.",
+			),
+		).toBeInTheDocument();
+		view.rerender(element(false));
+		view.rerender(element(true));
+		expect(
+			await screen.findByRole("heading", { name: "Objects" }),
+		).toBeInTheDocument();
+		expect(
+			screen.queryByText(
+				"Could not load the emoji list. You can still type one below.",
+			),
+		).not.toBeInTheDocument();
+		expect(loader).toHaveBeenCalledTimes(2);
 	});
 
 	it("does not render a group's emoji until it is near the viewport", async () => {

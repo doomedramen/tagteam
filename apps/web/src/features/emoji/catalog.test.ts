@@ -14,10 +14,10 @@ import {
 const DOG_FACE = "\u{1F436}";
 const DOG = "\u{1F415}";
 const BASKET = "\u{1F9FA}";
-const PLATE = "\u{1F37D}️"; // fork and knife with plate
+const PLATE = "\u{1F37D}\uFE0F"; // fork and knife with plate
 const PLANT = "\u{1FAB4}";
 // "technologist: medium skin tone". Skin tones are collapsed onto the base emoji, so the catalog does not list it.
-const TECHNOLOGIST_MEDIUM = "\u{1F9D1}\u{1F3FD}‍\u{1F4BB}";
+const TECHNOLOGIST_MEDIUM = "\u{1F9D1}\u{1F3FD}\u200D\u{1F4BB}";
 
 const fixture: EmojiEntry[] = [
 	{
@@ -103,7 +103,7 @@ describe("groupEntries and groupLabel", () => {
 
 describe("emojiKey", () => {
 	it("ignores the emoji presentation selector", () => {
-		expect(emojiKey(`${DEFAULT_EMOJI}️`)).toBe(emojiKey(DEFAULT_EMOJI));
+		expect(emojiKey(`${DEFAULT_EMOJI}\uFE0F`)).toBe(emojiKey(DEFAULT_EMOJI));
 		expect(emojiKey(PLATE)).toBe("\u{1F37D}");
 	});
 });
@@ -134,6 +134,24 @@ describe("the committed catalog", () => {
 			(entry) => emojiKey(entry.e) === emojiKey(DEFAULT_EMOJI),
 		);
 		expect(clipboard?.n).toBe(DEFAULT_EMOJI_NAME);
+	});
+
+	it("finds a flag by its upper-case country code", async () => {
+		const entries = await loadCatalog();
+		expect(names(searchEmoji(entries, "gb"))).toContain("flag: United Kingdom");
+		expect(names(searchEmoji(entries, "GB"))).toContain("flag: United Kingdom");
+	});
+
+	it("finds an emoji by a hyphenated keyword typed as separate words", async () => {
+		const entries = await loadCatalog();
+		const found = names(searchEmoji(entries, "stuck out"));
+		expect(found).toContain("face with tongue");
+	});
+
+	it("still ranks a name match above a keyword match", async () => {
+		const entries = await loadCatalog();
+		const hits = searchEmoji(entries, "plant");
+		expect(hits[0]?.n).toBe("potted plant");
 	});
 
 	it("finds emoji by name and by keyword", async () => {

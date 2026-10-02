@@ -162,6 +162,10 @@ export function EmojiPicker({
 	const meaningPending = wantsMeaning && !meaningAnswer;
 
 	useEffect(() => {
+		if (open) setFailed(false);
+	}, [open]);
+
+	useEffect(() => {
 		if (!open || catalog || failed) return;
 		let current = true;
 		load()
@@ -257,7 +261,13 @@ export function EmojiPicker({
 				Loading emoji
 			</p>
 		);
-	} else if (catalog && q !== "") {
+	} else if (!catalog) {
+		body = (
+			<p role="status" className="text-[13px] text-text-2">
+				Could not load the emoji list. You can still type one below.
+			</p>
+		);
+	} else if (q !== "") {
 		body =
 			results.length > 0 ? (
 				<div className="grid grid-cols-7 justify-items-center">
@@ -274,7 +284,7 @@ export function EmojiPicker({
 			) : meaningPending ? null : (
 				<p className="text-[14px] text-text-2">No emoji match "{q}".</p>
 			);
-	} else if (catalog) {
+	} else {
 		body = (
 			<div className="flex flex-col gap-3">
 				{groups.map((group) => (

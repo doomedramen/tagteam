@@ -17,11 +17,14 @@ export interface EmojiGroup {
 	entries: EmojiEntry[];
 }
 
+const EMOJI_PRESENTATION_SELECTOR = "\uFE0F";
+
 /**
  * Emoji compare equal whatever their emoji-presentation selector: the catalog spells the
  * clipboard with U+FE0F and the stored default does not.
  */
-export const emojiKey = (emoji: string): string => emoji.replaceAll("️", "");
+export const emojiKey = (emoji: string): string =>
+	emoji.replaceAll(EMOJI_PRESENTATION_SELECTOR, "");
 
 let loading: Promise<EmojiEntry[]> | null = null;
 
@@ -58,6 +61,7 @@ export function searchEmoji(
 	const scored: { entry: EmojiEntry; score: number; index: number }[] = [];
 	entries.forEach((entry, index) => {
 		const nameWords = wordsOf(entry.n);
+		const tagWords = entry.t.flatMap(wordsOf);
 		let total = 0;
 		for (const word of words) {
 			let best = 0;
@@ -65,7 +69,7 @@ export function searchEmoji(
 				if (nameWord === word) best = Math.max(best, 4);
 				else if (nameWord.startsWith(word)) best = Math.max(best, 3);
 			}
-			for (const tag of entry.t) {
+			for (const tag of tagWords) {
 				if (tag === word) best = Math.max(best, 3);
 				else if (tag.startsWith(word)) best = Math.max(best, 2);
 			}
