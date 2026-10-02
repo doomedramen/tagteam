@@ -41,6 +41,7 @@ import { Button } from "../../ui/Button";
 import { Sheet } from "../../ui/Sheet";
 import { Spinner } from "../../ui/Spinner";
 import { useToast } from "../../ui/Toast";
+import { addAwaitingEmoji } from "../emoji/awaiting";
 import { useEmojiName } from "../emoji/catalog";
 import { EmojiPicker } from "../emoji/EmojiPicker";
 import { useEmojiEngine } from "../emoji/engine";
@@ -277,13 +278,20 @@ export function AddTaskSheet({
 					message: `Suggested to ${recipient.displayName} · ${draft.title.trim()}`,
 				});
 			} else {
-				await engine.enqueue(
-					draftMutation(draft, {
-						groupId: activeGroupId as string,
-						timezone: browserTimeZone(),
-						at: Date.now(),
-					}),
-				);
+				const created = draftMutation(draft, {
+					groupId: activeGroupId as string,
+					timezone: browserTimeZone(),
+					at: Date.now(),
+				});
+				await engine.enqueue(created);
+				// No stored emoji yet: once the engine is ready this device picks one (spec §6).
+				// Skipped when the person has switched suggestions off on this device.
+				if (
+					created.type === "task.create" &&
+					(created.emoji ?? null) === null &&
+					emojiEngine.status !== "off"
+				)
+					void addAwaitingEmoji(store, created.taskId).catch(() => {});
 				toast.show({ message: `Added · ${draft.title.trim()}` });
 			}
 			if (!task) {

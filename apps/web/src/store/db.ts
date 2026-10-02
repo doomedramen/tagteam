@@ -17,7 +17,8 @@ export type MetaKey =
 	| "cursor"
 	| "me"
 	| "activeGroupId"
-	| "pendingActiveGroupId";
+	| "pendingActiveGroupId"
+	| "awaitingEmoji";
 
 export interface MetaRow {
 	key: MetaKey;

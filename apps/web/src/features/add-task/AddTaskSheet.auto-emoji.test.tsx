@@ -10,8 +10,10 @@ import {
 	it,
 	vi,
 } from "vitest";
+import { TagTeamDb } from "../../store/db";
 import { fakeEmojiEngine } from "../../test/emoji";
 import { fakeEngine, fakeTask, renderWithSession } from "../../test/fakes";
+import { listAwaitingEmoji } from "../emoji/awaiting";
 import { loadCatalog } from "../emoji/catalog";
 import { type EmojiEngine, EmojiEngineProvider } from "../emoji/engine";
 import { AddTaskSheet } from "./AddTaskSheet";
@@ -354,5 +356,105 @@ describe("automatic emoji in the New task sheet", () => {
 		const closed = fakeEmojiEngine();
 		setup(closed, { open: false });
 		expect(closed.wake).not.toHaveBeenCalled();
+	});
+});
+
+describe("listing a new task for a late pick", () => {
+	const pause = (ms: number) =>
+		new Promise((resolve) => setTimeout(resolve, ms));
+	const renderWithStore = (emoji: EmojiEngine) => {
+		const store = new TagTeamDb(`test-${crypto.randomUUID()}`);
+		const sync = fakeEngine();
+		const view = renderWithSession(
+			<EmojiEngineProvider value={emoji}>
+				<AddTaskSheet open onClose={vi.fn()} />
+			</EmojiEngineProvider>,
+			{ store, engine: sync },
+		);
+		return { store, sync, view };
+	};
+	const created = (sync: ReturnType<typeof fakeEngine>) =>
+		sync.enqueue.mock.calls[0][0] as { taskId: string };
+
+	it("lists a task created with no stored emoji", async () => {
+		const { store, sync } = renderWithStore(
+			fakeEmojiEngine({
+				suggest: vi.fn(() => new Promise<string[]>(() => {})),
+			}),
+		);
+		await userEvent.type(title(), "Walk the dog");
+		await userEvent.click(screen.getByRole("button", { name: "Create" }));
+		await waitFor(() => expect(sync.enqueue).toHaveBeenCalledTimes(1));
+		await waitFor(async () =>
+			expect(await listAwaitingEmoji(store)).toEqual([created(sync).taskId]),
+		);
+	});
+
+	it("lists it while the engine is still loading or unavailable", async () => {
+		for (const status of ["loading", "unavailable"] as const) {
+			const { store, sync, view } = renderWithStore(
+				fakeEmojiEngine({ status }),
+			);
+			await userEvent.type(screen.getByLabelText("Task"), "Walk the dog");
+			await userEvent.click(screen.getByRole("button", { name: "Create" }));
+			await waitFor(() => expect(sync.enqueue).toHaveBeenCalledTimes(1));
+			await waitFor(async () =>
+				expect(await listAwaitingEmoji(store)).toHaveLength(1),
+			);
+			view.unmount();
+		}
+	});
+
+	it("does not list a task created with an emoji, automatic or by hand", async () => {
+		const auto = renderWithStore(
+			fakeEmojiEngine({ suggest: vi.fn(async () => [PLANT]) }),
+		);
+		await userEvent.type(title(), "Water the plants");
+		await waitFor(() =>
+			expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument(),
+		);
+		await userEvent.click(screen.getByRole("button", { name: "Create" }));
+		await waitFor(() => expect(auto.sync.enqueue).toHaveBeenCalledTimes(1));
+		await pause(50);
+		expect(await listAwaitingEmoji(auto.store)).toEqual([]);
+	});
+
+	it("does not list a task created with Use default, which is a stored emoji", async () => {
+		const { store, sync } = renderWithStore(fakeEmojiEngine());
+		await userEvent.type(title(), "Walk the dog");
+		await userEvent.click(emojiButton(/^Emoji:/));
+		await userEvent.click(
+			await screen.findByRole("button", { name: "Use default" }),
+		);
+		await userEvent.click(screen.getByRole("button", { name: "Create" }));
+		await waitFor(() => expect(sync.enqueue).toHaveBeenCalledTimes(1));
+		await pause(50);
+		expect(sync.enqueue.mock.calls[0][0]).toMatchObject({ emoji: "\u{1F4CB}" });
+		expect(await listAwaitingEmoji(store)).toEqual([]);
+	});
+
+	it("does not list a task when suggestions are switched off on this device", async () => {
+		const { store, sync } = renderWithStore(fakeEmojiEngine({ status: "off" }));
+		await userEvent.type(title(), "Walk the dog");
+		await userEvent.click(screen.getByRole("button", { name: "Create" }));
+		await waitFor(() => expect(sync.enqueue).toHaveBeenCalledTimes(1));
+		await pause(50);
+		expect(await listAwaitingEmoji(store)).toEqual([]);
+	});
+
+	it("does not list an edit", async () => {
+		const store = new TagTeamDb(`test-${crypto.randomUUID()}`);
+		const sync = fakeEngine();
+		renderWithSession(
+			<EmojiEngineProvider value={fakeEmojiEngine()}>
+				<AddTaskSheet open onClose={vi.fn()} task={fakeTask({ emoji: null })} />
+			</EmojiEngineProvider>,
+			{ store, engine: sync },
+		);
+		await userEvent.clear(title());
+		await userEvent.type(title(), "Brush your teeth");
+		await userEvent.click(screen.getByRole("button", { name: "Save" }));
+		await waitFor(() => expect(sync.enqueue).toHaveBeenCalled());
+		expect(await listAwaitingEmoji(store)).toEqual([]);
 	});
 });

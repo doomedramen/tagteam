@@ -7,6 +7,8 @@ import { browserTimeZone, dayBounds, localDate, useNow } from "../../lib/time";
 import { useSession } from "../../session/session";
 import { fireScreenConfettiCannon } from "../../ui/confetti";
 import { useToast } from "../../ui/Toast";
+import { addAwaitingEmoji } from "../emoji/awaiting";
+import { useEmojiEngine } from "../emoji/engine";
 import {
 	acceptStartDate,
 	incomingSuggestions,
@@ -21,6 +23,7 @@ const UPCOMING_KEY = "tagteam.showUpcoming";
 
 export function TodayScreen() {
 	const { store, engine, me, activeGroupId } = useSession();
+	const emojiEngine = useEmojiEngine();
 	const outlet = useOutletContext<{ openAdd?: () => void } | undefined>();
 	const toast = useToast();
 	const now = useNow();
@@ -147,6 +150,13 @@ export function TodayScreen() {
 		inFlight.current.add(key);
 		try {
 			await engine.enqueue(mutation);
+			// The accepted task has no emoji yet: once the engine is ready this device picks one.
+			if (
+				mutation.type === "suggestion.accept" &&
+				(suggestion.emoji ?? null) === null &&
+				emojiEngine.status !== "off"
+			)
+				void addAwaitingEmoji(store, mutation.taskId).catch(() => {});
 			toast.show({ message });
 		} catch {
 			toast.show({ message: "Could not update suggestion. Try again." });

@@ -10,6 +10,7 @@ import { useSession } from "../../session/session";
 import { getBrowserEmojiController } from "./browser-deps";
 import type { DownloadState, EmojiController } from "./controller";
 import { EmojiEngineProvider, type EmojiEngineStatus } from "./engine";
+import { LatePicks } from "./LatePicks";
 
 /** Loading an already-downloaded model starts this long after the first successful sync, so it never competes with it. */
 export const WARM_UP_DELAY_MS = 5_000;
@@ -96,6 +97,7 @@ export function EmojiEngineHost({
 		<EmojiEngineProvider value={snapshot.engine}>
 			<SettingsContext.Provider value={settings}>
 				<WarmUp controller={controller} />
+				<LatePicks />
 				{children}
 			</SettingsContext.Provider>
 		</EmojiEngineProvider>
