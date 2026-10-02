@@ -1,14 +1,14 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { AppShell } from "./AppShell";
-import { syncLabel } from "./SyncChip";
+import { SyncChip, syncLabel } from "./SyncChip";
 
 describe("AppShell", () => {
 	it("shows navigation with the current tab marked", () => {
 		render(
 			<MemoryRouter initialEntries={["/team"]}>
-				<AppShell title="Smiths" onAdd={vi.fn()}>
+				<AppShell onAdd={vi.fn()}>
 					<p>content</p>
 				</AppShell>
 			</MemoryRouter>,
@@ -30,13 +30,34 @@ describe("AppShell", () => {
 	it("paints the sticky top bar in the app colour", () => {
 		const { container } = render(
 			<MemoryRouter>
-				<AppShell title="Smiths">
+				<AppShell>
 					<p>content</p>
 				</AppShell>
 			</MemoryRouter>,
 		);
 		const bar = container.querySelector("header");
 		expect(bar).toHaveClass("sticky", "bg-header");
+	});
+});
+
+describe("AppShell top area", () => {
+	it("has no group switcher and holds the sync chip when work is pending", () => {
+		const { container } = render(
+			<MemoryRouter>
+				<AppShell
+					trailing={
+						<SyncChip status={{ state: "idle", pending: 2, lastSyncedAt: 1 }} />
+					}
+				>
+					<p>content</p>
+				</AppShell>
+			</MemoryRouter>,
+		);
+		const bar = container.querySelector("header") as HTMLElement;
+		expect(
+			within(bar).queryByRole("button", { name: /Switch group/ }),
+		).toBeNull();
+		expect(within(bar).getByText("Syncing")).toBeInTheDocument();
 	});
 });
 

@@ -61,8 +61,15 @@ test("sign up, create a group, add and complete tasks, keep working offline", as
 	await page.getByLabel("Group name").fill("E2E family");
 	await page.getByRole("button", { name: "Create group" }).click();
 
-	await expect(page.getByRole("button", { name: /E2E family/ })).toBeVisible();
 	await expect(page.getByText("Add your first task")).toBeVisible();
+	// The group switcher lives on Me, not in the top bar.
+	await page.getByRole("link", { name: "Me" }).click();
+	await expect(
+		page.getByRole("button", {
+			name: "Switch group. Current group: E2E family",
+		}),
+	).toBeVisible();
+	await page.getByRole("link", { name: "Today", exact: true }).click();
 
 	await page.getByRole("button", { name: "Add task" }).first().click();
 	const sheet = page.getByRole("dialog", { name: "New task", exact: true });
@@ -150,7 +157,9 @@ test("sign up, create a group, add and complete tasks, keep working offline", as
 	// Chromium covers offline reload; both engines cover offline mutations.
 	if (browserName === "chromium") await page.reload();
 	await page.emulateMedia({ colorScheme: "light" });
-	await expect(page.getByRole("button", { name: /E2E family/ })).toBeVisible();
+	await expect(
+		page.getByRole("link", { name: "Today", exact: true }),
+	).toBeVisible();
 
 	const completeButton = page.getByRole("button", {
 		name: "Complete Brush teeth",

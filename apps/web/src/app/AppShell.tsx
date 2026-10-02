@@ -31,13 +31,11 @@ function Tab({ to, label, icon: Icon, end }: (typeof TABS)[number]) {
 }
 
 export function AppShell({
-	title,
 	trailing,
 	banner,
 	onAdd,
 	children,
 }: {
-	title: ReactNode;
 	trailing?: ReactNode;
 	banner?: ReactNode;
 	onAdd?: () => void;
@@ -65,10 +63,10 @@ export function AppShell({
 						: "0px",
 				}}
 			>
-				<div className="flex min-h-14 items-center justify-between gap-3 px-4">
-					<div className="min-w-0 flex-1">{title}</div>
-					{trailing}
-				</div>
+				{/* Sits in the band's top padding, below the safe-area strip, clear of the page controls. */}
+				{trailing ? (
+					<div className="absolute top-full right-4 mt-0.5">{trailing}</div>
+				) : null}
 			</header>
 			{banner}
 			<main className="flex-1 px-4 pb-[calc(6rem+env(safe-area-inset-bottom))]">

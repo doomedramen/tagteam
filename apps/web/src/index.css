@@ -98,8 +98,8 @@
 	--input: var(--line);
 	--ring: var(--accent);
 	--radius: 0.75rem;
-	/* App colour of the page headers: the blue sheet (light) / blue card (dark). */
-	--header: var(--task-blue-sheet);
+	/* App colour of the page headers: the same surface as the navigation bar. */
+	--header: var(--surface);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -171,7 +171,7 @@
 		--task-purple-swatch: #61538b;
 		--task-purple-ring: #a392d6;
 		--task-purple-fg: #cec1fa;
-		--header: var(--task-blue-card);
+		--header: var(--surface);
 	}
 }
 

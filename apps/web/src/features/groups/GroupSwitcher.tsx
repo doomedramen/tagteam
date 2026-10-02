@@ -31,7 +31,7 @@ export function GroupSwitcher({
 				aria-haspopup="dialog"
 				aria-label={`Switch group. Current group: ${active?.name ?? "none"}`}
 				onClick={() => setOpen(true)}
-				className="-ml-2 min-h-11 max-w-full justify-start gap-1 rounded-xl px-2 text-[17px] font-semibold text-text hover:bg-surface-2"
+				className="min-h-12 w-full justify-between gap-2 rounded-2xl px-4 text-[16px] font-medium text-text hover:bg-surface-2 hover:text-text"
 			>
 				<span className="truncate">{active?.name}</span>
 				<ChevronDown aria-hidden className="size-4 shrink-0 text-text-2" />

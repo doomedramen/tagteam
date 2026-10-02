@@ -116,7 +116,12 @@ describe("HistoryScreen page header", () => {
 		renderWithSession(<HistoryScreen />, { store });
 		const heading = await screen.findByRole("heading", { name: "History" });
 		const header = heading.closest('[data-slot="page-header"]');
-		expect(header).toHaveClass("bg-header", "rounded-none");
+		expect(header).toHaveClass(
+			"bg-header",
+			"rounded-none",
+			"border-b",
+			"border-line",
+		);
 		expect(
 			screen.getByLabelText("Member").closest('[data-slot="page-header"]'),
 		).toBe(header);

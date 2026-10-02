@@ -1,6 +1,7 @@
 import { Fingerprint, LogOut, Pencil, X } from "lucide-react";
 import type { CSSProperties, FormEvent } from "react";
 import { useState } from "react";
+import { useOutletContext } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Field,
@@ -19,10 +20,16 @@ import { Avatar } from "../../ui/Avatar";
 import { Button } from "../../ui/Button";
 import { PageHeader } from "../../ui/PageHeader";
 import { useToast } from "../../ui/Toast";
+import { GroupSwitcher } from "../groups/GroupSwitcher";
 import { NotificationSettings } from "./NotificationSettings";
 
 export function MeScreen() {
-	const { me, signOut, refreshMe } = useSession();
+	const { me, signOut, refreshMe, activeGroupId } = useSession();
+	const outlet = useOutletContext<
+		{ groups?: { id: string; name: string }[]; activeId?: string } | undefined
+	>();
+	const groups = outlet?.groups ?? me.groups;
+	const activeId = outlet?.activeId ?? activeGroupId ?? groups[0]?.id ?? "";
 	const toast = useToast();
 	const passkeyQuery = authClient.useListPasskeys();
 	const [addingPasskey, setAddingPasskey] = useState(false);
@@ -194,6 +201,16 @@ export function MeScreen() {
 					</Card>
 				</form>
 			) : null}
+			<section aria-labelledby="me-group" className="flex flex-col gap-2">
+				<h2 id="me-group" className="text-[13px] font-semibold text-text-2">
+					Group
+				</h2>
+				<Card className="gap-0 rounded-2xl p-0 ring-line">
+					<CardContent className="p-0">
+						<GroupSwitcher groups={groups} activeId={activeId} />
+					</CardContent>
+				</Card>
+			</section>
 			<NotificationSettings />
 			<div className="flex flex-col gap-3">
 				{passkeyQuery.isPending ? (

@@ -61,7 +61,12 @@ describe("TeamScreen page header", () => {
 		renderWithSession(<TeamScreen />, { store });
 		const heading = await screen.findByRole("heading", { name: "Team" });
 		const header = heading.closest('[data-slot="page-header"]');
-		expect(header).toHaveClass("bg-header", "rounded-none");
+		expect(header).toHaveClass(
+			"bg-header",
+			"rounded-none",
+			"border-b",
+			"border-line",
+		);
 		expect(
 			screen
 				.getByRole("button", { name: "Invite someone" })

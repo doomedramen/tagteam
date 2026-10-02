@@ -54,7 +54,12 @@ describe("TodayScreen", () => {
 		await screen.findByText("Add your first task");
 		const heading = screen.getByRole("heading", { level: 1 });
 		const header = heading.closest('[data-slot="page-header"]');
-		expect(header).toHaveClass("bg-header", "rounded-none");
+		expect(header).toHaveClass(
+			"bg-header",
+			"rounded-none",
+			"border-b",
+			"border-line",
+		);
 		expect(header).not.toContainElement(
 			screen.getByText("Add your first task"),
 		);
@@ -68,7 +73,12 @@ describe("TodayScreen", () => {
 		renderWithSession(<TodayScreen />, { store });
 		const heading = await screen.findByRole("heading", { level: 1 });
 		const header = heading.closest('[data-slot="page-header"]');
-		expect(header).toHaveClass("bg-header", "rounded-none");
+		expect(header).toHaveClass(
+			"bg-header",
+			"rounded-none",
+			"border-b",
+			"border-line",
+		);
 		expect(within(header as HTMLElement).getByText(/done today/)).toBeTruthy();
 		const track = header?.querySelector('[data-slot="progress-track"]');
 		expect(track).toHaveClass("bg-text/15");

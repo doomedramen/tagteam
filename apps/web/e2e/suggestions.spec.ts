@@ -41,7 +41,7 @@ test("one member suggests a task, the other accepts it, and both see it", async 
 		// Sam suggests a task to Jo from the New task sheet.
 		await sam.goto("/");
 		await expect(
-			sam.getByRole("button", { name: /E2E suggestions/ }),
+			sam.getByRole("button", { name: "Add task" }).first(),
 		).toBeVisible();
 		await sam.getByRole("button", { name: "Add task" }).first().click();
 		const sheet = sam.getByRole("dialog", { name: "New task", exact: true });

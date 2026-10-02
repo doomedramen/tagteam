@@ -10,7 +10,10 @@ export function PageHeader({ className, ...rest }: ComponentProps<"div">) {
 	return (
 		<div
 			data-slot="page-header"
-			className={cx("-mx-4 rounded-none bg-header px-4 pt-2 pb-4", className)}
+			className={cx(
+				"-mx-4 rounded-none border-b border-line bg-header px-4 pt-6 pb-4",
+				className,
+			)}
 			{...rest}
 		/>
 	);

@@ -6,7 +6,6 @@ import { AddTaskSheet } from "../features/add-task/AddTaskSheet";
 import { AddPasskeyScreen } from "../features/auth/AddPasskeyScreen";
 import { SignInScreen } from "../features/auth/SignInScreen";
 import { SignUpScreen } from "../features/auth/SignUpScreen";
-import { GroupSwitcher } from "../features/groups/GroupSwitcher";
 import { WelcomeScreen } from "../features/groups/WelcomeScreen";
 import { HistoryScreen } from "../features/history/HistoryScreen";
 import { MeScreen } from "../features/me/MeScreen";
@@ -43,7 +42,6 @@ function MainLayout() {
 
 	return (
 		<AppShell
-			title={<GroupSwitcher groups={groups} activeId={active.id} />}
 			trailing={<SyncChip status={status} />}
 			banner={
 				status.state === "reauth" ? (
@@ -60,7 +58,7 @@ function MainLayout() {
 			}
 			onAdd={openAdd}
 		>
-			<Outlet context={{ openAdd }} />
+			<Outlet context={{ openAdd, groups, activeId: active.id }} />
 			<AddTaskSheet open={adding} onClose={closeAdd} />
 		</AppShell>
 	);
