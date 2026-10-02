@@ -21,6 +21,7 @@ import { Button } from "../../ui/Button";
 import { PageHeader } from "../../ui/PageHeader";
 import { useToast } from "../../ui/Toast";
 import { GroupSwitcher } from "../groups/GroupSwitcher";
+import { EmojiSuggestionsSettings } from "./EmojiSuggestionsSettings";
 import { NotificationSettings } from "./NotificationSettings";
 
 export function MeScreen() {
@@ -212,6 +213,7 @@ export function MeScreen() {
 				</Card>
 			</section>
 			<NotificationSettings />
+			<EmojiSuggestionsSettings />
 			<div className="flex flex-col gap-3">
 				{passkeyQuery.isPending ? (
 					<p role="status" className="text-[14px] text-text-2">
