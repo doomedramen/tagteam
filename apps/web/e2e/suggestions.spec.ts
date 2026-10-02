@@ -46,10 +46,10 @@ test("one member suggests a task, the other accepts it, and both see it", async 
 		await sam.getByRole("button", { name: "Add task" }).first().click();
 		const sheet = sam.getByRole("dialog", { name: "New task", exact: true });
 		await sheet.getByRole("textbox", { name: "Task" }).fill("Wash dishes");
-		await sheet.getByLabel("For").selectOption({ label: "Jo" });
-		await expect(sheet.getByLabel("For").locator("option:checked")).toHaveText(
-			"Jo",
-		);
+		await sheet.getByRole("button", { name: /^For/ }).click();
+		const forSelect = sheet.getByLabel("For", { exact: true });
+		await forSelect.selectOption({ label: "Jo" });
+		await expect(forSelect.locator("option:checked")).toHaveText("Jo");
 		await sam.screenshot({ path: testInfo.outputPath("sam-suggest.png") });
 		await sheet.getByRole("button", { name: "Suggest to Jo" }).click();
 		// Sam's Today shows a strip; the sheet it opens says who the suggestion waits on.

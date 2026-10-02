@@ -1,11 +1,24 @@
 import {
+	DEFAULT_EMOJI_NAME,
 	MAX_PENDING_SUGGESTIONS,
 	type TaskDto,
 	type Weekday,
 } from "@tagteam/core";
 import { useLiveQuery } from "dexie-react-hooks";
-import { CalendarDays, ChevronDown, Clock, Plus, Send } from "lucide-react";
-import { type FormEvent, useEffect, useId, useRef, useState } from "react";
+import {
+	CalendarDays,
+	Clock,
+	Repeat as RepeatIcon,
+	UserRound,
+} from "lucide-react";
+import {
+	type FormEvent,
+	type ReactNode,
+	useEffect,
+	useId,
+	useRef,
+	useState,
+} from "react";
 import {
 	Field,
 	FieldError,
@@ -19,13 +32,18 @@ import {
 	NativeSelect,
 	NativeSelectOption,
 } from "@/components/ui/native-select";
-import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { cx } from "../../lib/cx";
 import { browserTimeZone, formatWhen, localDate } from "../../lib/time";
 import { useSession } from "../../session/session";
 import { Button } from "../../ui/Button";
 import { Sheet } from "../../ui/Sheet";
+import { Spinner } from "../../ui/Spinner";
 import { useToast } from "../../ui/Toast";
+import { useEmojiName } from "../emoji/catalog";
+import { EmojiPicker } from "../emoji/EmojiPicker";
+import { ColorOptions } from "../look/ColorOptions";
+import { TaskEmoji } from "../look/TaskEmoji";
 import { pendingSuggestionCount } from "../suggestions/model";
 import {
 	draftErrors,
@@ -36,6 +54,7 @@ import {
 	suggestionMutation,
 	type TaskDraft,
 	taskDraft,
+	taskUpdateMutation,
 	type Unit,
 } from "./draft";
 
@@ -57,8 +76,58 @@ const WEEKDAYS: { value: Weekday; short: string; name: string }[] = [
 ];
 // Option value for "Me" (no recipient); a member's option value is their user id.
 const ME = "";
-const toggleClass =
-	"h-11 min-w-11 rounded-full bg-surface px-3.5 text-[14px] text-text ring-1 ring-line aria-pressed:bg-accent aria-pressed:text-on-accent data-[state=on]:bg-accent data-[state=on]:text-on-accent";
+const chip =
+	"min-w-11 rounded-full bg-task-swatch px-3.5 text-[14px] text-text transition-colors duration-200 motion-reduce:transition-none aria-pressed:bg-task-fg aria-pressed:text-task-sheet data-[state=on]:bg-task-fg data-[state=on]:text-task-sheet";
+const toggleClass = cx("h-11", chip);
+
+type RowId = "for" | "repeat" | "starts" | "due";
+
+/** One line of the settings card: icon, label, value in a pill. Tapping it opens its controls beneath. */
+function SettingRow({
+	id,
+	icon,
+	label,
+	value,
+	open,
+	onToggle,
+	children,
+}: {
+	id: string;
+	icon: ReactNode;
+	label: string;
+	value: string;
+	open: boolean;
+	onToggle: () => void;
+	children: ReactNode;
+}) {
+	return (
+		<div>
+			<button
+				type="button"
+				aria-expanded={open}
+				aria-controls={`${id}-panel`}
+				onClick={onToggle}
+				className="flex min-h-12 w-full items-center gap-3 rounded-2xl px-1.5 py-1 text-left"
+			>
+				<span
+					aria-hidden="true"
+					className="flex size-9 shrink-0 items-center justify-center rounded-full bg-task-swatch text-task-fg transition-colors duration-200 motion-reduce:transition-none [&_svg]:size-[18px]"
+				>
+					{icon}
+				</span>
+				<span className="min-w-0 flex-1 text-[15px] font-medium">{label}</span>
+				<span className="max-w-[55%] truncate rounded-full bg-task-swatch px-3 py-1.5 text-[14px] text-text transition-colors duration-200 motion-reduce:transition-none">
+					{value}
+				</span>
+			</button>
+			{open ? (
+				<div id={`${id}-panel`} className="px-1.5 pb-2 pt-2">
+					{children}
+				</div>
+			) : null}
+		</div>
+	);
+}
 
 export function AddTaskSheet({
 	open,
@@ -73,11 +142,11 @@ export function AddTaskSheet({
 	const toast = useToast();
 	const formId = useId();
 	const submittingRef = useRef(false);
-	const [showSchedule, setShowSchedule] = useState(Boolean(task));
 	const today = localDate(Date.now(), task?.timezone);
 	const [draft, setDraft] = useState<TaskDraft>(() => newDraft(today));
 	const [errors, setErrors] = useState<ReturnType<typeof draftErrors>>({});
-	const [showDate, setShowDate] = useState(false);
+	const [openRow, setOpenRow] = useState<RowId | null>(task ? "repeat" : null);
+	const [pickerOpen, setPickerOpen] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
 	const [saveError, setSaveError] = useState<string | null>(null);
 	const members = useLiveQuery(
@@ -104,26 +173,31 @@ export function AddTaskSheet({
 				.sort((a, b) => a.displayName.localeCompare(b.displayName));
 	const recipient =
 		recipients.find((m) => m.userId === draft.forUserId) ?? null;
+	const emojiName = useEmojiName(draft.emoji);
+	const emojiLabel =
+		draft.emoji === null
+			? `${DEFAULT_EMOJI_NAME}, default`
+			: (emojiName ?? draft.emoji);
 	useEffect(() => {
 		if (!open || !task) return;
 		const effectiveFrom =
 			task && today < task.startDate ? task.startDate : today;
 		setDraft(taskDraft(task, effectiveFrom));
-		setShowSchedule(true);
+		setOpenRow("repeat");
 		setErrors({});
 		setSaveError(null);
-		setShowDate(false);
 	}, [open, task, today]);
 	useEffect(() => {
 		if (task || !activeGroupId) return;
 		setDraft(newDraft(today));
 		setErrors({});
 		setSaveError(null);
-		setShowSchedule(false);
-		setShowDate(false);
+		setOpenRow(null);
 	}, [activeGroupId, task, today]);
 	const update = (patch: Partial<TaskDraft>) =>
 		setDraft((d) => ({ ...d, ...patch }));
+	const toggleRow = (id: RowId) =>
+		setOpenRow((current) => (current === id ? null : id));
 	const close = () => {
 		if (submittingRef.current) return;
 		onClose();
@@ -135,7 +209,8 @@ export function AddTaskSheet({
 		const problems = draftErrors(draft);
 		setErrors(problems);
 		if (Object.keys(problems).length > 0) {
-			if (problems.every || problems.dueTime) setShowSchedule(true);
+			if (problems.every) setOpenRow("repeat");
+			else if (problems.dueTime) setOpenRow("due");
 			return;
 		}
 		if (task && task.ownerId !== me.user.id) return;
@@ -160,22 +235,12 @@ export function AddTaskSheet({
 		try {
 			if (task) {
 				const at = Date.now();
-				const title = draft.title.trim();
+				const change = taskUpdateMutation(draft, task, at);
 				const schedule = draftScheduleMutation(draft, task, at);
-				const titleChanged = title !== task.title;
-				if (titleChanged) {
-					await engine.enqueue({
-						id: crypto.randomUUID(),
-						at,
-						type: "task.update",
-						taskId: task.id,
-						title,
-					});
-				}
+				if (change) await engine.enqueue(change);
 				if (schedule) await engine.enqueue(schedule);
 				toast.show({
-					message:
-						titleChanged || schedule ? "Task updated" : "No changes to save",
+					message: change || schedule ? "Task updated" : "No changes to save",
 				});
 			} else if (recipient) {
 				await engine.enqueue(
@@ -200,8 +265,7 @@ export function AddTaskSheet({
 			}
 			if (!task) {
 				setDraft(newDraft(today));
-				setShowSchedule(false);
-				setShowDate(false);
+				setOpenRow(null);
 			}
 			onClose();
 		} catch {
@@ -218,96 +282,118 @@ export function AddTaskSheet({
 		}
 	};
 
-	const startLabel = task
-		? draft.startDate === today
-			? "Changes today"
-			: `Changes ${formatWhen(Date.parse(`${draft.startDate}T12:00:00`), Date.now()).toLowerCase()}`
-		: draft.startDate === today
-			? "Starts today"
-			: `Starts ${formatWhen(Date.parse(`${draft.startDate}T12:00:00`), Date.now()).toLowerCase()}`;
+	const startValue = formatWhen(
+		Date.parse(`${draft.startDate}T12:00:00`),
+		Date.now(),
+	);
+	const repeatValue =
+		REPEATS.find((repeat) => repeat.value === draft.repeat)?.label ?? "Once";
+	const actionLabel = task
+		? "Save"
+		: recipient
+			? `Suggest to ${recipient.displayName}`
+			: "Create";
 
 	return (
 		<Sheet
 			open={open}
 			onClose={close}
 			label={task ? "Edit task" : "New task"}
-			showTitle
 			focusOnTouch
-			footer={
-				<>
-					{saveError ? (
-						<p role="alert" className="mb-2 text-[13px] text-danger">
-							{saveError}
-						</p>
-					) : null}
-					<Button
-						type="submit"
-						form={formId}
-						variant="primary"
-						block
-						busy={submitting}
-						className="min-h-12 rounded-2xl"
-					>
-						{!task && !submitting ? (
-							recipient ? (
-								<Send aria-hidden className="size-5" />
-							) : (
-								<Plus aria-hidden className="size-5" />
-							)
-						) : null}
-						{task
-							? "Save changes"
-							: recipient
-								? `Suggest to ${recipient.displayName}`
-								: "Add task"}
-					</Button>
-				</>
+			tint={draft.color}
+			action={
+				<button
+					type="submit"
+					form={formId}
+					disabled={submitting}
+					aria-busy={submitting || undefined}
+					className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-task-fg px-5 text-[15px] font-semibold text-task-sheet transition-colors duration-200 active:opacity-90 disabled:opacity-60 motion-reduce:transition-none"
+				>
+					{submitting ? <Spinner /> : null}
+					{actionLabel}
+				</button>
+			}
+			notice={
+				saveError ? (
+					<p role="alert" className="text-[13px] text-danger">
+						{saveError}
+					</p>
+				) : null
 			}
 		>
-			<form id={formId} onSubmit={(e) => void submit(e)}>
-				<FieldGroup className="gap-4">
-					<Field
-						data-invalid={errors.title ? true : undefined}
-						className="gap-1"
-					>
-						<FieldLabel htmlFor="task-title" className="sr-only">
-							Task
-						</FieldLabel>
-						<Input
-							id="task-title"
-							data-autofocus
-							enterKeyHint="done"
-							autoComplete="off"
-							autoCapitalize="sentences"
-							onKeyDown={(event) => {
-								if (event.key === "Enter" && event.nativeEvent.isComposing)
-									event.preventDefault();
-							}}
-							placeholder="What needs doing?"
-							value={draft.title}
-							onChange={(e) => update({ title: e.target.value })}
-							aria-invalid={errors.title ? true : undefined}
-							aria-describedby={errors.title ? "task-title-error" : undefined}
-							className="min-h-14 rounded-2xl bg-surface-2 text-xl"
-						/>
-						{errors.title ? (
-							<FieldError id="task-title-error" className="text-[13px]">
-								{errors.title}
-							</FieldError>
-						) : null}
-					</Field>
+			<form
+				id={formId}
+				onSubmit={(e) => void submit(e)}
+				className="flex flex-col gap-4 pb-2"
+			>
+				{/* The visible action sits in the header, outside this form. A submit button
+				    inside the form keeps Enter in the title submitting in every browser. */}
+				<button
+					type="submit"
+					tabIndex={-1}
+					aria-hidden="true"
+					className="sr-only"
+				/>
+				<button
+					type="button"
+					aria-label={`Emoji: ${emojiLabel}, change`}
+					aria-haspopup="dialog"
+					onClick={() => setPickerOpen(true)}
+					className="mx-auto block rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-task-ring"
+				>
+					<TaskEmoji emoji={draft.emoji} size="sheet" />
+				</button>
 
+				<Field data-invalid={errors.title ? true : undefined} className="gap-1">
+					<FieldLabel htmlFor="task-title" className="sr-only">
+						Task
+					</FieldLabel>
+					<Input
+						id="task-title"
+						data-autofocus
+						enterKeyHint="done"
+						autoComplete="off"
+						autoCapitalize="sentences"
+						onKeyDown={(event) => {
+							if (event.key === "Enter" && event.nativeEvent.isComposing)
+								event.preventDefault();
+						}}
+						placeholder="What needs doing?"
+						value={draft.title}
+						onChange={(e) => update({ title: e.target.value })}
+						aria-invalid={errors.title ? true : undefined}
+						aria-describedby={errors.title ? "task-title-error" : undefined}
+						className="h-auto min-h-14 rounded-none border-0 border-b-2 border-task-ring/40 bg-transparent px-2 text-center text-[26px] font-semibold tracking-tight placeholder:font-normal placeholder:text-text-3 focus-visible:border-task-ring focus-visible:ring-0"
+					/>
+					{errors.title ? (
+						<FieldError
+							id="task-title-error"
+							className="text-center text-[13px]"
+						>
+							{errors.title}
+						</FieldError>
+					) : null}
+				</Field>
+
+				<ColorOptions
+					value={draft.color}
+					onChange={(color) => update({ color })}
+				/>
+
+				<div className="flex flex-col gap-1 rounded-[26px] bg-task-card p-2 transition-colors duration-200 motion-reduce:transition-none">
 					{recipients.length > 0 ? (
-						<Field className="gap-1">
-							<FieldLabel
-								htmlFor="task-for"
-								className="text-[13px] font-medium text-text-2"
-							>
-								For
-							</FieldLabel>
+						<SettingRow
+							id={`${formId}-for`}
+							icon={<UserRound />}
+							label="For"
+							value={recipient?.displayName ?? "Me"}
+							open={openRow === "for"}
+							onToggle={() => toggleRow("for")}
+						>
 							<NativeSelect
-								id="task-for"
 								className="w-full"
+								aria-label="For"
+								selectClassName="bg-task-sheet ring-0"
 								value={recipient?.userId ?? ME}
 								onChange={(e) => {
 									update({
@@ -323,37 +409,20 @@ export function AddTaskSheet({
 									</NativeSelectOption>
 								))}
 							</NativeSelect>
-						</Field>
+						</SettingRow>
 					) : null}
 
-					<button
-						type="button"
-						aria-expanded={showSchedule}
-						aria-controls={`${formId}-schedule`}
-						onClick={() => setShowSchedule((shown) => !shown)}
-						className="flex min-h-12 w-full items-center gap-3 rounded-xl px-2 text-left active:bg-surface-2"
+					<SettingRow
+						id={`${formId}-repeat`}
+						icon={<RepeatIcon />}
+						label="Repeat"
+						value={repeatValue}
+						open={openRow === "repeat"}
+						onToggle={() => toggleRow("repeat")}
 					>
-						<CalendarDays aria-hidden className="size-5 shrink-0 text-accent" />
-						<span className="min-w-0 flex-1">
-							<span className="block text-[15px] font-medium">Schedule</span>
-							<span className="block text-[13px] text-text-2">
-								{REPEATS.find((repeat) => repeat.value === draft.repeat)?.label}{" "}
-								· {startLabel}
-								{draft.dueTime ? ` · By ${draft.dueTime}` : ""}
-							</span>
-						</span>
-						<ChevronDown
-							aria-hidden
-							className={`size-4 text-text-2 motion-safe:transition-transform ${showSchedule ? "rotate-180" : ""}`}
-						/>
-					</button>
-					<div id={`${formId}-schedule`} hidden={!showSchedule}>
-						<FieldGroup className="gap-4 border-t border-line pt-4">
+						<FieldGroup className="gap-4">
 							<FieldSet className="gap-2">
-								<FieldLegend
-									variant="label"
-									className="mb-2 text-[13px] font-medium text-text-2"
-								>
+								<FieldLegend variant="label" className="sr-only">
 									Repeat
 								</FieldLegend>
 								<ToggleGroup
@@ -377,7 +446,7 @@ export function AddTaskSheet({
 							</FieldSet>
 
 							{draft.repeat === "custom" ? (
-								<div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-3">
+								<div className="flex flex-col gap-3 rounded-2xl bg-task-sheet p-3">
 									<FieldGroup className="gap-2">
 										<Field
 											orientation="horizontal"
@@ -399,7 +468,7 @@ export function AddTaskSheet({
 												onChange={(e) =>
 													update({ every: e.target.valueAsNumber })
 												}
-												className="w-20 text-center"
+												className="w-20 bg-task-card text-center"
 											/>
 											<FieldLabel htmlFor="unit" className="sr-only">
 												Unit
@@ -407,7 +476,7 @@ export function AddTaskSheet({
 											<NativeSelect
 												id="unit"
 												value={draft.unit}
-												selectClassName="min-w-24"
+												selectClassName="min-w-24 bg-task-card ring-0"
 												onChange={(e) =>
 													update({ unit: e.target.value as Unit })
 												}
@@ -454,7 +523,7 @@ export function AddTaskSheet({
 															key={d.value}
 															value={String(d.value)}
 															aria-label={d.name}
-															className="size-11 min-w-11 rounded-full bg-surface px-0 text-[14px] text-text ring-1 ring-line aria-pressed:bg-accent aria-pressed:text-on-accent data-[state=on]:bg-accent data-[state=on]:text-on-accent"
+															className={cx("size-11 px-0", chip)}
 														>
 															{d.short}
 														</ToggleGroupItem>
@@ -476,7 +545,7 @@ export function AddTaskSheet({
 												<NativeSelect
 													id="month-day"
 													className="min-w-0 flex-1"
-													selectClassName="w-full"
+													selectClassName="w-full bg-task-card ring-0"
 													value={String(draft.monthDay)}
 													onChange={(e) =>
 														update({
@@ -503,97 +572,108 @@ export function AddTaskSheet({
 									</FieldGroup>
 								</div>
 							) : null}
+						</FieldGroup>
+					</SettingRow>
 
-							<div className="flex flex-wrap items-center gap-2">
-								<Toggle
-									pressed={showDate}
-									onPressedChange={setShowDate}
-									className={toggleClass}
-								>
-									<CalendarDays aria-hidden data-icon="inline-start" />
-									{startLabel}
-								</Toggle>
-								{draft.dueTime === null ? (
-									<Button
-										variant="secondary"
-										className="rounded-full"
-										onClick={() => update({ dueTime: "08:00" })}
-									>
-										<Clock aria-hidden data-icon="inline-start" />
-										Add time
-									</Button>
-								) : (
-									<div className="flex flex-col gap-1">
-										<Field
-											orientation="horizontal"
-											className="items-center gap-2"
-										>
-											<FieldLabel
-												htmlFor="due-time"
-												className="w-auto text-[14px] text-text-2"
-											>
-												Due by
-											</FieldLabel>
-											<Input
-												id="due-time"
-												type="time"
-												value={draft.dueTime}
-												onChange={(e) => update({ dueTime: e.target.value })}
-												aria-invalid={errors.dueTime ? true : undefined}
-												aria-describedby={
-													errors.dueTime ? "due-time-error" : undefined
-												}
-												className="min-h-11 w-auto"
-											/>
-											<Button
-												variant="ghost"
-												onClick={() => update({ dueTime: null })}
-											>
-												Remove time
-											</Button>
-										</Field>
-										{errors.dueTime ? (
-											<FieldError id="due-time-error" className="text-[13px]">
-												{errors.dueTime}
-											</FieldError>
-										) : null}
-									</div>
-								)}
-							</div>
-							{showDate ? (
+					<SettingRow
+						id={`${formId}-starts`}
+						icon={<CalendarDays />}
+						label={task ? "Changes from" : "Starts"}
+						value={startValue}
+						open={openRow === "starts"}
+						onToggle={() => toggleRow("starts")}
+					>
+						<Field orientation="horizontal" className="items-center gap-2">
+							<FieldLabel
+								htmlFor="start-date"
+								className="w-auto text-[14px] text-text-2"
+							>
+								{task ? "Effective date" : "Start date"}
+							</FieldLabel>
+							<Input
+								id="start-date"
+								type="date"
+								min={
+									task
+										? task.startDate > today
+											? task.startDate
+											: today
+										: undefined
+								}
+								value={draft.startDate}
+								onChange={(e) =>
+									e.target.value &&
+									update({
+										startDate: e.target.value,
+										monthDay: Number(e.target.value.slice(8)),
+									})
+								}
+								className="min-h-11 w-auto bg-task-sheet"
+							/>
+						</Field>
+					</SettingRow>
+
+					<SettingRow
+						id={`${formId}-due`}
+						icon={<Clock />}
+						label="Due by"
+						value={draft.dueTime ?? "No time"}
+						open={openRow === "due"}
+						onToggle={() => toggleRow("due")}
+					>
+						{draft.dueTime === null ? (
+							<Button
+								className="rounded-full bg-task-sheet text-text ring-0"
+								onClick={() => update({ dueTime: "08:00" })}
+							>
+								<Clock aria-hidden data-icon="inline-start" />
+								Add time
+							</Button>
+						) : (
+							<div className="flex flex-col gap-1">
 								<Field orientation="horizontal" className="items-center gap-2">
 									<FieldLabel
-										htmlFor="start-date"
+										htmlFor="due-time"
 										className="w-auto text-[14px] text-text-2"
 									>
-										{task ? "Effective date" : "Start date"}
+										Due by
 									</FieldLabel>
 									<Input
-										id="start-date"
-										type="date"
-										min={
-											task
-												? task.startDate > today
-													? task.startDate
-													: today
-												: undefined
+										id="due-time"
+										type="time"
+										value={draft.dueTime}
+										onChange={(e) => update({ dueTime: e.target.value })}
+										aria-invalid={errors.dueTime ? true : undefined}
+										aria-describedby={
+											errors.dueTime ? "due-time-error" : undefined
 										}
-										value={draft.startDate}
-										onChange={(e) =>
-											e.target.value &&
-											update({
-												startDate: e.target.value,
-												monthDay: Number(e.target.value.slice(8)),
-											})
-										}
-										className="min-h-11 w-auto"
+										className="min-h-11 w-auto bg-task-sheet"
 									/>
+									<Button
+										variant="ghost"
+										onClick={() => update({ dueTime: null })}
+									>
+										Remove time
+									</Button>
 								</Field>
-							) : null}
-						</FieldGroup>
-					</div>
-				</FieldGroup>
+								{errors.dueTime ? (
+									<FieldError id="due-time-error" className="text-[13px]">
+										{errors.dueTime}
+									</FieldError>
+								) : null}
+							</div>
+						)}
+					</SettingRow>
+				</div>
 			</form>
+
+			<EmojiPicker
+				open={pickerOpen}
+				onClose={() => setPickerOpen(false)}
+				value={draft.emoji}
+				title={draft.title}
+				onPick={(emoji) => update({ emoji, emojiChosen: true })}
+			/>
 		</Sheet>
 	);
 }

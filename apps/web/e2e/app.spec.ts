@@ -85,7 +85,7 @@ test("sign up, create a group, add and complete tasks, keep working offline", as
 		});
 		viewport.dispatchEvent(new Event("resize"));
 	});
-	const submit = sheet.getByRole("button", { name: "Add task", exact: true });
+	const submit = sheet.getByRole("button", { name: "Create", exact: true });
 	await expect
 		.poll(async () => {
 			const box = await submit.boundingBox();
@@ -102,7 +102,7 @@ test("sign up, create a group, add and complete tasks, keep working offline", as
 		scale: "css",
 		animations: "disabled",
 	});
-	await sheet.getByRole("button", { name: /Schedule/ }).click();
+	await sheet.getByRole("button", { name: /^Repeat/ }).click();
 	await sheet.getByRole("button", { name: "Custom" }).click();
 	await sheet.getByLabel("Every", { exact: true }).focus();
 	await expect(sheet).toHaveCSS("bottom", "346px");
@@ -137,7 +137,7 @@ test("sign up, create a group, add and complete tasks, keep working offline", as
 		viewport.dispatchEvent(new Event("resize"));
 	});
 	await page.getByRole("button", { name: "Daily" }).click();
-	await page.getByRole("button", { name: "Add task" }).last().click();
+	await sheet.getByRole("button", { name: "Create", exact: true }).click();
 	await expect(
 		page.getByRole("button", { name: "Complete Brush teeth" }),
 	).toBeVisible();

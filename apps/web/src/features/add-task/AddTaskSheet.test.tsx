@@ -1,4 +1,8 @@
-import type { MemberDto, SuggestionDto, TaskDto } from "@tagteam/core";
+import {
+	DEFAULT_EMOJI,
+	type MemberDto,
+	type SuggestionDto,
+} from "@tagteam/core";
 import {
 	act,
 	fireEvent,
@@ -10,11 +14,44 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { TagTeamDb } from "../../store/db";
-import { fakeEngine, renderWithSession } from "../../test/fakes";
+import {
+	fakeEngine,
+	fakeSuggestion,
+	fakeTask,
+	renderWithSession,
+} from "../../test/fakes";
 import { AddTaskSheet } from "./AddTaskSheet";
 
+const PLANT = "\u{1FAB4}"; // potted plant
+
+const row = (name: RegExp | string) => screen.getByRole("button", { name });
+const create = () => screen.getByRole("button", { name: "Create" });
+const dialog = () => screen.getByRole("dialog", { name: /New task|Edit task/ });
+
+/** Picks an emoji the way a person with the system emoji keyboard would. */
+async function typeEmoji(emoji: string) {
+	await userEvent.click(screen.getByRole("button", { name: /^Emoji:/ }));
+	await userEvent.type(
+		await screen.findByLabelText("Type or paste an emoji"),
+		emoji,
+	);
+}
+
+/** Renders the sheet with an "Open" button so a test can dismiss and reopen it. */
+function Harness() {
+	const [open, setOpen] = useState(true);
+	return (
+		<>
+			<button type="button" onClick={() => setOpen(true)}>
+				Open
+			</button>
+			<AddTaskSheet open={open} onClose={() => setOpen(false)} />
+		</>
+	);
+}
+
 describe("AddTaskSheet", () => {
-	it("adds a one-off task on Enter", async () => {
+	it("creates a one-off task on Enter, blue and with no stored emoji", async () => {
 		const engine = fakeEngine();
 		const onClose = vi.fn();
 		renderWithSession(<AddTaskSheet open onClose={onClose} />, { engine });
@@ -27,8 +64,10 @@ describe("AddTaskSheet", () => {
 				title: "Call grandma",
 				rule: null,
 				groupId: "g1",
+				color: "blue",
 			}),
 		);
+		expect(engine.enqueue.mock.calls[0]?.[0]).not.toHaveProperty("emoji");
 		expect(onClose).toHaveBeenCalled();
 	});
 
@@ -36,21 +75,19 @@ describe("AddTaskSheet", () => {
 		const engine = fakeEngine();
 		renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, { engine });
 		await userEvent.type(screen.getByLabelText("Task"), "Clean room");
-		await userEvent.click(screen.getByRole("button", { name: /Schedule/ }));
+		await userEvent.click(row(/^Repeat/));
 		await userEvent.click(screen.getByRole("button", { name: "Custom" }));
 		const every = screen.getByLabelText("Every");
 		await userEvent.clear(every);
 		await userEvent.type(every, "2");
 		await userEvent.selectOptions(screen.getByLabelText("Unit"), "week");
 		await userEvent.click(screen.getByRole("button", { name: "Monday" }));
-		if (!screen.queryByRole("button", { name: "Add time" })) {
-			await userEvent.click(screen.getByRole("button", { name: /Schedule/ }));
-		}
+		await userEvent.click(row(/^Due by/));
 		await userEvent.click(screen.getByRole("button", { name: "Add time" }));
 		const time = screen.getByLabelText("Due by");
 		await userEvent.clear(time);
 		await userEvent.type(time, "18:30");
-		await userEvent.click(screen.getByRole("button", { name: "Add task" }));
+		await userEvent.click(create());
 		const m = engine.enqueue.mock.calls[0]?.[0];
 		expect(m).toMatchObject({
 			rule: { freq: "week", interval: 2 },
@@ -59,25 +96,22 @@ describe("AddTaskSheet", () => {
 		expect(m.rule.weekdays).toContain(1);
 	});
 
-	it("explains a missing name instead of adding", async () => {
+	it("explains a missing name instead of creating", async () => {
 		const engine = fakeEngine();
 		renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, { engine });
-		await userEvent.click(screen.getByRole("button", { name: "Add task" }));
+		await userEvent.click(create());
 		expect(screen.getByText("Give it a name")).toBeInTheDocument();
 		expect(engine.enqueue).not.toHaveBeenCalled();
 	});
 
-	it("explains a cleared due time instead of adding", async () => {
+	it("explains a cleared due time instead of creating", async () => {
 		const engine = fakeEngine();
 		renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, { engine });
 		await userEvent.type(screen.getByLabelText("Task"), "Clean room");
-		if (!screen.queryByRole("button", { name: "Add time" })) {
-			await userEvent.click(screen.getByRole("button", { name: /Schedule/ }));
-		}
+		await userEvent.click(row(/^Due by/));
 		await userEvent.click(screen.getByRole("button", { name: "Add time" }));
-		const time = screen.getByLabelText("Due by");
-		await userEvent.clear(time);
-		await userEvent.click(screen.getByRole("button", { name: "Add task" }));
+		await userEvent.clear(screen.getByLabelText("Due by"));
+		await userEvent.click(create());
 		expect(screen.getByText("Enter a time like 08:00")).toBeInTheDocument();
 		expect(engine.enqueue).not.toHaveBeenCalled();
 	});
@@ -94,26 +128,25 @@ describe("AddTaskSheet", () => {
 		await waitFor(() => expect(onClose).toHaveBeenCalled());
 		expect(engine.enqueue).toHaveBeenCalledTimes(1);
 	});
-	it("keeps an unfinished draft after dismissal and puts Add outside the scrolling body", async () => {
-		function Harness() {
-			const [open, setOpen] = useState(true);
-			return (
-				<>
-					<button type="button" onClick={() => setOpen(true)}>
-						Open
-					</button>
-					<AddTaskSheet open={open} onClose={() => setOpen(false)} />
-				</>
-			);
-		}
+
+	it("keeps the title focused when the header action is pressed", async () => {
+		renderWithSession(<AddTaskSheet open onClose={vi.fn()} />);
+		const title = screen.getByLabelText("Task");
+		expect(title).toHaveFocus();
+		await userEvent.pointer({ keys: "[MouseLeft>]", target: create() });
+		expect(title).toHaveFocus();
+	});
+
+	it("keeps an unfinished draft after dismissal and keeps the action outside the scrolling body", async () => {
 		renderWithSession(<Harness />);
 		await userEvent.type(screen.getByLabelText("Task"), "Water plants");
 		expect(
 			screen.queryByRole("button", { name: "Daily" }),
 		).not.toBeInTheDocument();
-		const add = screen.getByRole("button", { name: "Add task" });
-		expect(add.closest('[data-slot="sheet-body"]')).toBeNull();
-		expect(add).toHaveAttribute(
+		const action = create();
+		expect(action.closest('[data-slot="sheet-body"]')).toBeNull();
+		expect(dialog().querySelector('[data-slot="sheet-footer"]')).toBeNull();
+		expect(action).toHaveAttribute(
 			"form",
 			screen.getByLabelText("Task").closest("form")?.id,
 		);
@@ -122,19 +155,233 @@ describe("AddTaskSheet", () => {
 		expect(screen.getByLabelText("Task")).toHaveValue("Water plants");
 	});
 
-	it("keeps the draft when saving fails and allows retry", async () => {
+	it("keeps the draft when saving fails, says so under the header, and allows retry", async () => {
 		const engine = fakeEngine();
 		engine.enqueue.mockRejectedValueOnce(new Error("disk full"));
 		const onClose = vi.fn();
 		renderWithSession(<AddTaskSheet open onClose={onClose} />, { engine });
 		await userEvent.type(screen.getByLabelText("Task"), "Water plants{Enter}");
-		expect(
-			await screen.findByText("Could not add task. Try again."),
-		).toBeInTheDocument();
+		const alert = await screen.findByRole("alert");
+		expect(alert).toHaveTextContent("Could not add task. Try again.");
+		expect(alert.closest('[data-slot="sheet-notice"]')).not.toBeNull();
 		expect(screen.getByLabelText("Task")).toHaveValue("Water plants");
 		expect(onClose).not.toHaveBeenCalled();
-		await userEvent.click(screen.getByRole("button", { name: "Add task" }));
+		await userEvent.click(create());
 		expect(onClose).toHaveBeenCalledOnce();
+	});
+
+	describe("rows", () => {
+		it("shows each setting's value and opens one row at a time", async () => {
+			renderWithSession(<AddTaskSheet open onClose={vi.fn()} />);
+			expect(row(/^Repeat/)).toHaveTextContent("Once");
+			expect(row(/^Starts/)).toHaveTextContent("Today");
+			expect(row(/^Due by/)).toHaveTextContent("No time");
+			expect(row(/^Repeat/)).toHaveAttribute("aria-expanded", "false");
+
+			await userEvent.click(row(/^Repeat/));
+			expect(row(/^Repeat/)).toHaveAttribute("aria-expanded", "true");
+			expect(screen.getByRole("button", { name: "Daily" })).toBeInTheDocument();
+
+			await userEvent.click(row(/^Starts/));
+			expect(row(/^Repeat/)).toHaveAttribute("aria-expanded", "false");
+			expect(
+				screen.queryByRole("button", { name: "Daily" }),
+			).not.toBeInTheDocument();
+			expect(screen.getByLabelText("Start date")).toBeInTheDocument();
+
+			await userEvent.click(row(/^Starts/));
+			expect(screen.queryByLabelText("Start date")).not.toBeInTheDocument();
+		});
+
+		it("reflects the chosen repeat and due time in the row values", async () => {
+			renderWithSession(<AddTaskSheet open onClose={vi.fn()} />);
+			await userEvent.click(row(/^Repeat/));
+			await userEvent.click(screen.getByRole("button", { name: "Daily" }));
+			expect(row(/^Repeat/)).toHaveTextContent("Daily");
+			await userEvent.click(row(/^Due by/));
+			await userEvent.click(screen.getByRole("button", { name: "Add time" }));
+			expect(row(/^Due by/)).toHaveTextContent("08:00");
+		});
+	});
+
+	describe("look", () => {
+		it("starts blue with the default emoji, named as the default", () => {
+			renderWithSession(<AddTaskSheet open onClose={vi.fn()} />);
+			expect(dialog()).toHaveAttribute("data-task-color", "blue");
+			expect(screen.getByRole("radio", { name: "Blue" })).toBeChecked();
+			expect(
+				screen.getByRole("button", {
+					name: "Emoji: clipboard, default, change",
+				}),
+			).toHaveTextContent(DEFAULT_EMOJI);
+		});
+
+		it("re-tints the sheet when a color is tapped, and creates the task in that color", async () => {
+			const engine = fakeEngine();
+			renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, { engine });
+			await userEvent.type(screen.getByLabelText("Task"), "Water plants");
+			await userEvent.click(screen.getByRole("radio", { name: "Teal" }));
+			expect(dialog()).toHaveAttribute("data-task-color", "teal");
+			await userEvent.click(create());
+			expect(engine.enqueue).toHaveBeenCalledWith(
+				expect.objectContaining({ type: "task.create", color: "teal" }),
+			);
+		});
+
+		it("opens the picker from the emoji circle and keeps a hand-picked emoji", async () => {
+			const engine = fakeEngine();
+			renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, { engine });
+			await userEvent.type(screen.getByLabelText("Task"), "Water plants");
+			await typeEmoji(PLANT);
+			await waitFor(() =>
+				expect(
+					screen.queryByRole("dialog", { name: "Choose emoji" }),
+				).not.toBeInTheDocument(),
+			);
+			expect(
+				await screen.findByRole("button", {
+					name: "Emoji: potted plant, change",
+				}),
+			).toHaveTextContent(PLANT);
+			await userEvent.click(create());
+			expect(engine.enqueue).toHaveBeenCalledWith(
+				expect.objectContaining({
+					type: "task.create",
+					emoji: PLANT,
+					color: "blue",
+				}),
+			);
+		});
+
+		it("Use default stores the clipboard as a deliberate choice", async () => {
+			const engine = fakeEngine();
+			renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, { engine });
+			await userEvent.type(screen.getByLabelText("Task"), "Bins");
+			await userEvent.click(screen.getByRole("button", { name: /^Emoji:/ }));
+			await userEvent.click(
+				await screen.findByRole("button", { name: "Use default" }),
+			);
+			await userEvent.click(create());
+			expect(engine.enqueue).toHaveBeenCalledWith(
+				expect.objectContaining({ type: "task.create", emoji: DEFAULT_EMOJI }),
+			);
+		});
+
+		it("keeps the emoji and color when the sheet is dismissed and reopened", async () => {
+			renderWithSession(<Harness />);
+			await userEvent.click(screen.getByRole("radio", { name: "Pink" }));
+			await typeEmoji(PLANT);
+			await userEvent.click(screen.getByRole("button", { name: "Close" }));
+			await userEvent.click(screen.getByRole("button", { name: "Open" }));
+			expect(dialog()).toHaveAttribute("data-task-color", "pink");
+			expect(
+				await screen.findByRole("button", {
+					name: "Emoji: potted plant, change",
+				}),
+			).toBeInTheDocument();
+		});
+
+		it("resets to blue and the default emoji after a task is created", async () => {
+			renderWithSession(<Harness />);
+			await userEvent.type(screen.getByLabelText("Task"), "Water plants");
+			await userEvent.click(screen.getByRole("radio", { name: "Pink" }));
+			await userEvent.click(create());
+			await userEvent.click(screen.getByRole("button", { name: "Open" }));
+			expect(dialog()).toHaveAttribute("data-task-color", "blue");
+			expect(
+				screen.getByRole("button", {
+					name: "Emoji: clipboard, default, change",
+				}),
+			).toBeInTheDocument();
+		});
+	});
+
+	describe("editing", () => {
+		const task = fakeTask({ title: "Water plants" });
+
+		it("opens with Repeat expanded and no color selected when the task has none", async () => {
+			renderWithSession(<AddTaskSheet open onClose={vi.fn()} task={task} />);
+			expect(
+				await screen.findByRole("button", { name: "Daily" }),
+			).toBeInTheDocument();
+			expect(row(/^Repeat/)).toHaveAttribute("aria-expanded", "true");
+			expect(screen.queryAllByRole("radio", { checked: true })).toHaveLength(0);
+			expect(dialog()).not.toHaveAttribute("data-task-color");
+			expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+			expect(
+				screen.queryByRole("button", { name: /^For/ }),
+			).not.toBeInTheDocument();
+			expect(screen.getByLabelText("Task")).toHaveValue("Water plants");
+			expect(row(/^Changes from/)).toBeInTheDocument();
+		});
+
+		it("saves one update with only the title when only the title changed", async () => {
+			const engine = fakeEngine();
+			renderWithSession(<AddTaskSheet open onClose={vi.fn()} task={task} />, {
+				engine,
+			});
+			const title = await screen.findByLabelText("Task");
+			await userEvent.clear(title);
+			await userEvent.type(title, "Water the plants");
+			await userEvent.click(screen.getByRole("button", { name: "Save" }));
+			expect(engine.enqueue).toHaveBeenCalledTimes(1);
+			const m = engine.enqueue.mock.calls[0]?.[0];
+			expect(m).toMatchObject({
+				type: "task.update",
+				taskId: "t1",
+				title: "Water the plants",
+			});
+			expect(m).not.toHaveProperty("emoji");
+			expect(m).not.toHaveProperty("color");
+		});
+
+		it("sends the color and emoji only once the person picks them", async () => {
+			const engine = fakeEngine();
+			renderWithSession(<AddTaskSheet open onClose={vi.fn()} task={task} />, {
+				engine,
+			});
+			await screen.findByRole("button", { name: "Daily" });
+			await userEvent.click(screen.getByRole("radio", { name: "Teal" }));
+			await typeEmoji(PLANT);
+			await userEvent.click(screen.getByRole("button", { name: "Save" }));
+			expect(engine.enqueue).toHaveBeenCalledTimes(1);
+			const m = engine.enqueue.mock.calls[0]?.[0];
+			expect(m).toMatchObject({
+				type: "task.update",
+				emoji: PLANT,
+				color: "teal",
+			});
+			expect(m).not.toHaveProperty("title");
+		});
+
+		it("says nothing changed instead of sending an empty update", async () => {
+			const engine = fakeEngine();
+			renderWithSession(<AddTaskSheet open onClose={vi.fn()} task={task} />, {
+				engine,
+			});
+			await screen.findByRole("button", { name: "Daily" });
+			await userEvent.click(screen.getByRole("button", { name: "Save" }));
+			expect(await screen.findByText("No changes to save")).toBeInTheDocument();
+			expect(engine.enqueue).not.toHaveBeenCalled();
+		});
+
+		it("starts from the task's own emoji and color", async () => {
+			renderWithSession(
+				<AddTaskSheet
+					open
+					onClose={vi.fn()}
+					task={{ ...task, emoji: PLANT, color: "green" }}
+				/>,
+			);
+			await screen.findByRole("button", { name: "Daily" });
+			expect(dialog()).toHaveAttribute("data-task-color", "green");
+			expect(screen.getByRole("radio", { name: "Green" })).toBeChecked();
+			expect(
+				await screen.findByRole("button", {
+					name: "Emoji: potted plant, change",
+				}),
+			).toBeInTheDocument();
+		});
 	});
 });
 
@@ -153,23 +400,14 @@ const member = (
 	...patch,
 });
 const pendingToJo = (count: number): SuggestionDto[] =>
-	Array.from({ length: count }, (_, i) => ({
-		id: `s${i}`,
-		groupId: "g1",
-		fromUserId: "u1",
-		toUserId: "u2",
-		title: `Task ${i}`,
-		notes: null,
-		startDate: "2026-10-01",
-		dueTime: null,
-		rule: null,
-		status: "pending",
-		taskId: null,
-		createdAt: 0,
-		resolvedAt: null,
-		emoji: null,
-		color: null,
-	}));
+	Array.from({ length: count }, (_, i) =>
+		fakeSuggestion({
+			id: `s${i}`,
+			fromUserId: "u1",
+			toUserId: "u2",
+			title: `Task ${i}`,
+		}),
+	);
 async function storeWith(
 	members: MemberDto[],
 	suggestions: SuggestionDto[] = [],
@@ -183,6 +421,11 @@ const settle = () =>
 	act(async () => {
 		await new Promise((resolve) => setTimeout(resolve, 50));
 	});
+/** Opens the "For" row and chooses a recipient in its select. */
+async function chooseFor(name: string) {
+	await userEvent.click(await screen.findByRole("button", { name: /^For/ }));
+	await userEvent.selectOptions(screen.getByLabelText("For"), name);
+}
 
 describe("AddTaskSheet suggestions", () => {
 	it("offers Me first and then the other active members, by name", async () => {
@@ -193,61 +436,33 @@ describe("AddTaskSheet suggestions", () => {
 			member("u4", "Lee", { leftAt: 9 }),
 		]);
 		renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, { store });
-		const select = await screen.findByRole("combobox", { name: "For" });
-		const options = within(select)
-			.getAllByRole("option")
-			.map((option) => option.textContent);
-		expect(options).toEqual(["Me", "Jo", "Kim"]);
+		expect(
+			await screen.findByRole("button", { name: /^For/ }),
+		).toHaveTextContent("Me");
+		await userEvent.click(row(/^For/));
+		const select = screen.getByRole("combobox", { name: "For" });
+		expect(
+			within(select)
+				.getAllByRole("option")
+				.map((option) => option.textContent),
+		).toEqual(["Me", "Jo", "Kim"]);
 		expect(select).toHaveDisplayValue("Me");
 	});
 
-	it("hides the control when nobody else is in the group", async () => {
+	it("hides the row when nobody else is in the group", async () => {
 		const store = await storeWith([
 			member("u1", "Sam"),
 			member("u2", "Jo", { leftAt: 5 }),
 		]);
 		renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, { store });
 		await settle();
-		expect(screen.queryByLabelText("For")).not.toBeInTheDocument();
 		expect(
-			screen.getByRole("button", { name: "Add task" }),
-		).toBeInTheDocument();
+			screen.queryByRole("button", { name: /^For/ }),
+		).not.toBeInTheDocument();
+		expect(create()).toBeInTheDocument();
 	});
 
-	it("hides the control when editing an existing task", async () => {
-		const store = await storeWith([member("u1", "Sam"), member("u2", "Jo")]);
-		const task: TaskDto = {
-			id: "t1",
-			groupId: "g1",
-			ownerId: "u1",
-			title: "Brush teeth",
-			notes: null,
-			timezone: "UTC",
-			startDate: "2026-09-21",
-			rules: [
-				{
-					effectiveFrom: "2026-09-21",
-					rule: { freq: "day", interval: 1 },
-					dueTime: null,
-				},
-			],
-			archivedAt: null,
-			createdAt: 0,
-			suggestedBy: null,
-			emoji: null,
-			color: null,
-		};
-		renderWithSession(<AddTaskSheet open onClose={vi.fn()} task={task} />, {
-			store,
-		});
-		await settle();
-		expect(screen.queryByLabelText("For")).not.toBeInTheDocument();
-		expect(
-			screen.getByRole("button", { name: "Save changes" }),
-		).toBeInTheDocument();
-	});
-
-	it("suggests to the chosen member instead of adding a task", async () => {
+	it("suggests to the chosen member instead of creating a task, carrying the look", async () => {
 		const store = await storeWith([member("u1", "Sam"), member("u2", "Jo")]);
 		const engine = fakeEngine();
 		const onClose = vi.fn();
@@ -256,7 +471,9 @@ describe("AddTaskSheet suggestions", () => {
 			engine,
 		});
 		await userEvent.type(screen.getByLabelText("Task"), "Wash dishes");
-		await userEvent.selectOptions(await screen.findByLabelText("For"), "Jo");
+		await userEvent.click(screen.getByRole("radio", { name: "Coral" }));
+		await chooseFor("Jo");
+		expect(row(/^For/)).toHaveTextContent("Jo");
 		await userEvent.click(
 			screen.getByRole("button", { name: "Suggest to Jo" }),
 		);
@@ -269,12 +486,13 @@ describe("AddTaskSheet suggestions", () => {
 				title: "Wash dishes",
 				notes: null,
 				rule: null,
+				color: "coral",
 			}),
 		);
 		expect(onClose).toHaveBeenCalled();
 	});
 
-	it("goes back to adding a task for me when Me is chosen again", async () => {
+	it("goes back to creating a task for me when Me is chosen again", async () => {
 		const store = await storeWith([member("u1", "Sam"), member("u2", "Jo")]);
 		const engine = fakeEngine();
 		renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, {
@@ -282,32 +500,21 @@ describe("AddTaskSheet suggestions", () => {
 			engine,
 		});
 		await userEvent.type(screen.getByLabelText("Task"), "Call grandma");
-		const select = await screen.findByLabelText("For");
-		await userEvent.selectOptions(select, "Jo");
+		await chooseFor("Jo");
+		const select = screen.getByLabelText("For");
 		expect(select).toHaveDisplayValue("Jo");
 		await userEvent.selectOptions(select, "Me");
 		expect(select).toHaveDisplayValue("Me");
-		await userEvent.click(screen.getByRole("button", { name: "Add task" }));
+		await userEvent.click(create());
 		expect(engine.enqueue).toHaveBeenCalledWith(
 			expect.objectContaining({ type: "task.create", title: "Call grandma" }),
 		);
 	});
 
 	it("keeps the chosen member when the sheet is dismissed and reopened", async () => {
-		function Harness() {
-			const [open, setOpen] = useState(true);
-			return (
-				<>
-					<button type="button" onClick={() => setOpen(true)}>
-						Open
-					</button>
-					<AddTaskSheet open={open} onClose={() => setOpen(false)} />
-				</>
-			);
-		}
 		const store = await storeWith([member("u1", "Sam"), member("u2", "Jo")]);
 		renderWithSession(<Harness />, { store });
-		await userEvent.selectOptions(await screen.findByLabelText("For"), "Jo");
+		await chooseFor("Jo");
 		await userEvent.click(screen.getByRole("button", { name: "Close" }));
 		await userEvent.click(screen.getByRole("button", { name: "Open" }));
 		expect(
@@ -328,7 +535,7 @@ describe("AddTaskSheet suggestions", () => {
 			engine,
 		});
 		await userEvent.type(screen.getByLabelText("Task"), "Wash dishes");
-		await userEvent.selectOptions(await screen.findByLabelText("For"), "Jo");
+		await chooseFor("Jo");
 		expect(
 			screen.getByRole("button", { name: "Suggest to Jo" }),
 		).toBeInTheDocument();
@@ -341,7 +548,7 @@ describe("AddTaskSheet suggestions", () => {
 		expect(
 			screen.queryByRole("option", { name: "Jo" }),
 		).not.toBeInTheDocument();
-		await userEvent.click(screen.getByRole("button", { name: "Add task" }));
+		await userEvent.click(create());
 		expect(engine.enqueue).toHaveBeenCalledTimes(1);
 		expect(engine.enqueue).toHaveBeenCalledWith(
 			expect.objectContaining({ type: "task.create", title: "Wash dishes" }),
@@ -364,7 +571,7 @@ describe("AddTaskSheet suggestions", () => {
 				engine,
 			});
 			await userEvent.type(screen.getByLabelText("Task"), "Wash dishes");
-			await userEvent.selectOptions(await screen.findByLabelText("For"), "Jo");
+			await chooseFor("Jo");
 			await settle();
 			await userEvent.click(
 				screen.getByRole("button", { name: "Suggest to Jo" }),
