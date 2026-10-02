@@ -291,5 +291,130 @@ describe("EmojiPicker", () => {
 				expect(emojiButtons()).toEqual(["dog", "dog face", "basket"]),
 			);
 		});
+
+		describe("with a slow engine", () => {
+			const deferred = <T,>() => {
+				let resolve!: (value: T) => void;
+				const promise = new Promise<T>((r) => {
+					resolve = r;
+				});
+				return { promise, resolve };
+			};
+			const slowEngine = () => {
+				const searches = new Map<
+					string,
+					ReturnType<typeof deferred<string[]>>
+				>();
+				const suggests = new Map<
+					string,
+					ReturnType<typeof deferred<string[]>>
+				>();
+				const engine: EmojiEngine = {
+					status: "ready",
+					suggest: (title) => {
+						const d = deferred<string[]>();
+						suggests.set(title, d);
+						return d.promise;
+					},
+					search: (text) => {
+						const d = deferred<string[]>();
+						searches.set(text, d);
+						return d.promise;
+					},
+				};
+				return { engine, searches, suggests };
+			};
+
+			it("never shows meaning matches of a previous query", async () => {
+				const { engine, searches } = slowEngine();
+				setup({}, engine);
+				const search = await screen.findByRole("searchbox", {
+					name: "Search emoji",
+				});
+				await userEvent.type(search, "pe");
+				await waitFor(() => expect(searches.has("pe")).toBe(true));
+				await act(async () => searches.get("pe")?.resolve([BASKET]));
+				expect(emojiButtons()).toEqual(["dog face", "dog", "basket"]);
+				await userEvent.type(search, "t");
+				expect(emojiButtons()).toEqual(["dog face", "dog"]);
+				expect(searches.has("pet")).toBe(true);
+			});
+
+			it("shows only the latest query's matches when an earlier search resolves late", async () => {
+				const { engine, searches } = slowEngine();
+				setup({}, engine);
+				const search = await screen.findByRole("searchbox", {
+					name: "Search emoji",
+				});
+				await userEvent.type(search, "pe");
+				await waitFor(() => expect(searches.has("pe")).toBe(true));
+				await userEvent.type(search, "t");
+				await waitFor(() => expect(searches.has("pet")).toBe(true));
+				await act(async () => searches.get("pet")?.resolve([PLANT]));
+				expect(emojiButtons()).toEqual(["dog face", "dog", "potted plant"]);
+				await act(async () => searches.get("pe")?.resolve([BASKET]));
+				expect(emojiButtons()).toEqual(["dog face", "dog", "potted plant"]);
+			});
+
+			it("never shows suggestions of a previous title", async () => {
+				const { engine, suggests } = slowEngine();
+				const props = {
+					open: true,
+					onClose: vi.fn(),
+					onPick: vi.fn(),
+					value: null,
+					load,
+				};
+				const view = render(
+					<EmojiEngineProvider value={engine}>
+						<EmojiPicker {...props} title="Wash the laundry" />
+					</EmojiEngineProvider>,
+				);
+				await waitFor(() =>
+					expect(suggests.has("Wash the laundry")).toBe(true),
+				);
+				await act(async () =>
+					suggests.get("Wash the laundry")?.resolve([BASKET]),
+				);
+				expect(
+					await screen.findByRole("region", { name: "Suggested" }),
+				).toBeInTheDocument();
+				view.rerender(
+					<EmojiEngineProvider value={engine}>
+						<EmojiPicker {...props} title="Water the plants" />
+					</EmojiEngineProvider>,
+				);
+				await waitFor(() =>
+					expect(suggests.has("Water the plants")).toBe(true),
+				);
+				expect(
+					screen.queryByRole("region", { name: "Suggested" }),
+				).not.toBeInTheDocument();
+				await act(async () =>
+					suggests.get("Water the plants")?.resolve([PLANT]),
+				);
+				const row = await screen.findByRole("region", { name: "Suggested" });
+				expect(row.querySelectorAll("button")).toHaveLength(1);
+				expect(row.querySelector("button")).toHaveAttribute(
+					"aria-label",
+					"potted plant",
+				);
+			});
+
+			it("waits for a ready engine before saying nothing matches", async () => {
+				const { engine, searches } = slowEngine();
+				setup({}, engine);
+				const search = await screen.findByRole("searchbox", {
+					name: "Search emoji",
+				});
+				await userEvent.type(search, "zzz");
+				await waitFor(() => expect(searches.has("zzz")).toBe(true));
+				expect(
+					screen.queryByText('No emoji match "zzz".'),
+				).not.toBeInTheDocument();
+				await act(async () => searches.get("zzz")?.resolve([]));
+				expect(screen.getByText('No emoji match "zzz".')).toBeInTheDocument();
+			});
+		});
 	});
 });

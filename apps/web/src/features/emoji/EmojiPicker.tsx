@@ -28,6 +28,9 @@ const MIN_TITLE_FOR_SUGGESTIONS = 3;
 const MIN_QUERY_FOR_MEANING = 2;
 const NEAR_MARGIN = "600px 0px";
 
+/** What the engine answered for one input (a task title or a search query). */
+type Answer = { input: string; list: string[] };
+
 function EmojiButton({
 	emoji,
 	name,
@@ -146,10 +149,17 @@ export function EmojiPicker({
 	const [query, setQuery] = useState("");
 	const [typed, setTyped] = useState("");
 	const [typedInvalid, setTypedInvalid] = useState(false);
-	const [suggested, setSuggested] = useState<string[]>([]);
-	const [meaning, setMeaning] = useState<string[]>([]);
+	// Engine answers are stored with the input they answer, and only shown while that input is current.
+	const [suggestedFor, setSuggestedFor] = useState<Answer | null>(null);
+	const [meaningFor, setMeaningFor] = useState<Answer | null>(null);
 	const q = query.trim();
 	const cleanTitle = title.trim();
+	const suggested =
+		ready && suggestedFor?.input === cleanTitle ? suggestedFor.list : [];
+	const wantsMeaning = ready && q.length >= MIN_QUERY_FOR_MEANING;
+	const meaningAnswer = meaningFor?.input === q ? meaningFor : null;
+	const meaning = wantsMeaning && meaningAnswer ? meaningAnswer.list : [];
+	const meaningPending = wantsMeaning && !meaningAnswer;
 
 	useEffect(() => {
 		if (!open || catalog || failed) return;
@@ -174,18 +184,20 @@ export function EmojiPicker({
 	}, [open]);
 
 	useEffect(() => {
-		if (!open || !ready || cleanTitle.length < MIN_TITLE_FOR_SUGGESTIONS) {
-			setSuggested([]);
+		if (!open || !ready || cleanTitle.length < MIN_TITLE_FOR_SUGGESTIONS)
 			return;
-		}
 		let current = true;
 		engine
 			.suggest(cleanTitle)
 			.then((list) => {
-				if (current) setSuggested(list.slice(0, MAX_SUGGESTED));
+				if (current)
+					setSuggestedFor({
+						input: cleanTitle,
+						list: list.slice(0, MAX_SUGGESTED),
+					});
 			})
 			.catch(() => {
-				if (current) setSuggested([]);
+				if (current) setSuggestedFor({ input: cleanTitle, list: [] });
 			});
 		return () => {
 			current = false;
@@ -193,18 +205,15 @@ export function EmojiPicker({
 	}, [open, ready, engine, cleanTitle]);
 
 	useEffect(() => {
-		if (!open || !ready || q.length < MIN_QUERY_FOR_MEANING) {
-			setMeaning([]);
-			return;
-		}
+		if (!open || !ready || q.length < MIN_QUERY_FOR_MEANING) return;
 		let current = true;
 		engine
 			.search(q)
 			.then((list) => {
-				if (current) setMeaning(list);
+				if (current) setMeaningFor({ input: q, list });
 			})
 			.catch(() => {
-				if (current) setMeaning([]);
+				if (current) setMeaningFor({ input: q, list: [] });
 			});
 		return () => {
 			current = false;
@@ -262,7 +271,7 @@ export function EmojiPicker({
 						/>
 					))}
 				</div>
-			) : (
+			) : meaningPending ? null : (
 				<p className="text-[14px] text-text-2">No emoji match "{q}".</p>
 			);
 	} else if (catalog) {
