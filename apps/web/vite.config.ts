@@ -3,11 +3,22 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { noOrtDefaultWasm } from "./build-plugins/no-ort-default-wasm.ts";
+import {
+	assetVersion,
+	downloadBytes,
+	loadManifest,
+} from "./scripts/emoji-assets.mjs";
 
 // `EMOJI_SMOKE=1` builds only emoji-smoke.html into dist-smoke (see playwright.smoke.config.ts).
 const smoke = process.env.EMOJI_SMOKE === "1";
 
 export default defineConfig({
+	// The folder of the emoji model files under /assets/emoji/ and the size of the download,
+	// both derived from emoji-assets.json.
+	define: {
+		__EMOJI_ASSET_VERSION__: JSON.stringify(assetVersion(loadManifest())),
+		__EMOJI_DOWNLOAD_BYTES__: JSON.stringify(downloadBytes(loadManifest())),
+	},
 	plugins: [
 		react(),
 		tailwindcss(),

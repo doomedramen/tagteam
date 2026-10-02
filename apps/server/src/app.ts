@@ -84,6 +84,9 @@ export function createApp({
 
 	if (webDir) {
 		const isApi = (path: string) => path === "/api" || path.startsWith("/api/");
+		// A missing built file must answer 404. Falling back to the app shell would hand the
+		// browser index.html in place of a script or a model file, and it would cache it.
+		const isAsset = (path: string) => path.startsWith("/assets/");
 		const noCache = (_path: string, c: Context) =>
 			c.header("cache-control", "no-cache");
 		const files = serveStatic({
@@ -105,7 +108,7 @@ export function createApp({
 			isApi(c.req.path) ? next() : files(c, next),
 		);
 		app.on(["GET", "HEAD"], "*", (c, next) =>
-			isApi(c.req.path) ? next() : appShell(c, next),
+			isApi(c.req.path) || isAsset(c.req.path) ? next() : appShell(c, next),
 		);
 	}
 

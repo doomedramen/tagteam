@@ -13,6 +13,7 @@
 		"icons": "node scripts/icons.mjs",
 		"check:palette": "node scripts/check-task-palette.mjs",
 		"emoji:catalog": "node scripts/build-emoji-catalog.mjs",
+		"emoji:assets": "node scripts/fetch-emoji-assets.mjs",
 		"smoke:emoji-worker": "EMOJI_SMOKE=1 vite build && playwright test --config playwright.smoke.config.ts"
 	},
 	"dependencies": {

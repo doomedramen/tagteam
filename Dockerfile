@@ -8,6 +8,14 @@ COPY packages/core/package.json packages/core/
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
 RUN pnpm install --frozen-lockfile
+# Emoji model files: fetched from Hugging Face at the revision pinned in emoji-assets.json and
+# checksum-verified. This layer depends only on the lockfile, the manifest and these two scripts,
+# so source changes never download the 49 MB again. `--build-arg SKIP_EMOJI_MODEL=1` builds an image
+# without them (the Download button on Me then fails for everyone, because the files answer 404).
+ARG SKIP_EMOJI_MODEL=
+COPY apps/web/emoji-assets.json apps/web/emoji-assets.json
+COPY apps/web/scripts/emoji-assets.mjs apps/web/scripts/fetch-emoji-assets.mjs apps/web/scripts/
+RUN SKIP_EMOJI_MODEL="$SKIP_EMOJI_MODEL" node apps/web/scripts/fetch-emoji-assets.mjs
 COPY tsconfig.base.json ./
 COPY packages/core packages/core
 COPY apps/server apps/server

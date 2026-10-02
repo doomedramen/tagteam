@@ -9,3 +9,5 @@ data
 **/*.db-*
 **/.env
 **/.env.*
+apps/web/public/assets/emoji
+**/dist-smoke
