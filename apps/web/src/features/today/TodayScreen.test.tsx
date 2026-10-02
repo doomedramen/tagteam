@@ -49,7 +49,7 @@ describe("TodayScreen", () => {
 		expect(await screen.findByText("Add your first task")).toBeInTheDocument();
 	});
 
-	it("drops the divider under the last row of a section only", async () => {
+	it("shows each task as its own rounded tile with a gap and no divider or card", async () => {
 		await store.tasks.bulkPut([
 			brushTeeth,
 			{ ...brushTeeth, id: "t2", title: "Floss" },
@@ -60,24 +60,52 @@ describe("TodayScreen", () => {
 			document.querySelectorAll<HTMLElement>("[data-swipe-content]"),
 		);
 		expect(contents).toHaveLength(2);
-		// The border sits on a div inside each <li>, so the last row is told it is last.
-		expect(contents[0]).toHaveClass("border-b");
-		expect(contents[1]).not.toHaveClass("border-b");
-		expect(contents[0]?.parentElement?.nextElementSibling).toBe(
-			contents[1]?.parentElement,
-		);
+		const [first, second] = contents.map((content) => content.parentElement);
+		expect(first).toHaveClass("rounded-[22px]", "overflow-hidden");
+		expect(second).toHaveClass("rounded-[22px]", "overflow-hidden");
+		expect(first?.nextElementSibling).toBe(second);
+		expect(first?.parentElement).toHaveClass("gap-2.5");
+		expect(first?.closest('[data-slot="card"]')).toBeNull();
+		for (const content of contents) {
+			expect(content.className).not.toMatch(/\bborder/);
+		}
 	});
 
-	it("lets rows span the card and keeps the padding on the moving content", async () => {
+	it("fills a coloured tile with its sheet (card in dark mode) and a colourless one with the neutral card", async () => {
+		await store.tasks.bulkPut([
+			{ ...brushTeeth, color: "teal", title: "Water plants" },
+			{ ...brushTeeth, id: "t2", title: "Floss" },
+		]);
+		renderWithSession(<TodayScreen />, { store });
+		await screen.findByRole("button", { name: "Complete Water plants" });
+		const tileOf = (name: string) => {
+			const tile = screen
+				.getByRole("button", { name })
+				.closest<HTMLElement>("li");
+			if (!tile) throw new Error("tile not found");
+			return tile;
+		};
+		const teal = tileOf("Complete Water plants");
+		expect(teal).toHaveAttribute("data-task-color", "teal");
+		expect(teal.querySelector("[data-swipe-content]")).toHaveClass(
+			"bg-task-sheet",
+			"dark:bg-task-card",
+		);
+		const plain = tileOf("Complete Floss");
+		expect(plain).not.toHaveAttribute("data-task-color");
+		const plainContent = plain.querySelector("[data-swipe-content]");
+		expect(plainContent).toHaveClass("bg-card");
+		expect(plainContent).not.toHaveClass("bg-task-sheet");
+	});
+
+	it("keeps the swipe reveal inside the tile and the padding on the moving content", async () => {
 		await store.tasks.put(brushTeeth);
 		renderWithSession(<TodayScreen />, { store });
 		await screen.findByRole("button", { name: "Complete Brush teeth" });
 		const content = document.querySelector("[data-swipe-content]");
-		const row = content?.parentElement;
-		const cardContent = row?.closest('[data-slot="card-content"]');
-		expect(cardContent).toHaveClass("px-0");
-		expect(cardContent).not.toHaveClass("px-4");
-		expect(row).not.toHaveClass("-mx-4");
+		const tile = content?.parentElement;
+		expect(tile).toHaveClass("relative", "overflow-hidden", "rounded-[22px]");
+		expect(tile?.querySelector("[data-swipe-action]")).not.toBeNull();
 		expect(content).toHaveClass("px-4");
 	});
 
@@ -772,7 +800,7 @@ describe("TodayScreen suggestions", () => {
 });
 
 describe("TodayScreen look", () => {
-	it("shows each task's emoji between the circle and the title, the default when none is stored", async () => {
+	it("shows the bare emoji first and the completion button last, the default emoji when none is stored", async () => {
 		await store.tasks.bulkPut([
 			{
 				...brushTeeth,
@@ -784,24 +812,40 @@ describe("TodayScreen look", () => {
 		]);
 		renderWithSession(<TodayScreen />, { store });
 		await screen.findByRole("button", { name: "Complete Water plants" });
-		const circles = Array.from(
+		const emojis = Array.from(
 			document.querySelectorAll<HTMLElement>('[data-slot="task-emoji"]'),
 		);
-		expect(circles.map((circle) => circle.textContent).sort()).toEqual(
+		expect(emojis.map((emoji) => emoji.textContent).sort()).toEqual(
 			["\u{1F4CB}", "\u{1FAB4}"].sort(),
 		);
-		for (const circle of circles) {
-			expect(circle).toHaveAttribute("aria-hidden", "true");
-			expect(circle).toHaveClass("size-9", "rounded-full");
-			expect(circle.closest("button, a")).toBeNull();
+		for (const emoji of emojis) {
+			expect(emoji).toHaveAttribute("aria-hidden", "true");
+			expect(emoji).not.toHaveAttribute("data-task-color");
+			expect(emoji).not.toHaveClass("rounded-full");
+			expect(emoji.className).not.toMatch(/\b(bg-|border)/);
+			expect(emoji.closest("button, a")).toBeNull();
 		}
-		const plants = circles.find((c) => c.textContent === "\u{1FAB4}");
-		expect(plants).toHaveAttribute("data-task-color", "teal");
-		expect(
-			circles.find((c) => c.textContent === "\u{1F4CB}"),
-		).not.toHaveAttribute("data-task-color");
-		const row = plants?.closest("[data-swipe-content]") as HTMLElement;
-		const kids = Array.from(row.children);
-		expect(kids.indexOf(plants as HTMLElement)).toBe(1);
+		const plants = emojis.find((e) => e.textContent === "\u{1FAB4}");
+		const content = plants?.closest("[data-swipe-content]") as HTMLElement;
+		const kids = Array.from(content.children);
+		const link = within(content).getByRole("link", { name: /Water plants/ });
+		const complete = within(content).getByRole("button", {
+			name: "Complete Water plants",
+		});
+		expect(kids.indexOf(plants as HTMLElement)).toBe(0);
+		expect(kids.indexOf(link)).toBe(1);
+		expect(kids.indexOf(complete)).toBe(kids.length - 1);
+	});
+
+	it("puts the repeat icon between the title and the completion button", async () => {
+		await store.tasks.put(brushTeeth);
+		renderWithSession(<TodayScreen />, { store });
+		await screen.findByRole("button", { name: "Complete Brush teeth" });
+		const content = document.querySelector(
+			"[data-swipe-content]",
+		) as HTMLElement;
+		const kids = Array.from(content.children);
+		const repeats = within(content).getByRole("img", { name: "Repeats" });
+		expect(kids.indexOf(repeats as unknown as Element)).toBe(kids.length - 2);
 	});
 });

@@ -44,11 +44,7 @@ export function IncomingSuggestions({
 										<div className="min-w-0 flex-1">
 											<p className="text-[13px] text-text-2">{name} suggests</p>
 											<div className="flex items-start gap-2">
-												<TaskEmoji
-													emoji={suggestion.emoji}
-													color={suggestion.color}
-													size="row"
-												/>
+												<TaskEmoji emoji={suggestion.emoji} size="bare" />
 												<p className="min-w-0 break-words pt-1.5 text-[15px] font-medium">
 													{suggestion.title}
 												</p>
@@ -114,11 +110,7 @@ export function OutgoingSuggestions({
 									data-suggestion-row={suggestion.id}
 									className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-0"
 								>
-									<TaskEmoji
-										emoji={suggestion.emoji}
-										color={suggestion.color}
-										size="row"
-									/>
+									<TaskEmoji emoji={suggestion.emoji} size="bare" />
 									<div className="min-w-0 flex-1">
 										<p className="truncate text-[15px]">{suggestion.title}</p>
 										<p className="text-[13px] text-text-2">

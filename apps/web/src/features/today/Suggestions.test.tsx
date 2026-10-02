@@ -16,7 +16,7 @@ const members = [
 ];
 
 describe("suggestion cards", () => {
-	it("show the suggested emoji and color beside the title", () => {
+	it("show the suggested emoji, bare, beside the title", () => {
 		render(
 			<IncomingSuggestions
 				suggestions={[
@@ -34,7 +34,10 @@ describe("suggestion cards", () => {
 		);
 		const circle = document.querySelector('[data-slot="task-emoji"]');
 		expect(circle).toHaveTextContent("\u{1FAB4}");
-		expect(circle).toHaveAttribute("data-task-color", "green");
+		// Bare: no circle of its own and no hue; the colour belongs to Today tiles.
+		expect(circle).not.toHaveAttribute("data-task-color");
+		expect(circle).not.toHaveClass("rounded-full");
+		expect(circle?.className).not.toMatch(/\b(bg-|border)/);
 		expect(circle).toHaveAttribute("aria-hidden", "true");
 		expect(screen.getByText("Water plants")).toBeInTheDocument();
 	});

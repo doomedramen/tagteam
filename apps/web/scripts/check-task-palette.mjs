@@ -66,6 +66,7 @@ for (const [mode, tokens] of [
 			if (!value) throw new Error(`${name} missing (${mode})`);
 			return value;
 		};
+		const tile = mode === "light" ? role("sheet") : role("card");
 		const pairs = [
 			["--text on sheet", text("--text"), role("sheet"), 4.5],
 			["--text-2 on sheet", text("--text-2"), role("sheet"), 4.5],
@@ -79,6 +80,14 @@ for (const [mode, tokens] of [
 			["ring on sheet", role("ring"), role("sheet"), 3],
 			// The Today row emoji circle's ring sits on the list card (--surface).
 			["ring on surface", role("ring"), text("--surface"), 3],
+			// A Today tile is filled with `sheet` in light mode and `card` in dark mode. Its
+			// overdue meta text is --danger; the completion circle's unchecked ring is
+			// --text-3 (dashed or solid) and its overdue ring is --danger (graphics, 3:1);
+			// the done circle is filled with --success.
+			["--danger on tile", text("--danger"), tile, 4.5],
+			["--text-3 ring on tile", text("--text-3"), tile, 3],
+			["--danger ring on tile", text("--danger"), tile, 3],
+			["--success on tile", text("--success"), tile, 3],
 		];
 		if (mode === "dark")
 			pairs.push(

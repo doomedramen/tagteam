@@ -8,7 +8,6 @@ import {
 	useState,
 } from "react";
 import { Link } from "react-router";
-import { Card, CardContent } from "@/components/ui/card";
 import {
 	Empty,
 	EmptyContent,
@@ -81,13 +80,11 @@ function Row({
 	now,
 	onToggle,
 	celebrating,
-	last,
 }: {
 	row: TodayRow;
 	now: number;
 	onToggle: (row: TodayRow) => void;
 	celebrating: boolean;
-	last: boolean;
 }) {
 	const done = row.kind === "done";
 	const swipe = useRef<ActiveSwipe | null>(null);
@@ -154,7 +151,8 @@ function Row({
 	const ready = offset >= SWIPE_THRESHOLD_PX;
 	return (
 		<li
-			className="relative touch-pan-y overflow-hidden select-none"
+			data-task-color={row.task.color ?? undefined}
+			className="relative touch-pan-y overflow-hidden rounded-[22px] select-none"
 			onPointerDown={onPointerDown}
 			onPointerMove={onPointerMove}
 			onPointerUp={onPointerUp}
@@ -201,16 +199,16 @@ function Row({
 			<div
 				data-swipe-content
 				className={cx(
-					"relative z-10 flex items-center gap-3 border-line bg-card px-4 py-3",
-					// The border lives on this div, not the <li>, so `last:` cannot do this.
-					!last && "border-b",
+					"relative z-10 flex items-center gap-3 px-4 py-3",
+					// The tile fill: the task's pale `sheet` in light mode, its `card` in dark
+					// mode (the dark `sheet` is almost the page colour); neutral when colourless.
+					row.task.color ? "bg-task-sheet dark:bg-task-card" : "bg-card",
 					!dragging &&
 						"motion-safe:transition-transform motion-safe:duration-150",
 				)}
 				style={{ transform: `translateX(${offset}px)` }}
 			>
-				<CheckCircle row={row} celebrating={celebrating} onClick={onClick} />
-				<TaskEmoji emoji={row.task.emoji} color={row.task.color} size="row" />
+				<TaskEmoji emoji={row.task.emoji} size="bare" />
 				<Link
 					to={`/tasks/${row.task.id}`}
 					draggable={false}
@@ -241,6 +239,7 @@ function Row({
 						className="size-4 shrink-0 text-text-3"
 					/>
 				) : null}
+				<CheckCircle row={row} celebrating={celebrating} onClick={onClick} />
 			</div>
 		</li>
 	);
@@ -262,23 +261,18 @@ function Section({
 	if (rows.length === 0) return null;
 	return (
 		<section aria-label={title} className="mt-5">
-			<h2 className="mb-1 text-[13px] font-medium text-text-2">{title}</h2>
-			<Card className="gap-0 overflow-hidden rounded-2xl p-0 ring-line">
-				<CardContent className="px-0 py-0">
-					<ul>
-						{rows.map((row, index) => (
-							<Row
-								key={`${row.kind}-${row.task.id}-${row.key}`}
-								row={row}
-								now={now}
-								onToggle={onToggle}
-								celebrating={celebratingKey === `${row.task.id}:${row.key}`}
-								last={index === rows.length - 1}
-							/>
-						))}
-					</ul>
-				</CardContent>
-			</Card>
+			<h2 className="mb-2 text-[13px] font-medium text-text-2">{title}</h2>
+			<ul className="flex flex-col gap-2.5">
+				{rows.map((row) => (
+					<Row
+						key={`${row.kind}-${row.task.id}-${row.key}`}
+						row={row}
+						now={now}
+						onToggle={onToggle}
+						celebrating={celebratingKey === `${row.task.id}:${row.key}`}
+					/>
+				))}
+			</ul>
 		</section>
 	);
 }
