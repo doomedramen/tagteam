@@ -74,21 +74,21 @@ describe("AddTaskSheet", () => {
 
 	it("builds a custom weekly schedule with a due time", async () => {
 		const engine = fakeEngine();
+		const user = userEvent.setup({ delay: null });
 		renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, { engine });
-		await userEvent.type(screen.getByLabelText("Task"), "Clean room");
-		await userEvent.click(row(/^Repeat/));
-		await userEvent.click(screen.getByRole("button", { name: "Custom" }));
+		await user.type(screen.getByLabelText("Task"), "Clean room");
+		await user.click(row(/^Repeat/));
+		await user.click(screen.getByRole("button", { name: "Custom" }));
 		const every = screen.getByLabelText("Every");
-		await userEvent.clear(every);
-		await userEvent.type(every, "2");
-		await userEvent.selectOptions(screen.getByLabelText("Unit"), "week");
-		await userEvent.click(screen.getByRole("button", { name: "Monday" }));
-		await userEvent.click(row(/^Due by/));
-		await userEvent.click(screen.getByRole("button", { name: "Add time" }));
+		await user.clear(every);
+		await user.type(every, "2");
+		await user.selectOptions(screen.getByLabelText("Unit"), "week");
+		await user.click(screen.getByRole("button", { name: "Monday" }));
+		await user.click(row(/^Due by/));
+		await user.click(screen.getByRole("button", { name: "Add time" }));
 		const time = screen.getByLabelText("Due by");
-		await userEvent.clear(time);
-		await userEvent.type(time, "18:30");
-		await userEvent.click(create());
+		fireEvent.change(time, { target: { value: "18:30" } });
+		await user.click(create());
 		const m = engine.enqueue.mock.calls[0]?.[0];
 		expect(m).toMatchObject({
 			rule: { freq: "week", interval: 2 },

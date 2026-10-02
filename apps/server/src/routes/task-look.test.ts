@@ -110,6 +110,30 @@ describe("task emoji and color", () => {
 		expect(row()).toMatchObject({ emoji: null, color: null });
 	});
 
+	it("keeps emoji and color on a title-only update, and the title and emoji on a color-only one", async () => {
+		await push(ctx.app, sam, [create(look(PLANT, "teal"))]);
+		const t0 = ctx.clock.now;
+		// What an old client sends: a title change with no emoji or color keys at all.
+		const renamed = await push(ctx.app, sam, [
+			mutation("task.update", { taskId, title: "Water the ferns" }, t0 + 1),
+		]);
+		expect(renamed.results[0]?.status).toBe("applied");
+		expect(row()).toMatchObject({
+			title: "Water the ferns",
+			emoji: PLANT,
+			color: "teal",
+		});
+		const recolored = await push(ctx.app, sam, [
+			update({ color: "pink" }, t0 + 2),
+		]);
+		expect(recolored.results[0]?.status).toBe("applied");
+		expect(row()).toMatchObject({
+			title: "Water the ferns",
+			emoji: PLANT,
+			color: "pink",
+		});
+	});
+
 	it("keeps the latest write per field, each on its own clock", async () => {
 		await push(ctx.app, sam, [create(look(PLANT, "teal"))]);
 		const t0 = ctx.clock.now;

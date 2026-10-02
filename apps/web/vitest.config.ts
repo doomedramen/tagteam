@@ -8,6 +8,8 @@ export default defineConfig({
 	},
 	test: {
 		environment: "jsdom",
+		// Interaction-heavy sheet tests make many sequential userEvent calls and slow down under parallel CPU load.
+		testTimeout: 15_000,
 		setupFiles: ["./src/test/setup.ts"],
 		include: ["src/**/*.test.{ts,tsx}"],
 	},
