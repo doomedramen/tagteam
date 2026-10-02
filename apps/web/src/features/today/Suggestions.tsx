@@ -3,6 +3,7 @@ import { useId } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar } from "../../ui/Avatar";
 import { Button } from "../../ui/Button";
+import { TaskEmoji } from "../look/TaskEmoji";
 import { suggestionSummary } from "../suggestions/model";
 
 const nameOf = (members: MemberDto[], userId: string) =>
@@ -42,9 +43,16 @@ export function IncomingSuggestions({
 										<Avatar name={name} color={sender?.avatarColor ?? "gray"} />
 										<div className="min-w-0 flex-1">
 											<p className="text-[13px] text-text-2">{name} suggests</p>
-											<p className="break-words text-[15px] font-medium">
-												{suggestion.title}
-											</p>
+											<div className="flex items-start gap-2">
+												<TaskEmoji
+													emoji={suggestion.emoji}
+													color={suggestion.color}
+													size="row"
+												/>
+												<p className="min-w-0 break-words pt-1.5 text-[15px] font-medium">
+													{suggestion.title}
+												</p>
+											</div>
 											<p className="text-[13px] text-text-2">
 												{suggestionSummary(suggestion, today)}
 											</p>
@@ -106,6 +114,11 @@ export function OutgoingSuggestions({
 									data-suggestion-row={suggestion.id}
 									className="flex items-center gap-3 border-b border-line py-3 last:border-0"
 								>
+									<TaskEmoji
+										emoji={suggestion.emoji}
+										color={suggestion.color}
+										size="row"
+									/>
 									<div className="min-w-0 flex-1">
 										<p className="truncate text-[15px]">{suggestion.title}</p>
 										<p className="text-[13px] text-text-2">

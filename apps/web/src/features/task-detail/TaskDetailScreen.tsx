@@ -43,6 +43,7 @@ import { useSession } from "../../session/session";
 import { Button } from "../../ui/Button";
 import { useToast } from "../../ui/Toast";
 import { AddTaskSheet } from "../add-task/AddTaskSheet";
+import { TaskEmoji } from "../look/TaskEmoji";
 import { suggesterLabel } from "../suggestions/model";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -403,321 +404,332 @@ export function TaskDetailScreen() {
 	};
 
 	return (
-		<div className="mx-auto mt-3 flex w-full max-w-xl flex-col gap-5">
-			<div className="flex items-center justify-between">
-				<Button
-					aria-label="Back"
-					className="size-11 shrink-0 px-0"
-					onClick={back}
-				>
-					<ArrowLeft aria-hidden className="size-5" />
-				</Button>
-				{owner ? (
-					<DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen}>
-						<DropdownMenuTrigger
-							render={
-								<Button aria-label="Task actions" className="size-11 px-0" />
-							}
-						>
-							<MoreHorizontal aria-hidden className="size-5" />
-						</DropdownMenuTrigger>
-						<DropdownMenuContent
-							align="end"
-							className="w-48 rounded-xl bg-surface p-1 text-text shadow-xl ring-line"
-						>
-							<DropdownMenuItem
-								className="min-h-11 gap-2 rounded-lg px-3 text-[14px]"
-								onClick={() => setEditing(true)}
+		<div
+			data-task-color={task.color ?? undefined}
+			data-slot="task-detail"
+			// Remap the neutral surfaces to the task's: with no color the fallbacks equal the originals.
+			className="-mx-4 mt-3 rounded-t-[32px] bg-task-sheet px-4 pt-3 pb-8 transition-colors duration-200 [--card:var(--task-card)] [--surface-2:var(--task-swatch)] [--surface:var(--task-card)] motion-reduce:transition-none"
+		>
+			<div className="mx-auto flex w-full max-w-xl flex-col gap-5">
+				<div className="flex items-center justify-between">
+					<Button
+						aria-label="Back"
+						className="size-11 shrink-0 px-0"
+						onClick={back}
+					>
+						<ArrowLeft aria-hidden className="size-5" />
+					</Button>
+					{owner ? (
+						<DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen}>
+							<DropdownMenuTrigger
+								render={
+									<Button aria-label="Task actions" className="size-11 px-0" />
+								}
 							>
-								<Pencil aria-hidden className="size-4" />
-								Edit task
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								className="min-h-11 gap-2 rounded-lg px-3 text-[14px]"
-								disabled={busyAction !== null}
-								onClick={() => void toggleArchive()}
+								<MoreHorizontal aria-hidden className="size-5" />
+							</DropdownMenuTrigger>
+							<DropdownMenuContent
+								align="end"
+								className="w-48 rounded-xl bg-surface p-1 text-text shadow-xl ring-line"
 							>
-								{task.archivedAt === null ? (
-									<Archive aria-hidden className="size-4" />
-								) : (
-									<ArchiveRestore aria-hidden className="size-4" />
-								)}
-								{task.archivedAt === null ? "Archive task" : "Restore task"}
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
-				) : null}
-			</div>
-			<div className="min-w-0">
-				<div className="min-w-0 flex-1">
-					<div className="flex flex-wrap items-center gap-2">
-						<h1 className="min-w-0 break-words text-[25px] font-semibold tracking-tight">
-							{task.title}
-						</h1>
-						{task.archivedAt !== null ? (
-							<Badge
-								variant="secondary"
-								className="rounded-full text-[11px] font-medium text-text-2"
+								<DropdownMenuItem
+									className="min-h-11 gap-2 rounded-lg px-3 text-[14px]"
+									onClick={() => setEditing(true)}
+								>
+									<Pencil aria-hidden className="size-4" />
+									Edit task
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									className="min-h-11 gap-2 rounded-lg px-3 text-[14px]"
+									disabled={busyAction !== null}
+									onClick={() => void toggleArchive()}
+								>
+									{task.archivedAt === null ? (
+										<Archive aria-hidden className="size-4" />
+									) : (
+										<ArchiveRestore aria-hidden className="size-4" />
+									)}
+									{task.archivedAt === null ? "Archive task" : "Restore task"}
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					) : null}
+				</div>
+				<div className="min-w-0">
+					<div className="min-w-0 flex-1">
+						<TaskEmoji emoji={task.emoji} size="detail" className="mb-3" />
+						<div className="flex flex-wrap items-center gap-2">
+							<h1 className="min-w-0 break-words text-[25px] font-semibold tracking-tight">
+								{task.title}
+							</h1>
+							{task.archivedAt !== null ? (
+								<Badge
+									variant="secondary"
+									className="rounded-full text-[11px] font-medium text-text-2"
+								>
+									Archived
+								</Badge>
+							) : null}
+						</div>
+						<p className="text-[14px] text-text-2">{ruleSummary(task, now)}</p>
+						{task.suggestedBy ? (
+							<p className="mt-1 text-[13px] text-text-2">
+								Suggested by{" "}
+								{suggesterLabel(task.suggestedBy, me.user.id, members)}
+							</p>
+						) : null}
+						{!owner ? (
+							<p className="mt-1 text-[12px] text-text-3">
+								Owned by {ownerName}
+							</p>
+						) : null}
+						{canNudge ? (
+							<Button
+								className="mt-2 min-h-10 rounded-full px-3 text-[13px]"
+								onClick={() => void nudge()}
+								busy={busyAction === "nudge"}
 							>
-								Archived
-							</Badge>
+								<BellRing aria-hidden className="size-4" />
+								Nudge {ownerName}
+							</Button>
+						) : !owner && nudgedRecently && myNudgeAt !== null ? (
+							<p className="mt-2 text-[13px] text-text-2">
+								{nudgeLabel(myNudgeAt, now)}
+							</p>
 						) : null}
 					</div>
-					<p className="text-[14px] text-text-2">{ruleSummary(task, now)}</p>
-					{task.suggestedBy ? (
-						<p className="mt-1 text-[13px] text-text-2">
-							Suggested by{" "}
-							{suggesterLabel(task.suggestedBy, me.user.id, members)}
-						</p>
-					) : null}
-					{!owner ? (
-						<p className="mt-1 text-[12px] text-text-3">Owned by {ownerName}</p>
-					) : null}
-					{canNudge ? (
-						<Button
-							className="mt-2 min-h-10 rounded-full px-3 text-[13px]"
-							onClick={() => void nudge()}
-							busy={busyAction === "nudge"}
-						>
-							<BellRing aria-hidden className="size-4" />
-							Nudge {ownerName}
-						</Button>
-					) : !owner && nudgedRecently && myNudgeAt !== null ? (
-						<p className="mt-2 text-[13px] text-text-2">
-							{nudgeLabel(myNudgeAt, now)}
-						</p>
-					) : null}
 				</div>
-			</div>
 
-			<section aria-labelledby="task-stats-heading">
-				<div className="mb-2 flex items-baseline justify-between gap-2">
-					<h2 id="task-stats-heading" className="text-[15px] font-semibold">
-						Last 30 days
-					</h2>
-					<p className="text-[12px] text-text-2">By due date</p>
-				</div>
-				<div className="grid grid-cols-3 gap-2">
-					<Stat
-						label="On time"
-						value={
-							stats.onTimeRate === null
-								? "—"
-								: `${Math.round(stats.onTimeRate * 100)}%`
-						}
-					/>
-					<Stat label="Late" value={String(stats.late)} />
-					<Stat label="Missed" value={String(stats.missed)} />
-				</div>
-			</section>
-
-			<section aria-labelledby="task-calendar-heading">
-				<div className="mb-2 flex min-h-11 items-center justify-between">
-					<h2
-						id="task-calendar-heading"
-						aria-live="polite"
-						className="text-[15px] font-semibold"
-					>
-						{monthLabel}
-					</h2>
-					<div className="flex gap-1">
-						<Button
-							aria-label="Previous month"
-							className="size-11 px-0"
-							onClick={() => changeMonth(-1)}
-						>
-							<ChevronLeft aria-hidden className="size-5" />
-						</Button>
-						<Button
-							aria-label="Next month"
-							className="size-11 px-0"
-							onClick={() => changeMonth(1)}
-						>
-							<ChevronRight aria-hidden className="size-5" />
-						</Button>
+				<section aria-labelledby="task-stats-heading">
+					<div className="mb-2 flex items-baseline justify-between gap-2">
+						<h2 id="task-stats-heading" className="text-[15px] font-semibold">
+							Last 30 days
+						</h2>
+						<p className="text-[12px] text-text-2">By due date</p>
 					</div>
-				</div>
-				<Card
-					className="rounded-2xl p-0 ring-line"
-					onTouchStart={onTouchStart}
-					onTouchEnd={onTouchEnd}
-				>
-					<CardContent className="p-3">
-						<table className="w-full table-fixed border-collapse text-center">
-							<caption className="sr-only">{monthLabel} task history</caption>
-							<thead>
-								<tr>
-									{WEEKDAYS.map((day) => (
-										<th
-											key={day.key}
-											scope="col"
-											className="pb-2 text-[12px] font-medium text-text-3"
-										>
-											{day.label}
-										</th>
-									))}
-								</tr>
-							</thead>
-							<tbody>
-								{weeks.map((week) => {
-									const weekKey = week.find((cell) => cell !== null)?.date;
-									return (
-										<tr key={weekKey}>
-											{week.map((cell, index) => {
-												if (!cell)
-													return (
-														<td
-															key={`${weekKey}-${WEEKDAYS[index]?.key ?? "empty"}`}
-														/>
+					<div className="grid grid-cols-3 gap-2">
+						<Stat
+							label="On time"
+							value={
+								stats.onTimeRate === null
+									? "—"
+									: `${Math.round(stats.onTimeRate * 100)}%`
+							}
+						/>
+						<Stat label="Late" value={String(stats.late)} />
+						<Stat label="Missed" value={String(stats.missed)} />
+					</div>
+				</section>
+
+				<section aria-labelledby="task-calendar-heading">
+					<div className="mb-2 flex min-h-11 items-center justify-between">
+						<h2
+							id="task-calendar-heading"
+							aria-live="polite"
+							className="text-[15px] font-semibold"
+						>
+							{monthLabel}
+						</h2>
+						<div className="flex gap-1">
+							<Button
+								aria-label="Previous month"
+								className="size-11 px-0"
+								onClick={() => changeMonth(-1)}
+							>
+								<ChevronLeft aria-hidden className="size-5" />
+							</Button>
+							<Button
+								aria-label="Next month"
+								className="size-11 px-0"
+								onClick={() => changeMonth(1)}
+							>
+								<ChevronRight aria-hidden className="size-5" />
+							</Button>
+						</div>
+					</div>
+					<Card
+						className="rounded-2xl p-0 ring-line"
+						onTouchStart={onTouchStart}
+						onTouchEnd={onTouchEnd}
+					>
+						<CardContent className="p-3">
+							<table className="w-full table-fixed border-collapse text-center">
+								<caption className="sr-only">{monthLabel} task history</caption>
+								<thead>
+									<tr>
+										{WEEKDAYS.map((day) => (
+											<th
+												key={day.key}
+												scope="col"
+												className="pb-2 text-[12px] font-medium text-text-3"
+											>
+												{day.label}
+											</th>
+										))}
+									</tr>
+								</thead>
+								<tbody>
+									{weeks.map((week) => {
+										const weekKey = week.find((cell) => cell !== null)?.date;
+										return (
+											<tr key={weekKey}>
+												{week.map((cell, index) => {
+													if (!cell)
+														return (
+															<td
+																key={`${weekKey}-${WEEKDAYS[index]?.key ?? "empty"}`}
+															/>
+														);
+													const entry = entriesByDate.get(cell.date);
+													const isToday = today === cell.date;
+													const carryover = carryovers.find(
+														(range) =>
+															range.start <= cell.date &&
+															cell.date <= range.end,
 													);
-												const entry = entriesByDate.get(cell.date);
-												const isToday = today === cell.date;
-												const carryover = carryovers.find(
-													(range) =>
-														range.start <= cell.date && cell.date <= range.end,
-												);
-												const carryoverLabel = carryover
-													? carryover.completed
-														? ` · Carried over from ${formatDate(carryover.start, { weekday: "short" })} until completed ${formatDate(carryover.end, { weekday: "short" })}`
-														: ` · Carried over from ${formatDate(carryover.start, { weekday: "short" })} through today`
-													: "";
-												return (
-													<td key={cell.date} className="p-0.5">
-														<div className="relative mx-auto flex size-10 items-center justify-center">
-															{carryover &&
-															carryover.start !== carryover.end ? (
-																<span
-																	aria-hidden
-																	className={`pointer-events-none absolute top-1/2 z-0 h-1 bg-danger/35 ${carryover.start === cell.date ? "left-1/2" : "-left-1"} ${carryover.end === cell.date ? "right-1/2" : "-right-1"}`}
-																/>
-															) : null}
-															<div
-																role="img"
-																aria-label={`${formatDate(cell.date, { weekday: "long", month: "long", day: "numeric" })}${isToday ? " · Today" : ""}${entry ? ` · ${statusLabel(entry, now, task.timezone)}` : " · No occurrence"}${carryoverLabel}`}
-																className={`relative z-10 flex size-10 items-center justify-center rounded-full bg-surface text-[13px] font-medium text-text ${entry ? calendarRingClass(entry.status) : ""}`}
-															>
-																{cell.day}
-																{isToday ? (
+													const carryoverLabel = carryover
+														? carryover.completed
+															? ` · Carried over from ${formatDate(carryover.start, { weekday: "short" })} until completed ${formatDate(carryover.end, { weekday: "short" })}`
+															: ` · Carried over from ${formatDate(carryover.start, { weekday: "short" })} through today`
+														: "";
+													return (
+														<td key={cell.date} className="p-0.5">
+															<div className="relative mx-auto flex size-10 items-center justify-center">
+																{carryover &&
+																carryover.start !== carryover.end ? (
 																	<span
 																		aria-hidden
-																		className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-accent ring-2 ring-surface"
+																		className={`pointer-events-none absolute top-1/2 z-0 h-1 bg-danger/35 ${carryover.start === cell.date ? "left-1/2" : "-left-1"} ${carryover.end === cell.date ? "right-1/2" : "-right-1"}`}
 																	/>
 																) : null}
+																<div
+																	role="img"
+																	aria-label={`${formatDate(cell.date, { weekday: "long", month: "long", day: "numeric" })}${isToday ? " · Today" : ""}${entry ? ` · ${statusLabel(entry, now, task.timezone)}` : " · No occurrence"}${carryoverLabel}`}
+																	className={`relative z-10 flex size-10 items-center justify-center rounded-full bg-surface text-[13px] font-medium text-text ${entry ? calendarRingClass(entry.status) : ""}`}
+																>
+																	{cell.day}
+																	{isToday ? (
+																		<span
+																			aria-hidden
+																			className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-accent ring-2 ring-surface"
+																		/>
+																	) : null}
+																</div>
 															</div>
-														</div>
-													</td>
-												);
-											})}
-										</tr>
-									);
-								})}
-							</tbody>
-						</table>
-						<div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-line pt-3 text-[12px] text-text-2">
-							{(
-								[
-									["on_time", "On time"],
-									["late", "Late"],
-									["missed", "Missed"],
-									["open", "Open"],
-									["overdue", "Overdue"],
-									["upcoming", "Upcoming"],
-								] as const
-							).map(([status, label]) => (
-								<span key={status} className="flex items-center gap-1.5">
+														</td>
+													);
+												})}
+											</tr>
+										);
+									})}
+								</tbody>
+							</table>
+							<div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-line pt-3 text-[12px] text-text-2">
+								{(
+									[
+										["on_time", "On time"],
+										["late", "Late"],
+										["missed", "Missed"],
+										["open", "Open"],
+										["overdue", "Overdue"],
+										["upcoming", "Upcoming"],
+									] as const
+								).map(([status, label]) => (
+									<span key={status} className="flex items-center gap-1.5">
+										<span
+											aria-hidden
+											className={`size-3 rounded-full ${calendarRingClass(status)}`}
+										/>
+										{label}
+									</span>
+								))}
+								<span className="flex items-center gap-1.5">
 									<span
 										aria-hidden
-										className={`size-3 rounded-full ${calendarRingClass(status)}`}
+										className="size-2 rounded-full bg-accent ring-2 ring-surface"
 									/>
-									{label}
+									Today
 								</span>
-							))}
-							<span className="flex items-center gap-1.5">
-								<span
-									aria-hidden
-									className="size-2 rounded-full bg-accent ring-2 ring-surface"
-								/>
-								Today
-							</span>
-							<span className="flex items-center gap-1.5">
-								<span
-									aria-hidden
-									className="h-1 w-5 rounded-full bg-danger/35"
-								/>
-								Carry-over
-							</span>
-						</div>
-					</CardContent>
-				</Card>
-			</section>
-
-			<section aria-labelledby="task-history-heading">
-				<h2
-					id="task-history-heading"
-					className="mb-2 text-[15px] font-semibold"
-				>
-					History for {monthLabel}
-				</h2>
-				{monthEntries.length > 0 ? (
-					<Card className="gap-0 rounded-2xl p-0 ring-line">
-						<CardContent className="px-4 py-0">
-							<ul>
-								{monthEntries.map((entry) => (
-									<li
-										key={entry.key}
-										className="flex min-h-16 items-center gap-3 border-b border-line py-3 last:border-0"
-									>
-										<span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-2">
-											<StatusIcon status={entry.status} />
-										</span>
-										<div className="min-w-0 flex-1">
-											<p className="text-[13px] font-medium">
-												{formatDate(entry.key, {
-													weekday: "short",
-													month: "short",
-													day: "numeric",
-												})}
-											</p>
-											<p className="text-[13px] text-text-2">
-												{statusLabel(entry, now, task.timezone)}
-											</p>
-										</div>
-										{owner && entry.completionId ? (
-											<Button
-												aria-label={`Undo completion for ${formatDate(entry.key)}`}
-												busy={busyAction === entry.completionId}
-												disabled={
-													busyAction !== null &&
-													busyAction !== entry.completionId
-												}
-												variant="ghost"
-												className="min-h-10 shrink-0 px-2 text-[13px]"
-												onClick={() => void undo(entry)}
-											>
-												<Undo2 aria-hidden className="size-4" />
-												Undo
-											</Button>
-										) : null}
-									</li>
-								))}
-							</ul>
+								<span className="flex items-center gap-1.5">
+									<span
+										aria-hidden
+										className="h-1 w-5 rounded-full bg-danger/35"
+									/>
+									Carry-over
+								</span>
+							</div>
 						</CardContent>
 					</Card>
-				) : (
-					<Empty className="rounded-2xl border-0 bg-surface px-4 py-5 ring-1 ring-line">
-						<EmptyTitle className="text-[14px] font-normal text-text-2">
-							No history for {monthLabel}.
-						</EmptyTitle>
-					</Empty>
-				)}
-			</section>
-			{owner ? (
-				<AddTaskSheet
-					open={editing}
-					onClose={() => setEditing(false)}
-					task={task}
-				/>
-			) : null}
+				</section>
+
+				<section aria-labelledby="task-history-heading">
+					<h2
+						id="task-history-heading"
+						className="mb-2 text-[15px] font-semibold"
+					>
+						History for {monthLabel}
+					</h2>
+					{monthEntries.length > 0 ? (
+						<Card className="gap-0 rounded-2xl p-0 ring-line">
+							<CardContent className="px-4 py-0">
+								<ul>
+									{monthEntries.map((entry) => (
+										<li
+											key={entry.key}
+											className="flex min-h-16 items-center gap-3 border-b border-line py-3 last:border-0"
+										>
+											<span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-2">
+												<StatusIcon status={entry.status} />
+											</span>
+											<div className="min-w-0 flex-1">
+												<p className="text-[13px] font-medium">
+													{formatDate(entry.key, {
+														weekday: "short",
+														month: "short",
+														day: "numeric",
+													})}
+												</p>
+												<p className="text-[13px] text-text-2">
+													{statusLabel(entry, now, task.timezone)}
+												</p>
+											</div>
+											{owner && entry.completionId ? (
+												<Button
+													aria-label={`Undo completion for ${formatDate(entry.key)}`}
+													busy={busyAction === entry.completionId}
+													disabled={
+														busyAction !== null &&
+														busyAction !== entry.completionId
+													}
+													variant="ghost"
+													className="min-h-10 shrink-0 px-2 text-[13px]"
+													onClick={() => void undo(entry)}
+												>
+													<Undo2 aria-hidden className="size-4" />
+													Undo
+												</Button>
+											) : null}
+										</li>
+									))}
+								</ul>
+							</CardContent>
+						</Card>
+					) : (
+						<Empty className="rounded-2xl border-0 bg-surface px-4 py-5 ring-1 ring-line">
+							<EmptyTitle className="text-[14px] font-normal text-text-2">
+								No history for {monthLabel}.
+							</EmptyTitle>
+						</Empty>
+					)}
+				</section>
+				{owner ? (
+					<AddTaskSheet
+						open={editing}
+						onClose={() => setEditing(false)}
+						task={task}
+					/>
+				) : null}
+			</div>
 		</div>
 	);
 }

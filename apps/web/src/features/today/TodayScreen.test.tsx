@@ -757,3 +757,38 @@ describe("TodayScreen suggestions", () => {
 		}
 	});
 });
+
+describe("TodayScreen look", () => {
+	it("shows each task's emoji between the circle and the title, the default when none is stored", async () => {
+		await store.tasks.bulkPut([
+			{
+				...brushTeeth,
+				emoji: "\u{1FAB4}",
+				color: "teal",
+				title: "Water plants",
+			},
+			{ ...brushTeeth, id: "t2", title: "Floss" },
+		]);
+		renderWithSession(<TodayScreen />, { store });
+		await screen.findByRole("button", { name: "Complete Water plants" });
+		const circles = Array.from(
+			document.querySelectorAll<HTMLElement>('[data-slot="task-emoji"]'),
+		);
+		expect(circles.map((circle) => circle.textContent).sort()).toEqual(
+			["\u{1F4CB}", "\u{1FAB4}"].sort(),
+		);
+		for (const circle of circles) {
+			expect(circle).toHaveAttribute("aria-hidden", "true");
+			expect(circle).toHaveClass("size-9", "rounded-full");
+			expect(circle.closest("button, a")).toBeNull();
+		}
+		const plants = circles.find((c) => c.textContent === "\u{1FAB4}");
+		expect(plants).toHaveAttribute("data-task-color", "teal");
+		expect(
+			circles.find((c) => c.textContent === "\u{1F4CB}"),
+		).not.toHaveAttribute("data-task-color");
+		const row = plants?.closest("[data-swipe-content]") as HTMLElement;
+		const kids = Array.from(row.children);
+		expect(kids.indexOf(plants as HTMLElement)).toBe(1);
+	});
+});

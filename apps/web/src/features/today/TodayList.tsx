@@ -20,6 +20,7 @@ import { Progress } from "@/components/ui/progress";
 import { cx } from "../../lib/cx";
 import { Button } from "../../ui/Button";
 import { ConfettiBurst } from "../../ui/ConfettiBurst";
+import { TaskEmoji } from "../look/TaskEmoji";
 import { rowLabel } from "./labels";
 import type { TodayRow, TodayView } from "./model";
 
@@ -209,6 +210,7 @@ function Row({
 				style={{ transform: `translateX(${offset}px)` }}
 			>
 				<CheckCircle row={row} celebrating={celebrating} onClick={onClick} />
+				<TaskEmoji emoji={row.task.emoji} color={row.task.color} size="row" />
 				<Link
 					to={`/tasks/${row.task.id}`}
 					draggable={false}

@@ -74,3 +74,33 @@ describe("TaskDetailScreen suggested by", () => {
 		expect(screen.queryByText(/Suggested by/)).not.toBeInTheDocument();
 	});
 });
+
+describe("TaskDetailScreen look", () => {
+	it("wears the task's color and shows its emoji above the title", async () => {
+		await store.tasks.put(task({ emoji: "\u{1FAB4}", color: "teal" }));
+		renderDetail();
+		await screen.findByRole("heading", { name: "Wash dishes" });
+		const root = document.querySelector('[data-slot="task-detail"]');
+		expect(root).toHaveAttribute("data-task-color", "teal");
+		expect(root).toHaveClass("bg-task-sheet");
+		const circle = root?.querySelector('[data-slot="task-emoji"]');
+		expect(circle).toHaveTextContent("\u{1FAB4}");
+		expect(circle).toHaveAttribute("aria-hidden", "true");
+		expect(
+			circle?.compareDocumentPosition(
+				screen.getByRole("heading", { name: "Wash dishes" }),
+			),
+		).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+	});
+
+	it("shows the default emoji on neutral surfaces for a task with no emoji or color", async () => {
+		await store.tasks.put(task());
+		renderDetail();
+		await screen.findByRole("heading", { name: "Wash dishes" });
+		const root = document.querySelector('[data-slot="task-detail"]');
+		expect(root).not.toHaveAttribute("data-task-color");
+		expect(root?.querySelector('[data-slot="task-emoji"]')).toHaveTextContent(
+			"\u{1F4CB}",
+		);
+	});
+});
