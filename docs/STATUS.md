@@ -271,8 +271,8 @@ Follow-ups and owner questions:
    Should Remove clear it?
 5. Accuracy: 58% first pick, 78% in the top 3 on 79 labelled titles (33 first picks wrong). Weak spots: cleaning
    verbs drift to shower, bath or broom ("Wash the car" gives a shower) and activity nouns ("Pay rent" gives a
-   convenience store, "Bake bread" a sandwich). The full wrong-pick list is in the plan workspace
-   (`.superpowers/sdd/2026-10-02-10-emoji-suggestions/task-10-report.md`). Ideas: extra keywords on catalogue
+   convenience store, "Bake bread" a sandwich). The full wrong-pick list is in
+   `docs/superpowers/plans/2026-10-02-10-emoji-suggestions-eval.md`. Ideas: extra keywords on catalogue
    entries, a hand-curated override list.
 6. Test debt (known, not fixed): real fixed-sleep negative assertions in `AddTaskSheet.auto-emoji.test.tsx`,
    `TodayScreen.accept-emoji.test.tsx` and `LatePicks.test.tsx` (false-green risk, not flake); the Cancel e2e passes
