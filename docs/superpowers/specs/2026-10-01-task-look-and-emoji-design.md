@@ -7,8 +7,8 @@ New task sheet's layout, this document wins; keyboard behaviour from that docume
 ## 1. Summary
 
 Every task gets a colour and an emoji. The New task sheet and task detail take on the task's
-colour, in the style of the Me+ create sheet the owner chose as reference: a tinted sheet, an emoji
-in a circle, a row of round colour options, and one card of settings rows. Shapes are rounded
+colour, in the style of the Me+ create sheet the owner chose as reference: a tinted sheet, a large
+bare emoji, a row of round colour options, and one card of settings rows. Shapes are rounded
 throughout; anything with equal width and height is a circle.
 
 The emoji is suggested from the task title on the device, offline, by a small embedding model. The
@@ -185,9 +185,9 @@ A stored emoji of null means "not decided yet". The automatic picker may only ev
 emoji, and only on tasks created with this feature (decided by the owner on 2026-10-01); tasks
 that already existed are left alone.
 
-- **In the sheet.** A new draft starts with no emoji, so the circle shows the default. 300 ms
+- **In the sheet.** A new draft starts with no emoji, so the emoji shows the default. 300 ms
   after the title stops changing, if it has at least three characters and the engine is ready, the
-  top suggestion fills the circle. A result for a title that has since changed is dropped.
+  top suggestion fills the emoji. A result for a title that has since changed is dropped.
 - **Picked by hand.** Choosing in the picker, or typing an emoji into its keyboard field, marks the
   emoji as chosen. The title no longer changes it, in this sheet or later.
 - **Submitting never waits.** The task is created with whatever the sheet shows. If no suggestion
