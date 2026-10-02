@@ -300,13 +300,17 @@ Follow-ups and owner questions:
 
 - **Later (owner, 2026-10-02):** an in-app tutorial for using the app, which can include the emoji suggestions
   download option that today lives only on Me.
-- **Later idea (owner, 2026-10-02):** custom emoji as the group's own images or stickers, like Slack or Discord
-  (spec §13 lists custom emoji as out of scope today; the picker already accepts any standard emoji typed or
-  pasted). Needs its own brainstorm and spec. Questions to settle then: a group-scoped library with names (so
-  `task.emoji` can hold either a Unicode emoji or a reference to a custom one, which changes `isEmoji`, the
-  mutation validator and the server check); who may add or delete; image limits and resizing on the device;
-  where files live on the server (they are binary, so not ordinary mutations) and how they are cached offline;
-  what a task shows when the image is missing or deleted; whether the name search can also feed auto-pick.
+- **Later idea (owner, 2026-10-02):** custom emoji as the group's own images, like Slack or Discord (spec §13 lists
+  custom emoji as out of scope today; the picker already accepts any standard emoji typed or pasted). Owner
+  direction so far: per group; any member can add their own PNGs as extra emoji; each needs a name and tags (or
+  similar) so the emoji suggestions can pick it; animated GIFs are a possible extra. Needs its own brainstorm and
+  spec. Questions to settle then: `task.emoji` holding either a Unicode emoji or a reference to a custom one (changes
+  `isEmoji`, the mutation validator and the server check); who may delete or rename; image limits and resizing on the
+  device; where files live on the server (binary, so not ordinary mutations) and how they are cached offline; what a
+  task shows when the image is missing or deleted; GIF size and whether it animates everywhere (Today tiles, sheet)
+  or only in the picker. For suggestions, the on-device model could embed each custom emoji's name and tags when it
+  is added or synced and append it to the committed index at runtime (about 7 ms per entry), kept per group and
+  stored on the device.
 - Open items from Plan 9 that are still open:
   - Without `Intl.Segmenter` (Firefox before 125) the client skips the grapheme-count check; the
     server always checks, so a two-emoji paste in the typed field is rejected by the server there.
