@@ -96,7 +96,7 @@ function MemberFilter({
 			<NativeSelect
 				id="history-member"
 				className="min-w-0 flex-1"
-				selectClassName="h-11 w-full min-w-0 border-0 bg-transparent px-0 text-base font-medium text-text ring-0"
+				selectClassName="h-11 w-full min-w-0 border-0 bg-transparent pl-0 pr-7 text-base font-medium text-text ring-0"
 				value={value}
 				onChange={(event) => onChange(event.target.value)}
 			>

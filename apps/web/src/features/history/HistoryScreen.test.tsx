@@ -90,3 +90,12 @@ describe("HistoryScreen full-width rows", () => {
 		expect(row).toHaveClass("px-4");
 	});
 });
+
+describe("HistoryScreen member filter", () => {
+	it("keeps the selected text clear of the arrow", async () => {
+		renderWithSession(<HistoryScreen />, { store });
+		const select = await screen.findByLabelText("Member");
+		expect(select).toHaveClass("pr-7");
+		expect(select).not.toHaveClass("px-0");
+	});
+});
