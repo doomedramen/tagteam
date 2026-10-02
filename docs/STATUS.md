@@ -178,7 +178,8 @@ Plan: `docs/superpowers/plans/2026-10-02-10-emoji-suggestions.md` (Tasks 1-11). 
 `.superpowers/sdd/2026-10-02-10-emoji-suggestions/` in the working checkout (briefs, reports, `progress.md`).
 Earlier tasks of this plan did not update STATUS; this section covers the whole plan.
 
-Commits (`git log --oneline dc61933..HEAD`, oldest first, then the Task 11 commit):
+Commits (`git log --oneline dc61933..HEAD`, oldest first; the last three are the final fix wave after the
+whole-branch review):
 
 | Commit | Subject |
 |---|---|
@@ -196,7 +197,10 @@ Commits (`git log --oneline dc61933..HEAD`, oldest first, then the Task 11 commi
 | `07ab52f` | test(web): make the auto-emoji sheet tests deterministic |
 | `c7895d4` | feat(web): late emoji picks for tasks saved before the model is ready |
 | `39b736c` | feat(web): evaluation script for emoji suggestions and the auto-pick exclusion gate |
-| (Task 11) | test(web): cover emoji suggestions end to end; CI fetches the model; update status, README and spec |
+| `602259d` | test(web): cover emoji suggestions end to end; CI fetches the model; update status, README and spec |
+| `5ee7374` | fix(web): keep the emoji opt-in across tabs, report stored bytes, guard late picks against renamed tasks |
+| `6a0b740` | feat(web): offer Remove download on Me after a failure or when an update is pending; fix download docs |
+| `dc9eb72` | fix(web): harden emoji asset fetch and eval script; tighten emoji e2e |
 
 What shipped:
 
@@ -238,14 +242,22 @@ What shipped:
   first pick right / in the top 3: full precision 45 (57%) / 62 (78%); sign bits only 35 (44%) / 59 (75%);
   **shipped (bits shortlist + int8 re-rank) 46 (58%) / 62 (78%)**; shipped with the auto-pick exclusion 45 (57%) /
   62 (78%). The exclusion (flags, symbols, clock faces) is **rejected** (46 to 45): `AUTO_PICK_EXCLUSION` is `false`.
-- Checks (Task 11, 2026-10-02): `pnpm test`, `pnpm typecheck`, format, lint, the worker smoke test and the
-  Playwright suite (WebKit `iphone` and `chromium`, 18 tests: `app`, `suggestions`, `task-look` and six emoji specs,
-  with the real model) passed. The emoji e2e specs prove "nothing is requested or started until Download" with a
-  controlled clock (no sleeps) and "works from the stored copy" by reloading with `/assets/emoji/**` blocked.
-  The spec and README are amended. Not run by the implementer of Task 11: the 375 x 812 light and dark visual check
-  and the iOS Simulator check (the controller records them), `docker build`, GitHub Actions, `actionlint`.
-- Not verified: a real iPhone (speed, memory, eviction over days), the installed-app `persist()` grant, the Docker
-  build, GitHub Actions.
+- Me also offers "Remove download" next to Download (update available) and Try again (a failure or stopped), so a
+  stale or failed copy can be freed without downloading again (final fix wave).
+- Checks (2026-10-02, after the fix wave): `pnpm test` (core 103, server 113, web 502), `pnpm typecheck`, format,
+  lint, the worker smoke test (model required) and the Playwright suite (WebKit `iphone` and `chromium`, 18
+  tests: `app`, `suggestions`, `task-look` and six emoji specs, with the real model) passed. The emoji e2e specs
+  prove "nothing is requested or started until Download" with a controlled clock (no sleeps) and "works from the
+  stored copy" by reloading with `/assets/emoji/**` blocked. A final whole-branch review found no critical or
+  important defects and confirmed the opt-in on every path (worker flag, store gate, `fetch` guard, no service
+  worker caching of model files).
+- Visual checks: Chromium at 375 x 812 (dark and light) and the iOS 27 Simulator (WebKit, light, real keyboard):
+  Me off, downloading, on, update available (dark), Remove; New task sheet suggests an emoji while typing and a colour
+  tap with the keyboard open works on the first tap. The failed state was covered by unit and e2e tests only.
+- Not run: `docker build`, GitHub Actions and `actionlint` for this branch (run `docker build -t tagteam:local .`
+  and check `curl -I` on a file under `/assets/emoji/<version>/ort/` before pushing; CI never requests the model from
+  the built image).
+- Not verified: a real iPhone (speed, memory, eviction over days), the installed-app `persist()` grant.
 
 Follow-ups and owner questions:
 
@@ -263,14 +275,23 @@ Follow-ups and owner questions:
    (`.superpowers/sdd/2026-10-02-10-emoji-suggestions/task-10-report.md`). Ideas: extra keywords on catalogue
    entries, a hand-curated override list.
 6. Test debt (known, not fixed): real fixed-sleep negative assertions in `AddTaskSheet.auto-emoji.test.tsx`,
-   `TodayScreen.accept-emoji.test.tsx` and `LatePicks.test.tsx` (false-green risk, not flake); `eval-emoji.mjs`
-   checks only the index count (not `catalogSha256` or the model revision) and gives no friendly message when the
-   model files are missing; the shared `norm()` has no direct test; nothing pins `AUTO_PICK_EXCLUSION === false`.
-7. Known flakiness from Plan 9 (a single unexplained `AddTaskSheet` test failure that passed on rerun) still
+   `TodayScreen.accept-emoji.test.tsx` and `LatePicks.test.tsx` (false-green risk, not flake); the Cancel e2e passes
+   even if nothing was stored before Cancel; the CI `image` job never requests `/assets/emoji/` from the built
+   image. (Fixed in the fix wave: `eval-emoji.mjs` checks `catalogSha256` and the revision, `norm()` and
+   `AUTO_PICK_EXCLUSION` have tests.)
+7. Known edge cases left as they are (small, rare; from the whole-branch review): a download in a backgrounded
+   iOS page that stalls over 60 s shows "Couldn't load emoji suggestions." and Try again restarts the 34 MB file
+   (resume is per file); a model that fails to load from memory pressure with files stored is treated as `corrupt`
+   (spec table) and deleted, so a low-memory phone can loop through re-downloads started by Try again; pressing
+   Remove in a second tab while the first tab's download finishes re-writes the opt-in (the next start notices the
+   missing files and shows the evicted note); the CLI honours `EMOJI_ASSETS_MANIFEST|ROOT|HUB` test hooks (build
+   environments only); the eval script's strict `modelRevision` check asks for `emoji:index` after a revision-only
+   re-pin; "Emoji suggestions are on" has no full stop, unlike the other status lines.
+8. Known flakiness from Plan 9 (a single unexplained `AddTaskSheet` test failure that passed on rerun) still
    applies.
-8. Dev-server note: on first use the Vite dev server may reload the page (dependency optimisation) mid-download;
+9. Dev-server note: on first use the Vite dev server may reload the page (dependency optimisation) mid-download;
    an interrupted download simply returns to "off" with no strike. Production builds are unaffected.
-9. If Hugging Face rate-limits CI, add an `actions/cache` step for `apps/web/public/assets/emoji` in the `e2e` job.
+10. If Hugging Face rate-limits CI, add an `actions/cache` step for `apps/web/public/assets/emoji` in the `e2e` job.
 
 ## Next plans
 
@@ -285,8 +306,6 @@ Follow-ups and owner questions:
     The submit button inside the form is `aria-hidden`, `tabIndex={-1}` on purpose.
   - Not verified: a real iPhone (keyboard behaviour was verified on the iOS 27 Simulator only),
     the installed-PWA `persist()` grant for TagTeam itself, and eviction over days.
-  - Open from review: `useKeepKeyboardTaps` ignores taps held longer than 700 ms, so a slow tap with
-    the keyboard open still loses the tap; consider raising or dropping that cutoff.
 - Out of scope (spec §13): subtasks, goals, tags, automatic colour, notes in the sheet, per-task reminder row, custom emoji, skin tones, non-English suggestion quality, multi-threaded inference.
 
 ## Considered and dropped
@@ -352,8 +371,7 @@ Follow-ups and owner questions:
   says Wi-Fi is best; there is no Wi-Fi-only check). An update to the model shows only on Me. Questions on the
   auto-filled emoji staying after the title is cleared, and on Remove download and the awaiting list, are in the
   Plan 10 follow-ups above.
-- The active group is visible only on Me (owner's request, 7bb5050), so a user in several groups cannot see which
-  group Today and Team show. Team's Nudge button is 40 px tall, under the 44 px tap-target rule (pre-existing).
+- The earlier notes (active group visible only on Me; Team's Nudge button 40 px) are in the Plan 9 section above.
 
 ## Remaining follow-ups
 
