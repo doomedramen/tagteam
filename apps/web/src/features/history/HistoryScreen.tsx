@@ -183,12 +183,12 @@ export function HistoryScreen() {
 								{dayLabel(day.date, now)}
 							</h2>
 							<Card className="gap-0 rounded-2xl p-0 ring-line">
-								<CardContent className="px-4 py-0">
+								<CardContent className="px-0 py-0">
 									<ul>
 										{day.items.map((item) => (
 											<li
 												key={item.id}
-												className="flex min-h-16 items-start gap-3 border-b border-line py-3 last:border-0"
+												className="flex min-h-16 items-start gap-3 border-b border-line px-4 py-3 last:border-0"
 											>
 												<span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-2">
 													<ActivityIcon item={item} />

@@ -76,3 +76,17 @@ describe("HistoryScreen created entries", () => {
 		).toBeInTheDocument();
 	});
 });
+
+describe("HistoryScreen full-width rows", () => {
+	it("keeps the horizontal padding on each row, not on the card content", async () => {
+		await store.tasks.put(task("t1", "Brush teeth"));
+		renderWithSession(<HistoryScreen />, { store });
+		const row = (await screen.findByText("You added Brush teeth.")).closest(
+			"li",
+		);
+		const content = row?.closest('[data-slot="card-content"]');
+		expect(content).toHaveClass("px-0");
+		expect(content).not.toHaveClass("px-4");
+		expect(row).toHaveClass("px-4");
+	});
+});

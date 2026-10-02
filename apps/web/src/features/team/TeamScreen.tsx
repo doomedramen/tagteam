@@ -142,7 +142,7 @@ function MemberRow({
 				aria-expanded={expanded}
 				aria-controls={id}
 				onClick={onToggle}
-				className="min-h-20 w-full justify-start gap-3 rounded-none px-0 py-3 text-left text-text hover:bg-transparent active:bg-transparent"
+				className="min-h-20 w-full justify-start gap-3 rounded-none px-4 py-3 text-left text-text hover:bg-transparent active:bg-transparent"
 			>
 				<Avatar name={member.displayName} color={member.avatarColor} />
 				<span className="min-w-0 flex-1">
@@ -193,7 +193,7 @@ function MemberRow({
 						animate={{ opacity: 1, transform: "translateY(0px)" }}
 						exit={{ opacity: 0, transform: "translateY(-4px)" }}
 						transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
-						className="border-t border-line pb-3 pl-12 pr-1"
+						className="border-t border-line pb-3 pl-16 pr-5"
 					>
 						{children}
 					</motion.div>
@@ -282,7 +282,7 @@ export function TeamScreen() {
 
 			{team.length > 0 ? (
 				<Card className="gap-0 rounded-2xl p-0 ring-line">
-					<CardContent className="px-4 py-0">
+					<CardContent className="px-0 py-0">
 						<ul>
 							{team.map((view) => {
 								const isExpanded = expanded.has(view.member.userId);

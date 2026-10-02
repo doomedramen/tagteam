@@ -102,7 +102,7 @@ export function OutgoingSuggestions({
 				Sent by you
 			</h2>
 			<Card className="gap-0 overflow-hidden rounded-2xl p-0 ring-line">
-				<CardContent className="px-4 py-0">
+				<CardContent className="px-0 py-0">
 					<ul>
 						{suggestions.map((suggestion) => {
 							const name = nameOf(members, suggestion.toUserId);
@@ -112,7 +112,7 @@ export function OutgoingSuggestions({
 								<li
 									key={suggestion.id}
 									data-suggestion-row={suggestion.id}
-									className="flex items-center gap-3 border-b border-line py-3 last:border-0"
+									className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-0"
 								>
 									<TaskEmoji
 										emoji={suggestion.emoji}

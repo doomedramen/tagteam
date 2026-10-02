@@ -68,6 +68,19 @@ describe("TodayScreen", () => {
 		);
 	});
 
+	it("lets rows span the card and keeps the padding on the moving content", async () => {
+		await store.tasks.put(brushTeeth);
+		renderWithSession(<TodayScreen />, { store });
+		await screen.findByRole("button", { name: "Complete Brush teeth" });
+		const content = document.querySelector("[data-swipe-content]");
+		const row = content?.parentElement;
+		const cardContent = row?.closest('[data-slot="card-content"]');
+		expect(cardContent).toHaveClass("px-0");
+		expect(cardContent).not.toHaveClass("px-4");
+		expect(row).not.toHaveClass("-mx-4");
+		expect(content).toHaveClass("px-4");
+	});
+
 	it("completes a task and offers undo", async () => {
 		await store.tasks.put(brushTeeth);
 		const engine = fakeEngine();

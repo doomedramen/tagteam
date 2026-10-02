@@ -154,7 +154,7 @@ function Row({
 	const ready = offset >= SWIPE_THRESHOLD_PX;
 	return (
 		<li
-			className="-mx-4 relative touch-pan-y overflow-hidden select-none"
+			className="relative touch-pan-y overflow-hidden select-none"
 			onPointerDown={onPointerDown}
 			onPointerMove={onPointerMove}
 			onPointerUp={onPointerUp}
@@ -264,7 +264,7 @@ function Section({
 		<section aria-label={title} className="mt-5">
 			<h2 className="mb-1 text-[13px] font-medium text-text-2">{title}</h2>
 			<Card className="gap-0 overflow-hidden rounded-2xl p-0 ring-line">
-				<CardContent className="px-4 py-0">
+				<CardContent className="px-0 py-0">
 					<ul>
 						{rows.map((row, index) => (
 							<Row

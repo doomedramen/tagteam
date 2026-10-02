@@ -115,3 +115,19 @@ describe("TaskDetailScreen look", () => {
 		expect(root).not.toHaveClass("[--surface-2:var(--task-swatch)]");
 	});
 });
+
+describe("TaskDetailScreen full-width history rows", () => {
+	it("keeps the horizontal padding on each row, not on the card content", async () => {
+		await store.tasks.put(task());
+		renderDetail();
+		await screen.findByRole("heading", { name: "Wash dishes" });
+		const row = document
+			.querySelector('section[aria-labelledby="task-history-heading"]')
+			?.querySelector("li");
+		expect(row).toBeTruthy();
+		const content = row?.closest('[data-slot="card-content"]');
+		expect(content).toHaveClass("px-0");
+		expect(content).not.toHaveClass("px-4");
+		expect(row).toHaveClass("px-4");
+	});
+});

@@ -75,3 +75,20 @@ describe("suggestion cards", () => {
 		expect(screen.getByText("Waiting for Jo")).toBeInTheDocument();
 	});
 });
+
+describe("suggestion cards full-width rows", () => {
+	it("keeps the horizontal padding on each row, not on the card content", () => {
+		render(
+			<OutgoingSuggestions
+				suggestions={[fakeSuggestion({ fromUserId: "u1", toUserId: "u2" })]}
+				members={members}
+				onWithdraw={vi.fn()}
+			/>,
+		);
+		const row = document.querySelector("[data-suggestion-row]");
+		const content = row?.closest('[data-slot="card-content"]');
+		expect(content).toHaveClass("px-0");
+		expect(content).not.toHaveClass("px-4");
+		expect(row).toHaveClass("px-4");
+	});
+});

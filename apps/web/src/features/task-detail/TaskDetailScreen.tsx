@@ -672,12 +672,12 @@ export function TaskDetailScreen() {
 					</h2>
 					{monthEntries.length > 0 ? (
 						<Card className="gap-0 rounded-2xl p-0 ring-line">
-							<CardContent className="px-4 py-0">
+							<CardContent className="px-0 py-0">
 								<ul>
 									{monthEntries.map((entry) => (
 										<li
 											key={entry.key}
-											className="flex min-h-16 items-center gap-3 border-b border-line py-3 last:border-0"
+											className="flex min-h-16 items-center gap-3 border-b border-line px-4 py-3 last:border-0"
 										>
 											<span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-2">
 												<StatusIcon status={entry.status} />
