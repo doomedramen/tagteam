@@ -46,11 +46,12 @@ export async function runLatePicks({
 		try {
 			const [emoji] = await engine.suggest(task.title, { autoPick: true });
 			if (emoji === undefined || !isEmoji(emoji)) continue;
-			// It may have gained an emoji or been archived while the engine was thinking.
+			// It may have gained an emoji, been archived or renamed while the engine was thinking.
 			const current = await store.tasks.get(taskId);
 			if (
 				!current ||
 				current.archivedAt !== null ||
+				current.title !== task.title ||
 				(current.emoji ?? null) !== null
 			)
 				continue;

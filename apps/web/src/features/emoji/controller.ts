@@ -350,6 +350,9 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 				strikes: 0,
 				failedStarts: 0,
 			});
+			// A finished download is opted in by definition, even if another tab lapsed the flag meanwhile.
+			optedIn = true;
+			storage.writeOptedIn(true);
 			installed = version;
 			storage.writeInstalled(version);
 			progress = null;

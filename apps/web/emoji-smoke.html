@@ -8,6 +8,7 @@
 		<pre id="result">pending</pre>
 		<script type="module">
 			// Only the smoke build (EMOJI_SMOKE=1) includes this page. It drives the real worker.
+			import { EMOJI_DOWNLOAD_BYTES } from "./src/features/emoji/assets.ts";
 			import index from "./src/features/emoji/index/index.json";
 
 			const worker = new Worker(
@@ -35,7 +36,7 @@
 				id: 1,
 				count: index.count,
 				allowNetwork,
-				totalBytes: 49016090,
+				totalBytes: EMOJI_DOWNLOAD_BYTES,
 			});
 		</script>
 	</body>

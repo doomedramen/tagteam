@@ -201,6 +201,18 @@ describe("late picks", () => {
 		expect(sync.enqueue).not.toHaveBeenCalled();
 	});
 
+	it("does not apply a suggestion for a title that was edited while the engine was thinking", async () => {
+		await listed(fakeTask({ id: "t1", title: "Water the plants" }));
+		const suggest = vi.fn(async () => {
+			await store.tasks.update("t1", { title: "Walk the dog" });
+			return [PLANT];
+		});
+		const { picked, sync } = await run(fakeEmojiEngine({ suggest }));
+		expect(picked).toBe(0);
+		expect(sync.enqueue).not.toHaveBeenCalled();
+		expect(await listAwaitingEmoji(store)).toEqual([]);
+	});
+
 	it("picks up tasks listed while it runs", async () => {
 		await listed(fakeTask({ id: "t1", title: "One" }));
 		const suggest = vi.fn(async (title: string) => {

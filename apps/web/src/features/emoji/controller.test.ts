@@ -341,6 +341,21 @@ describe("downloading", () => {
 		});
 	});
 
+	it("a download that finishes while another tab lapsed the opt-in ends opted in and installed", async () => {
+		const storage = memoryEngineStorage();
+		const a = setup({ storage });
+		const worker = await startDownload(a);
+		worker.reply({ type: "progress", id: 0, loaded: TOTAL, total: TOTAL });
+		// A second tab starts mid-download: it sees an opt-in without an install and lapses it.
+		setup({ storage });
+		expect(storage.optedIn).toBe(false);
+		worker.reply({ type: "ready", id: 0 });
+		expect(storage).toMatchObject({ optedIn: true, installed: "v1" });
+		expect(storage.state).toMatchObject({ loading: false, strikes: 0 });
+		const next = setup({ storage });
+		expect(next.controller.getSnapshot().download).toEqual({ kind: "ready" });
+	});
+
 	it("in a browser without WebAssembly, module workers or the Cache API says so, opts in to nothing and starts nothing", async () => {
 		const c = setup({
 			storage: memoryEngineStorage(),

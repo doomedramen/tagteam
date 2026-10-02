@@ -70,6 +70,23 @@ describe("storeFiles", () => {
 		expect(fetchFile).not.toHaveBeenCalled();
 	});
 
+	it("reports the stored total even when every file is already stored", async () => {
+		const fetchFile = vi.fn();
+		const seen: number[] = [];
+		await storeFiles({
+			urls: [urls[0], urls[1]],
+			cache: fakeCache({
+				[urls[0]]: file("aaaa", { "content-length": "4" }),
+				[urls[1]]: file("bb", { "content-length": "2" }),
+			}),
+			fetch: fetchFile,
+			allowNetwork: true,
+			onBytes: (loaded) => seen.push(loaded),
+		});
+		expect(seen).toEqual([6]);
+		expect(fetchFile).not.toHaveBeenCalled();
+	});
+
 	it("refuses an HTML answer and a failed response", async () => {
 		const html = file("<html>", { "content-type": "text/html" });
 		await expect(

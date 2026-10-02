@@ -42,8 +42,10 @@ export async function storeFiles(options: StoreFilesOptions) {
 	}
 	// A load that may not use the network never fetches: a missing file is "not stored".
 	if (missing.length > 0 && !allowNetwork) throw new NotCachedError();
-	if (missing.length === 0) return;
+	// Reported even when nothing is missing, so a Download that finds every file stored still
+	// reaches the full total (the model load is then covered by the crash marker).
 	onBytes(loaded);
+	if (missing.length === 0) return;
 	for (const url of missing) {
 		const response = await options.fetch(url, { cache: "no-store" });
 		const name = new URL(url).pathname;

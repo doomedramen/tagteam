@@ -1,3 +1,4 @@
+import { EMOJI_ASSETS_ROOT } from "./assets";
 import { BIT_BYTES, DIM, type EmojiIndex, rank } from "./search";
 import type {
 	FailureKind,
@@ -29,9 +30,6 @@ export interface WorkerDeps {
 	post(reply: WorkerReply): void;
 }
 
-/** Where the model and the runtime files are served from; nothing under it may be requested without opt-in. */
-const EMOJI_FILES_PREFIX = "/assets/emoji/";
-
 /**
  * Wraps a `fetch` so that, while `allowed()` is false, any request for a model or runtime file
  * (a URL whose path starts with `/assets/emoji/`) is rejected with a NotCachedError before it
@@ -57,7 +55,7 @@ export function createNetworkGuard(
 			} catch {
 				// An unparseable URL cannot be a model file; let fetch reject it.
 			}
-			if (path.startsWith(EMOJI_FILES_PREFIX))
+			if (path.startsWith(EMOJI_ASSETS_ROOT))
 				return Promise.reject(new NotCachedError());
 		}
 		return real(input, init);
