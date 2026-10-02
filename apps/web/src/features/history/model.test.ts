@@ -15,6 +15,8 @@ const task = (patch: Partial<TaskDto> = {}): TaskDto => ({
 	archivedAt: null,
 	createdAt: now - 1000,
 	suggestedBy: null,
+	emoji: null,
+	color: null,
 	...patch,
 });
 const member = (userId: string, displayName: string): MemberDto => ({

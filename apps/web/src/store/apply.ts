@@ -2,6 +2,7 @@ import {
 	type EventDto,
 	type Mutation,
 	type PullResponse,
+	type TaskColor,
 	withScheduleVersion,
 } from "@tagteam/core";
 import { setMeta, type TagTeamDb } from "./db";
@@ -36,6 +37,8 @@ export async function applyLocal(
 				ownerId: me.userId,
 				title: m.title.trim(),
 				notes: m.notes,
+				emoji: m.emoji ?? null,
+				color: m.color ?? null,
 				timezone: m.timezone,
 				startDate: m.startDate,
 				rules: [
@@ -47,9 +50,16 @@ export async function applyLocal(
 			});
 			return;
 		case "task.update": {
-			const changes: { title?: string; notes?: string | null } = {};
+			const changes: {
+				title?: string;
+				notes?: string | null;
+				emoji?: string | null;
+				color?: TaskColor | null;
+			} = {};
 			if (m.title !== undefined) changes.title = m.title.trim();
 			if (m.notes !== undefined) changes.notes = m.notes;
+			if (m.emoji !== undefined) changes.emoji = m.emoji;
+			if (m.color !== undefined) changes.color = m.color;
 			await store.tasks.update(m.taskId, changes);
 			return;
 		}
@@ -101,6 +111,8 @@ export async function applyLocal(
 				toUserId: m.toUserId,
 				title: m.title.trim(),
 				notes: m.notes,
+				emoji: m.emoji ?? null,
+				color: m.color ?? null,
 				startDate: m.startDate,
 				dueTime: m.dueTime,
 				rule: m.rule,
@@ -119,6 +131,8 @@ export async function applyLocal(
 				ownerId: me.userId,
 				title: suggestion.title,
 				notes: suggestion.notes,
+				emoji: suggestion.emoji ?? null,
+				color: suggestion.color ?? null,
 				timezone: m.timezone,
 				startDate: m.startDate,
 				rules: [

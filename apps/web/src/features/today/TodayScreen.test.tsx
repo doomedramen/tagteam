@@ -31,6 +31,8 @@ const brushTeeth: TaskDto = {
 	archivedAt: null,
 	createdAt: 0,
 	suggestedBy: null,
+	emoji: null,
+	color: null,
 };
 
 let store: TagTeamDb;
@@ -390,6 +392,8 @@ const suggestion = (patch: Partial<SuggestionDto> = {}): SuggestionDto => ({
 	taskId: null,
 	createdAt: 0,
 	resolvedAt: null,
+	emoji: null,
+	color: null,
 	...patch,
 });
 const daysFromNow = (days: number) =>

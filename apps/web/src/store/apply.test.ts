@@ -33,6 +33,8 @@ const serverTask = (title: string): TaskDto => ({
 	archivedAt: null,
 	createdAt: at,
 	suggestedBy: null,
+	emoji: null,
+	color: null,
 });
 const suggestionId = "44444444-4444-4444-8444-444444444444";
 const newTaskId = "55555555-5555-4555-8555-555555555555";
@@ -52,6 +54,8 @@ const serverSuggestion = (
 	taskId: null,
 	createdAt: at,
 	resolvedAt: null,
+	emoji: null,
+	color: null,
 	...patch,
 });
 const accept = (): Mutation => ({
@@ -281,6 +285,8 @@ describe("applyLocal suggestions", () => {
 			taskId: null,
 			createdAt: at,
 			resolvedAt: null,
+			emoji: null,
+			color: null,
 		});
 	});
 
@@ -305,6 +311,8 @@ describe("applyLocal suggestions", () => {
 			archivedAt: null,
 			createdAt: at + 5,
 			suggestedBy: "u2",
+			emoji: null,
+			color: null,
 		});
 		expect(await db.suggestions.get(suggestionId)).toMatchObject({
 			status: "accepted",
@@ -399,5 +407,140 @@ describe("applyPull suggestions", () => {
 		expect((await db.suggestions.toArray()).map((s) => s.id)).toEqual([
 			suggestionId,
 		]);
+	});
+});
+
+const PLANT = "\u{1FAB4}"; // potted plant
+const BASKET = "\u{1F9FA}"; // basket
+
+describe("emoji and color in the local store", () => {
+	const createTask = (
+		extra: Partial<Extract<Mutation, { type: "task.create" }>>,
+	) =>
+		({
+			id: id(),
+			at,
+			type: "task.create",
+			taskId,
+			groupId,
+			title: "Water plants",
+			notes: null,
+			timezone: "Europe/London",
+			startDate: "2026-09-21",
+			dueTime: null,
+			rule: null,
+			...extra,
+		}) as Mutation;
+
+	it("stores emoji and color from a create, and null when the create has none", async () => {
+		await applyLocal(db, createTask({ emoji: PLANT, color: "teal" }), me);
+		expect(await db.tasks.get(taskId)).toMatchObject({
+			emoji: PLANT,
+			color: "teal",
+		});
+		await db.tasks.clear();
+		await applyLocal(db, createTask({}), me);
+		expect(await db.tasks.get(taskId)).toMatchObject({
+			emoji: null,
+			color: null,
+		});
+	});
+
+	it("an update changes only the fields it carries", async () => {
+		await applyLocal(db, createTask({ emoji: PLANT, color: "teal" }), me);
+		await applyLocal(
+			db,
+			{ id: id(), at: at + 1, type: "task.update", taskId, emoji: BASKET },
+			me,
+		);
+		expect(await db.tasks.get(taskId)).toMatchObject({
+			emoji: BASKET,
+			color: "teal",
+			title: "Water plants",
+		});
+		await applyLocal(
+			db,
+			{ id: id(), at: at + 2, type: "task.update", taskId, color: "pink" },
+			me,
+		);
+		expect(await db.tasks.get(taskId)).toMatchObject({
+			emoji: BASKET,
+			color: "pink",
+		});
+		await applyLocal(
+			db,
+			{
+				id: id(),
+				at: at + 3,
+				type: "task.update",
+				taskId,
+				emoji: null,
+				color: null,
+			},
+			me,
+		);
+		expect(await db.tasks.get(taskId)).toMatchObject({
+			emoji: null,
+			color: null,
+		});
+	});
+
+	it("a suggestion keeps emoji and color, and accepting copies them to my task", async () => {
+		await applyLocal(
+			db,
+			{
+				id: id(),
+				at,
+				type: "suggestion.create",
+				suggestionId,
+				groupId,
+				toUserId: "u2",
+				title: "Water plants",
+				notes: null,
+				startDate: "2026-09-21",
+				dueTime: null,
+				rule: null,
+				emoji: PLANT,
+				color: "green",
+			},
+			me,
+		);
+		expect(await db.suggestions.get(suggestionId)).toMatchObject({
+			emoji: PLANT,
+			color: "green",
+		});
+
+		await db.suggestions.put(
+			serverSuggestion({ emoji: PLANT, color: "green" }),
+		);
+		await applyLocal(db, accept(), me);
+		expect(await db.tasks.get(newTaskId)).toMatchObject({
+			emoji: PLANT,
+			color: "green",
+			ownerId: "u1",
+		});
+	});
+
+	it("a pull keeps the server's emoji and color and re-applies a queued update on top", async () => {
+		await db.outbox.add({
+			mutation: {
+				id: id(),
+				at: at + 9,
+				type: "task.update",
+				taskId,
+				emoji: BASKET,
+			},
+		});
+		await applyPull(
+			db,
+			pull({
+				tasks: [{ ...serverTask("Water plants"), emoji: PLANT, color: "teal" }],
+			}),
+			me,
+		);
+		expect(await db.tasks.get(taskId)).toMatchObject({
+			emoji: BASKET,
+			color: "teal",
+		});
 	});
 });

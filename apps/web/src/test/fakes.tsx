@@ -1,4 +1,4 @@
-import type { MeResponse } from "@tagteam/core";
+import type { MeResponse, SuggestionDto, TaskDto } from "@tagteam/core";
 import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { MemoryRouter } from "react-router";
@@ -53,4 +53,54 @@ export function renderWithSession(
 		</MemoryRouter>,
 	);
 	return { ...result, session };
+}
+
+/** A full task as the store holds it. Group `g1`, owner `u1`, a daily rule, no emoji or color. */
+export function fakeTask(patch: Partial<TaskDto> = {}): TaskDto {
+	return {
+		id: "t1",
+		groupId: "g1",
+		ownerId: "u1",
+		title: "Brush teeth",
+		notes: null,
+		emoji: null,
+		color: null,
+		timezone: "UTC",
+		startDate: "2026-09-21",
+		rules: [
+			{
+				effectiveFrom: "2026-09-21",
+				rule: { freq: "day", interval: 1 },
+				dueTime: null,
+			},
+		],
+		archivedAt: null,
+		createdAt: 0,
+		suggestedBy: null,
+		...patch,
+	};
+}
+
+/** A pending suggestion from `u2` to `u1` in group `g1`. */
+export function fakeSuggestion(
+	patch: Partial<SuggestionDto> = {},
+): SuggestionDto {
+	return {
+		id: "s1",
+		groupId: "g1",
+		fromUserId: "u2",
+		toUserId: "u1",
+		title: "Wash dishes",
+		notes: null,
+		emoji: null,
+		color: null,
+		startDate: "2026-10-01",
+		dueTime: null,
+		rule: null,
+		status: "pending",
+		taskId: null,
+		createdAt: 0,
+		resolvedAt: null,
+		...patch,
+	};
 }

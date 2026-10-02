@@ -1,3 +1,4 @@
+import type { TaskColor } from "./look";
 import type { Rule, RuleVersion } from "./rule";
 
 /** JSON shapes exchanged between apps/server and apps/web. */
@@ -59,6 +60,10 @@ export interface TaskDto {
 	ownerId: string;
 	title: string;
 	notes: string | null;
+	/** Null means "not decided yet": every screen shows the default emoji. */
+	emoji: string | null;
+	/** Null on tasks that predate the feature: they render on neutral surfaces. */
+	color: TaskColor | null;
 	timezone: string;
 	startDate: string;
 	rules: RuleVersion[];
@@ -91,6 +96,8 @@ export interface SuggestionDto {
 	toUserId: string;
 	title: string;
 	notes: string | null;
+	emoji: string | null;
+	color: TaskColor | null;
 	startDate: string;
 	dueTime: string | null;
 	rule: Rule | null;

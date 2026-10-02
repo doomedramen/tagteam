@@ -29,6 +29,8 @@ const task = (id: string, patch: Partial<TaskDto> = {}): TaskDto => ({
 	archivedAt: null,
 	createdAt: 0,
 	suggestedBy: null,
+	emoji: null,
+	color: null,
 	...patch,
 });
 const done = (

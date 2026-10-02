@@ -34,6 +34,8 @@ const task = (patch: Partial<TaskDto> = {}): TaskDto => ({
 	archivedAt: null,
 	createdAt: Date.now() - 60_000,
 	suggestedBy: null,
+	emoji: null,
+	color: null,
 	...patch,
 });
 

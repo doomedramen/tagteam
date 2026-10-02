@@ -167,6 +167,8 @@ const pendingToJo = (count: number): SuggestionDto[] =>
 		taskId: null,
 		createdAt: 0,
 		resolvedAt: null,
+		emoji: null,
+		color: null,
 	}));
 async function storeWith(
 	members: MemberDto[],
@@ -232,6 +234,8 @@ describe("AddTaskSheet suggestions", () => {
 			archivedAt: null,
 			createdAt: 0,
 			suggestedBy: null,
+			emoji: null,
+			color: null,
 		};
 		renderWithSession(<AddTaskSheet open onClose={vi.fn()} task={task} />, {
 			store,

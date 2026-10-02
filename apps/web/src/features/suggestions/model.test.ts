@@ -24,6 +24,8 @@ const suggestion = (patch: Partial<SuggestionDto> = {}): SuggestionDto => ({
 	taskId: null,
 	createdAt: 0,
 	resolvedAt: null,
+	emoji: null,
+	color: null,
 	...patch,
 });
 
