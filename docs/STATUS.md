@@ -300,9 +300,13 @@ Follow-ups and owner questions:
 
 - **Later (owner, 2026-10-02):** an in-app tutorial for using the app, which can include the emoji suggestions
   download option that today lives only on Me.
-- **Later idea (owner, 2026-10-02):** custom emoji (spec §13 lists it as out of scope today; the picker already
-  accepts any standard emoji typed or pasted). Needs a decision on what "custom" means (own images or stickers,
-  or a personal favourites list) and how it syncs between members.
+- **Later idea (owner, 2026-10-02):** custom emoji as the group's own images or stickers, like Slack or Discord
+  (spec §13 lists custom emoji as out of scope today; the picker already accepts any standard emoji typed or
+  pasted). Needs its own brainstorm and spec. Questions to settle then: a group-scoped library with names (so
+  `task.emoji` can hold either a Unicode emoji or a reference to a custom one, which changes `isEmoji`, the
+  mutation validator and the server check); who may add or delete; image limits and resizing on the device;
+  where files live on the server (they are binary, so not ordinary mutations) and how they are cached offline;
+  what a task shows when the image is missing or deleted; whether the name search can also feed auto-pick.
 - Open items from Plan 9 that are still open:
   - Without `Intl.Segmenter` (Firefox before 125) the client skips the grapheme-count check; the
     server always checks, so a two-emoji paste in the typed field is rejected by the server there.
