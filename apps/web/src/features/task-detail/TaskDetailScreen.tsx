@@ -408,7 +408,8 @@ export function TaskDetailScreen() {
 			data-task-color={task.color ?? undefined}
 			data-slot="task-detail"
 			// Remap the neutral surfaces to the task's: with no color the fallbacks equal the originals.
-			className="-mx-4 mt-3 rounded-t-[32px] bg-task-sheet px-4 pt-3 pb-8 transition-colors duration-200 [--card:var(--task-card)] [--surface-2:var(--task-swatch)] [--surface:var(--task-card)] motion-reduce:transition-none"
+			// --surface-2 (icon circles under --text-3) goes to the sheet, not the swatch, for contrast.
+			className="-mx-4 mt-3 rounded-t-[32px] bg-task-sheet px-4 pt-3 pb-8 transition-colors duration-200 [--card:var(--task-card)] [--surface:var(--task-card)] data-[task-color]:[--surface-2:var(--task-sheet)] motion-reduce:transition-none"
 		>
 			<div className="mx-auto flex w-full max-w-xl flex-col gap-5">
 				<div className="flex items-center justify-between">

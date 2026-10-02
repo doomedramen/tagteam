@@ -44,4 +44,42 @@ describe("TaskEmoji", () => {
 		const plain = render(<TaskEmoji emoji={null} color={null} size="row" />);
 		expect(circle(plain.container)).not.toHaveAttribute("data-task-color");
 	});
+	describe("fill and ring", () => {
+		it("rings a colored row in its hue over the pale sheet fill", () => {
+			const { container } = render(
+				<TaskEmoji emoji={null} color="green" size="row" />,
+			);
+			const element = circle(container);
+			expect(element).toHaveAttribute("data-task-color", "green");
+			expect(element).toHaveClass(
+				"bg-task-sheet",
+				"border-2",
+				"border-task-ring",
+			);
+			expect(element).not.toHaveClass("bg-task-swatch");
+		});
+
+		it("keeps a colorless row neutral and unringed", () => {
+			for (const props of [{ color: null }, {}]) {
+				const { container } = render(
+					<TaskEmoji emoji={null} size="row" {...props} />,
+				);
+				const element = circle(container);
+				expect(element).toHaveClass("bg-surface-2");
+				expect(element).not.toHaveClass("border-2");
+				expect(element).not.toHaveAttribute("data-task-color");
+				expect(element).not.toHaveClass("bg-task-swatch");
+			}
+		});
+
+		it("uses the card color on tinted surfaces, without a ring", () => {
+			for (const size of ["sheet", "detail"] as const) {
+				const { container } = render(<TaskEmoji emoji={null} size={size} />);
+				const element = circle(container);
+				expect(element).toHaveClass("bg-task-card");
+				expect(element).not.toHaveClass("border-2");
+				expect(element).not.toHaveClass("bg-task-swatch");
+			}
+		});
+	});
 });

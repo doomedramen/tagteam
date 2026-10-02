@@ -103,4 +103,15 @@ describe("TaskDetailScreen look", () => {
 			"\u{1F4CB}",
 		);
 	});
+
+	it("keeps the history icon circles readable by remapping surface-2 to the sheet, only for a colored task", async () => {
+		await store.tasks.put(task({ color: "teal" }));
+		renderDetail();
+		await screen.findByRole("heading", { name: "Wash dishes" });
+		const root = document.querySelector('[data-slot="task-detail"]');
+		expect(root).toHaveClass(
+			"data-[task-color]:[--surface-2:var(--task-sheet)]",
+		);
+		expect(root).not.toHaveClass("[--surface-2:var(--task-swatch)]");
+	});
 });
