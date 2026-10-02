@@ -206,8 +206,9 @@ export function AddTaskSheet({
 	useEffect(() => {
 		if (open && !task) wakeEmoji?.();
 	}, [open, task, wakeEmoji]);
+	// `null` is the fall back to the default 📋: the title is too short, or its suggestion is empty.
 	const fillEmoji = useCallback(
-		(emoji: string, forTitle: string) =>
+		(emoji: string | null, forTitle: string) =>
 			setDraft((d) =>
 				d.emojiChosen || d.title.trim() !== forTitle || d.emoji === emoji
 					? d

@@ -261,14 +261,15 @@ What shipped:
 
 Follow-ups and owner questions:
 
-1. Wi-Fi-only download option: out of scope now; connection-type APIs are unreliable on iOS Safari. The helper
-   text only says "Wi-Fi is best".
+1. Wi-Fi-only download option: not planned (owner, 2026-10-02: don't worry about it). The helper text only says
+   "Wi-Fi is best".
 2. A future in-app tutorial may offer the emoji download option (today it lives only on Me).
-3. **Owner question:** when the title is cleared or the engine returns nothing, the auto-filled emoji stays (the
-   spec says leave it alone). Should it fall back to the clipboard?
-4. **Owner question:** the awaiting-emoji list is not cleared when the person removes the download or turns
-   suggestions off, so tasks created while opted in but not ready are late-picked after a later re-Download.
-   Should Remove clear it?
+3. Decided and implemented (owner, 2026-10-02): while no emoji was picked by hand, the New task sheet's emoji falls
+   back to the default 📋 when the title drops below three characters (immediately) and when the settled suggestion
+   for the new title is empty or invalid. It never resets while a request is pending (no flicker); a hand-picked emoji
+   is never touched. (`useAutoEmoji.ts` calls `onSuggest(null, title)`; `fillEmoji` in `AddTaskSheet.tsx`.)
+4. Decided and implemented (owner, 2026-10-02): Remove download and Cancel also empty the awaiting-emoji list
+   (controller dep `clearAwaiting`, queued with the cache deletion), so a later Download late-picks nothing old.
 5. Accuracy: 58% first pick, 78% in the top 3 on 79 labelled titles (33 first picks wrong). Weak spots: cleaning
    verbs drift to shower, bath or broom ("Wash the car" gives a shower) and activity nouns ("Pay rent" gives a
    convenience store, "Bake bread" a sandwich). The full wrong-pick list is in
@@ -368,9 +369,9 @@ Follow-ups and owner questions:
 
 - Emoji suggestions are opt-in on Me (your 2026-10-02 decision); a later in-app tutorial can include the download
   option. The download is about 49 MB from your own server, on whatever network the device is on (the helper text
-  says Wi-Fi is best; there is no Wi-Fi-only check). An update to the model shows only on Me. Questions on the
-  auto-filled emoji staying after the title is cleared, and on Remove download and the awaiting list, are in the
-  Plan 10 follow-ups above.
+  says Wi-Fi is best; there is no Wi-Fi-only check). An update to the model shows only on Me. Your two
+  2026-10-02 decisions (the auto-filled emoji falls back to the default when the title no longer suggests one; Remove
+  download clears the awaiting-emoji list) are implemented and recorded in the Plan 10 follow-ups above.
 - The earlier notes (active group visible only on Me; Team's Nudge button 40 px) are in the Plan 9 section above.
 
 ## Remaining follow-ups

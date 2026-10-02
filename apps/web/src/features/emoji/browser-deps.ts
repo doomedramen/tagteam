@@ -1,4 +1,6 @@
+import { db } from "../../store/db";
 import { EMOJI_ASSET_VERSION, EMOJI_DOWNLOAD_BYTES } from "./assets";
+import { clearAwaitingEmoji } from "./awaiting";
 import { deleteEmojiCache } from "./cache";
 import { loadCatalog } from "./catalog";
 import {
@@ -28,6 +30,7 @@ export function getBrowserEmojiController(): EmojiController {
 		loadCatalog,
 		supported: () => detectSupport(),
 		deleteCaches: (scope) => deleteEmojiCache(scope, EMOJI_ASSET_VERSION),
+		clearAwaiting: () => clearAwaitingEmoji(db),
 	});
 	return shared;
 }

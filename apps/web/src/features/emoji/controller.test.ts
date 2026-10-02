@@ -34,6 +34,7 @@ function setup(
 	const storage = options.storage ?? downloaded();
 	const workers: FakeWorker[] = [];
 	const deleteCaches = vi.fn(async () => {});
+	const clearAwaiting = vi.fn(async () => {});
 	const controller = createEmojiController({
 		version: "v1",
 		downloadBytes: TOTAL,
@@ -46,6 +47,7 @@ function setup(
 		loadCatalog: async () => catalog,
 		supported: () => true,
 		deleteCaches,
+		clearAwaiting,
 		autoPickExclusion: true,
 		...options.deps,
 	});
@@ -53,7 +55,14 @@ function setup(
 	controller.subscribe(() =>
 		statuses.push(controller.getSnapshot().engine.status),
 	);
-	return { controller, storage, workers, deleteCaches, statuses };
+	return {
+		controller,
+		storage,
+		workers,
+		deleteCaches,
+		clearAwaiting,
+		statuses,
+	};
 }
 type Context = ReturnType<typeof setup>;
 
@@ -397,6 +406,64 @@ describe("downloading", () => {
 });
 
 describe("Remove download", () => {
+	it("also clears the awaiting-emoji list, so a later Download late-picks nothing old", async () => {
+		const c = setup();
+		await ready(c);
+		expect(c.clearAwaiting).not.toHaveBeenCalled();
+		await c.controller.remove();
+		expect(c.clearAwaiting).toHaveBeenCalledTimes(1);
+	});
+
+	it("clears the awaiting list on Cancel of a download too", async () => {
+		const c = setup({ storage: memoryEngineStorage() });
+		await startDownload(c);
+		await c.controller.remove();
+		expect(c.clearAwaiting).toHaveBeenCalledTimes(1);
+	});
+
+	it("clears the list before a Download that follows, and does not clear it on Download", async () => {
+		const order: string[] = [];
+		let finish: () => void = () => {};
+		const c = setup({
+			storage: memoryEngineStorage(),
+			deps: {
+				clearAwaiting: async () => {
+					order.push("clear start");
+					await new Promise<void>((resolve) => {
+						finish = resolve;
+					});
+					order.push("cleared");
+				},
+				createWorker: () => {
+					order.push("worker");
+					return new FakeWorker();
+				},
+			},
+		});
+		const removing = c.controller.remove();
+		const downloading = c.controller.download();
+		await tick();
+		expect(order).toEqual(["clear start"]);
+		finish();
+		await removing;
+		await downloading;
+		await tick();
+		expect(order).toEqual(["clear start", "cleared", "worker"]);
+	});
+
+	it("logs and carries on when the list cannot be cleared", async () => {
+		const c = setup({
+			deps: { clearAwaiting: async () => Promise.reject(new Error("locked")) },
+		});
+		await c.controller.remove();
+		expect(warn).toHaveBeenCalledWith(
+			expect.stringContaining("[emoji]"),
+			expect.any(Error),
+		);
+		expect(c.deleteCaches).toHaveBeenCalledWith("all");
+		expect(status(c)).toBe("off");
+	});
+
 	it("stops the worker, deletes every stored version and returns to the default", async () => {
 		const c = setup();
 		const worker = await ready(c);

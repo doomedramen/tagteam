@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { clearStore, setMeta, TagTeamDb } from "../../store/db";
 import {
 	addAwaitingEmoji,
+	clearAwaitingEmoji,
 	listAwaitingEmoji,
 	removeAwaitingEmoji,
 } from "./awaiting";
@@ -48,6 +49,17 @@ describe("the awaiting-emoji list", () => {
 		expect(await listAwaitingEmoji(store)).toEqual([]);
 		await setMeta(store, "awaitingEmoji", ["a", 7, null, "b"]);
 		expect(await listAwaitingEmoji(store)).toEqual(["a", "b"]);
+	});
+
+	it("clears every id at once, and is fine on an empty list", async () => {
+		await clearAwaitingEmoji(store);
+		expect(await listAwaitingEmoji(store)).toEqual([]);
+		await addAwaitingEmoji(store, "a");
+		await addAwaitingEmoji(store, "b");
+		await clearAwaitingEmoji(store);
+		expect(await listAwaitingEmoji(store)).toEqual([]);
+		await addAwaitingEmoji(store, "c");
+		expect(await listAwaitingEmoji(store)).toEqual(["c"]);
 	});
 
 	it("is device metadata: the sign-out clear removes it with the rest of the local data", async () => {

@@ -188,6 +188,13 @@ that already existed are left alone.
 - **In the sheet.** A new draft starts with no emoji, so the emoji shows the default. 300 ms
   after the title stops changing, if it has at least three characters and the engine is ready, the
   top suggestion fills the emoji. A result for a title that has since changed is dropped.
+- **Falling back to the default.** While the person has not picked an emoji by hand, the filled
+  emoji follows the title both ways (owner decision, 2026-10-02). When the title drops below three
+  characters (including when it is cleared) the emoji returns to the default 📋 at once, and when
+  the settled suggestion for the new title is empty or not a valid emoji, the stale emoji from an
+  older title returns to the default. Nothing is reset while a request is pending, so the emoji does
+  not flicker between keystrokes, and a failed request (the engine rejects) changes nothing. A
+  hand-picked emoji is never touched.
 - **Picked by hand.** Choosing in the picker, or typing an emoji into its keyboard field, marks the
   emoji as chosen. The title no longer changes it, in this sheet or later.
 - **Submitting never waits.** The task is created with whatever the sheet shows. If no suggestion
@@ -200,7 +207,9 @@ that already existed are left alone.
   created while the model is downloading, loading or waiting for an update are. When the engine becomes ready, the device takes each listed task that its user
   still owns, that is not archived, and that still has no stored emoji, suggests an emoji from the
   title, and enqueues an ordinary `task.update` with it. The id leaves the list after one attempt,
-  or as soon as the task gains an emoji any other way. Late picks run one at a time in the
+  or as soon as the task gains an emoji any other way. Pressing "Remove download" (or Cancel)
+  empties the list (owner decision, 2026-10-02), so tasks created while opted in but not ready are
+  not late-picked after a later Download. Late picks run one at a time in the
   background, change the emoji only, never the colour, and produce no activity entry and no push.
   Tasks that were never on a device's list, which includes every task that predates this feature,
   are never late-picked.
@@ -271,7 +280,8 @@ Decided while checking the look in the browser; they apply to every main page, n
 A section "Emoji suggestions", device-local. Not downloaded (the default): a helper sentence (about
 49 MB, one-time, works offline afterwards, Wi-Fi is best) and a "Download" button. Downloading:
 progress and "Cancel". Ready: "Emoji suggestions are on" and "Remove download", which stops the
-engine, deletes the stored model of every version, and returns to the default. Failed: one plain
+engine, deletes the stored model of every version, empties the device's awaiting-emoji list, and
+returns to the default. Failed: one plain
 sentence (offline, storage full, could not load, stopped after repeated problems), "Try again" and
 "Remove download".
 A switch-off after two crashes, a browser that evicted the stored model, and an update (a new asset

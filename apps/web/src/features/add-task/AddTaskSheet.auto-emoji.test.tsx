@@ -179,6 +179,126 @@ describe("automatic emoji in the New task sheet", () => {
 		expect(emojiButton("Emoji: dog, change")).toBeInTheDocument();
 	});
 
+	it("falls back to the default emoji at once when the title is cleared", async () => {
+		const engine = fakeEmojiEngine({ suggest: vi.fn(async () => [PLANT]) });
+		setup(engine);
+		fake();
+		const typist = user();
+		await typist.type(title(), "Water the plants");
+		await advance(DEBOUNCE);
+		expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument();
+		await typist.clear(title());
+		expect(
+			emojiButton("Emoji: clipboard, default, change"),
+		).toBeInTheDocument();
+		await advance(DEBOUNCE * 2);
+		expect(engine.suggest).toHaveBeenCalledTimes(1);
+	});
+
+	it("falls back to the default when the title drops below three characters", async () => {
+		const engine = fakeEmojiEngine({ suggest: vi.fn(async () => [PLANT]) });
+		setup(engine);
+		fake();
+		const typist = user();
+		await typist.type(title(), "Water");
+		await advance(DEBOUNCE);
+		expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument();
+		await typist.type(title(), "{Backspace>3/}");
+		expect(title()).toHaveValue("Wa");
+		expect(
+			emojiButton("Emoji: clipboard, default, change"),
+		).toBeInTheDocument();
+	});
+
+	it("keeps the old auto-filled emoji while the title changes and a request is pending", async () => {
+		let release: (emoji: string[]) => void = () => {};
+		const second = new Promise<string[]>((resolve) => {
+			release = resolve;
+		});
+		const suggest = vi
+			.fn<EmojiEngine["suggest"]>()
+			.mockImplementationOnce(async () => [PLANT])
+			.mockImplementation(() => second);
+		setup(fakeEmojiEngine({ suggest }));
+		fake();
+		const typist = user();
+		await typist.type(title(), "Water the plants");
+		await advance(DEBOUNCE);
+		expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument();
+		await typist.type(title(), " daily");
+		await advance(DEBOUNCE - 1);
+		expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument();
+		await advance(1);
+		expect(suggest).toHaveBeenCalledTimes(2);
+		// Asked, not answered yet: still no flicker.
+		expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument();
+		await act(async () => release([DOG]));
+		expect(emojiButton("Emoji: dog, change")).toBeInTheDocument();
+	});
+
+	it("falls back to the default when the settled suggestion for a new title is empty", async () => {
+		let release: (emoji: string[]) => void = () => {};
+		const second = new Promise<string[]>((resolve) => {
+			release = resolve;
+		});
+		const suggest = vi
+			.fn<EmojiEngine["suggest"]>()
+			.mockImplementationOnce(async () => [PLANT])
+			.mockImplementation(() => second);
+		setup(fakeEmojiEngine({ suggest }));
+		fake();
+		const typist = user();
+		await typist.type(title(), "Water the plants");
+		await advance(DEBOUNCE);
+		expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument();
+		await typist.type(title(), " qzx");
+		await advance(DEBOUNCE);
+		expect(suggest).toHaveBeenCalledTimes(2);
+		expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument();
+		await act(async () => release([]));
+		expect(
+			emojiButton("Emoji: clipboard, default, change"),
+		).toBeInTheDocument();
+	});
+
+	it("falls back to the default when the settled suggestion is not a valid emoji", async () => {
+		const suggest = vi
+			.fn<EmojiEngine["suggest"]>()
+			.mockImplementationOnce(async () => [PLANT])
+			.mockImplementation(async () => ["not an emoji"]);
+		setup(fakeEmojiEngine({ suggest }));
+		fake();
+		const typist = user();
+		await typist.type(title(), "Water the plants");
+		await advance(DEBOUNCE);
+		expect(emojiButton("Emoji: potted plant, change")).toBeInTheDocument();
+		await typist.type(title(), " daily");
+		await advance(DEBOUNCE);
+		expect(
+			emojiButton("Emoji: clipboard, default, change"),
+		).toBeInTheDocument();
+	});
+
+	it("keeps an emoji the person picked when the title is cleared or a suggestion comes back empty", async () => {
+		const suggest = vi.fn<EmojiEngine["suggest"]>(async () => []);
+		setup(fakeEmojiEngine({ suggest }));
+		await userEvent.click(emojiButton(/^Emoji:/));
+		await userEvent.type(
+			await screen.findByLabelText("Type or paste an emoji"),
+			DOG,
+		);
+		await waitFor(() =>
+			expect(emojiButton("Emoji: dog, change")).toBeInTheDocument(),
+		);
+		fake();
+		const typist = user();
+		await typist.type(title(), "Water the plants");
+		await advance(DEBOUNCE * 2);
+		await typist.clear(title());
+		await advance(DEBOUNCE * 2);
+		expect(emojiButton("Emoji: dog, change")).toBeInTheDocument();
+	});
+
 	it("never overwrites an emoji the person typed or picked", async () => {
 		const engine = fakeEmojiEngine({ suggest: vi.fn(async () => [PLANT]) });
 		setup(engine);

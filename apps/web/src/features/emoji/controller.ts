@@ -31,6 +31,8 @@ export interface ControllerDeps {
 	/** WebAssembly, module workers and the Cache API all exist. */
 	supported(): boolean;
 	deleteCaches(scope: CacheScope): Promise<void>;
+	/** Empties the device-local awaiting-emoji list; `remove` calls it, so no old task is late-picked after a later Download. */
+	clearAwaiting(): Promise<void>;
 	/** Defaults to AUTO_PICK_EXCLUSION. */
 	autoPickExclusion?: boolean;
 	loadTimeoutMs?: number;
@@ -76,7 +78,7 @@ export interface EmojiController {
 	warmUp(): void;
 	/** The Download button: opts in and downloads (or loads the stored copy). The only way anything is downloaded. */
 	download(): Promise<void>;
-	/** The Cancel and Remove download buttons: stops the engine, deletes every stored version, opts out. */
+	/** The Cancel and Remove download buttons: stops the engine, deletes every stored version, empties the awaiting-emoji list, opts out. */
 	remove(): Promise<void>;
 	dispose(): void;
 }
@@ -141,6 +143,14 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 			.catch((error) =>
 				warn(`could not delete stored files (${scope})`, error),
 			);
+		return cleanup;
+	}
+
+	/** Same queue as the deletions, so a Download that follows waits for it too. */
+	function clearAwaitingList(): Promise<void> {
+		cleanup = cleanup
+			.then(() => deps.clearAwaiting())
+			.catch((error) => warn("could not clear the awaiting-emoji list", error));
 		return cleanup;
 	}
 
@@ -491,7 +501,9 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 			storage.writeInstalled(null);
 			storage.writeAutoOff(null);
 			publish();
-			await deleteStored("all");
+			// Both are queued at once, so a Download that follows waits for both.
+			void deleteStored("all");
+			await clearAwaitingList();
 		},
 		/** Stops everything and returns to "not started", so a screen that mounts again can wake it. */
 		dispose() {

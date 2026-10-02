@@ -36,3 +36,10 @@ export async function removeAwaitingEmoji(
 			);
 	});
 }
+
+/** Forgets every listed task (Remove download): none of them is late-picked after a later Download. */
+export async function clearAwaitingEmoji(store: TagTeamDb): Promise<void> {
+	await store.transaction("rw", store.meta, async () => {
+		await store.meta.delete("awaitingEmoji");
+	});
+}
