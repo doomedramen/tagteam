@@ -131,6 +131,18 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 	let nextId = INIT_ID + 1;
 	const pending = new Map<number, Pending>();
 	const listeners = new Set<() => void>();
+	/** Deletions of stored files run one after another, and a download waits for them, so it never loses fresh files. */
+	let cleanup: Promise<void> = Promise.resolve();
+	const warn = (what: string, error: unknown) =>
+		console.warn(`[emoji] ${what}`, error);
+	function deleteStored(scope: CacheScope): Promise<void> {
+		cleanup = cleanup
+			.then(() => deps.deleteCaches(scope))
+			.catch((error) =>
+				warn(`could not delete stored files (${scope})`, error),
+			);
+		return cleanup;
+	}
 
 	// A "loading" marker still set means the last attempt never finished: the app crashed or reloaded.
 	const saved = storage.readState(version);
@@ -146,7 +158,7 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 			storage.writeOptedIn(false);
 			storage.writeInstalled(null);
 			storage.writeAutoOff("crash");
-			void deps.deleteCaches("all").catch(() => {});
+			void deleteStored("all");
 		}
 	}
 	// An opt-in only lasts once a download has finished: after an interrupted first download
@@ -172,9 +184,10 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 				? { kind: "downloading", progress }
 				: { kind: "loading" };
 		if (phase === "ready") return { kind: "ready" };
-		return installed === version
-			? { kind: "ready" }
-			: { kind: "updateAvailable" };
+		if (installed === version) return { kind: "ready" };
+		return installed !== null
+			? { kind: "updateAvailable" }
+			: { kind: "notDownloaded", note: null };
 	}
 
 	function pick(indices: number[], autoPick: boolean): string[] {
@@ -231,21 +244,25 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 		wake,
 	});
 
+	let engine = engineFor(status());
 	let snapshot: EmojiSnapshot = {
-		engine: engineFor(status()),
+		engine,
 		optedIn,
 		download: downloadState(),
 	};
 	const rebuild = () => {
-		snapshot = {
-			engine: engineFor(status()),
-			optedIn,
-			download: downloadState(),
-		};
+		// A new engine object only when the status changes; progress alone keeps the same one.
+		if (engine.status !== status()) engine = engineFor(status());
+		snapshot = { engine, optedIn, download: downloadState() };
 	};
 	function publish() {
 		rebuild();
 		for (const listener of [...listeners]) listener();
+	}
+
+	/** Written before the model loads: found set at the next start, the load crashed the app. */
+	function setMarker() {
+		storage.writeState({ ...storage.readState(version), loading: true });
 	}
 
 	/** The attempt ended on purpose (not by a crash), so it must not count as one. */
@@ -304,8 +321,7 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 			storage.writeInstalled(null);
 		}
 		publish();
-		if (kind === "corrupt")
-			await deps.deleteCaches("thisVersion").catch(() => {});
+		if (kind === "corrupt") await deleteStored("thisVersion");
 	}
 
 	/** Gives the load another `loadTimeoutMs`: a slow download is fine while bytes keep arriving. */
@@ -321,6 +337,8 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 		} else if (data.type === "progress") {
 			if (phase !== "loading" || data.total <= 0) return;
 			progress = Math.min(1, Math.max(0, data.loaded / data.total));
+			// Closing the tab mid-download is not a crash: only the model load after the last byte can be one.
+			if (mode === "download" && data.loaded >= data.total) setMarker();
 			armLoadTimer(owner);
 			publish();
 		} else if (data.type === "ready") {
@@ -338,7 +356,7 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 			phase = "ready";
 			publish();
 			// Older versions are unusable with this build: drop them now that this one is installed.
-			void deps.deleteCaches("otherVersions").catch(() => {});
+			void deleteStored("otherVersions");
 		} else if (data.type === "ranked") {
 			const entry = pending.get(data.id);
 			if (!entry) return;
@@ -367,10 +385,12 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 		phase = "loading";
 		progress = null;
 		publish();
-		storage.writeState({ ...storage.readState(version), loading: true });
+		// A download starts the marker only once its bytes have all arrived (see onMessage).
+		if (next === "cache") setMarker();
 		try {
 			catalog = await deps.loadCatalog();
-		} catch {
+		} catch (error) {
+			warn("could not load the catalog", error);
 			await fail("load", owner);
 			return;
 		}
@@ -389,7 +409,8 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 				allowNetwork: next === "download",
 				totalBytes: deps.downloadBytes,
 			});
-		} catch {
+		} catch (error) {
+			warn("could not start the worker", error);
 			await fail("load", owner);
 		}
 	}
@@ -440,6 +461,7 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 		wake,
 		warmUp: () => startFromStored("warmUp"),
 		async download() {
+			await cleanup;
 			if (phase === "ready" || (phase === "loading" && mode === "download"))
 				return;
 			reset();
@@ -466,7 +488,7 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 			storage.writeInstalled(null);
 			storage.writeAutoOff(null);
 			publish();
-			await deps.deleteCaches("all").catch(() => {});
+			await deleteStored("all");
 		},
 		/** Stops everything and returns to "not started", so a screen that mounts again can wake it. */
 		dispose() {
@@ -474,6 +496,11 @@ export function createEmojiController(deps: ControllerDeps): EmojiController {
 			stopWorker();
 			clearMarker();
 			listeners.clear();
+			// Same rule as the next start: an opt-in without a finished download does not last.
+			if (optedIn && installed === null) {
+				optedIn = false;
+				storage.writeOptedIn(false);
+			}
 			phase = "idle";
 			progress = null;
 			failure = null;

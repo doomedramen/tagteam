@@ -81,5 +81,6 @@ describe("the engine's device storage", () => {
 		expect(() => storage.writeState(storage.readState("v1"))).not.toThrow();
 		expect(() => storage.writeAutoOff("crash")).not.toThrow();
 		expect(() => storage.writeInstalled("v1")).not.toThrow();
+		expect(() => storage.writeOptedIn(true)).not.toThrow();
 	});
 });

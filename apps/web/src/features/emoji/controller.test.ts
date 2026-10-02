@@ -95,8 +95,16 @@ async function suggestWith(
 	return result;
 }
 
-beforeEach(() => vi.useFakeTimers());
-afterEach(() => vi.useRealTimers());
+let warn: ReturnType<typeof vi.spyOn>;
+beforeEach(() => {
+	vi.useFakeTimers();
+	// The controller logs the errors it swallows; keep test output pristine.
+	warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+});
+afterEach(() => {
+	vi.useRealTimers();
+	vi.restoreAllMocks();
+});
 
 describe("a device that has not opted in", () => {
 	it("is off and never starts, whatever wakes it, so nothing is downloaded", async () => {
@@ -226,6 +234,7 @@ describe("a download from an older asset version", () => {
 		worker.reply({ type: "ready", id: 0 });
 		expect(c.storage.installed).toBe("v1");
 		expect(state(c)).toEqual({ kind: "ready" });
+		await tick();
 		expect(c.deleteCaches).toHaveBeenCalledWith("otherVersions");
 	});
 });
@@ -693,6 +702,7 @@ describe("the loading marker", () => {
 			installed: null,
 			autoOff: "crash",
 		});
+		await tick();
 		expect(c.deleteCaches).toHaveBeenCalledWith("all");
 		c.controller.wake();
 		await tick();
@@ -774,5 +784,178 @@ describe("disposing", () => {
 		await tick();
 		expect(c.workers).toHaveLength(2);
 		expect(status(c)).toBe("loading");
+	});
+});
+
+describe("an interrupted download is not a crash", () => {
+	it("writes no loading marker while bytes are still arriving, so closing the tab counts no strike", async () => {
+		const c = setup({ storage: memoryEngineStorage() });
+		const worker = await startDownload(c);
+		expect(c.storage.state?.loading).toBe(false);
+		worker.reply({ type: "progress", id: 0, loaded: 500, total: TOTAL });
+		expect(c.storage.state?.loading).toBe(false);
+
+		// The next app start finds nothing to count.
+		const next = setup({ storage: c.storage });
+		expect(c.storage.state).toMatchObject({ strikes: 0, loading: false });
+		expect(next.controller.getSnapshot().download).toEqual({
+			kind: "notDownloaded",
+			note: null,
+		});
+	});
+
+	it("keeps counting a crash in the model load after the last byte arrived", async () => {
+		const c = setup({ storage: memoryEngineStorage() });
+		const worker = await startDownload(c);
+		worker.reply({ type: "progress", id: 0, loaded: TOTAL, total: TOTAL });
+		expect(c.storage.state?.loading).toBe(true);
+
+		setup({ storage: c.storage });
+		expect(c.storage.state).toMatchObject({ strikes: 1, loading: false });
+	});
+
+	it("clears the marker again when the model load after a download fails or finishes", async () => {
+		const c = setup({ storage: memoryEngineStorage() });
+		const worker = await startDownload(c);
+		worker.reply({ type: "progress", id: 0, loaded: TOTAL, total: TOTAL });
+		worker.reply({ type: "ready", id: 0 });
+		expect(c.storage.state?.loading).toBe(false);
+	});
+});
+
+describe("less common paths", () => {
+	it("a corrupt error during a download deletes this version's files and forgets the download", async () => {
+		const c = setup({ storage: memoryEngineStorage() });
+		const worker = await startDownload(c);
+		worker.reply({ type: "error", id: 0, kind: "corrupt", message: "bad" });
+		await tick();
+		expect(c.deleteCaches).toHaveBeenCalledWith("thisVersion");
+		expect(c.storage.installed).toBeNull();
+		expect(state(c)).toEqual({ kind: "failed", reason: "load" });
+		expect(worker.terminated).toBe(true);
+	});
+
+	it("Download pressed while the stored copy is loading replaces that load with a download", async () => {
+		const c = setup();
+		c.controller.wake();
+		await tick();
+		const loading = c.workers[0];
+		await c.controller.download();
+		await tick();
+		expect(loading.terminated).toBe(true);
+		expect(c.workers).toHaveLength(2);
+		expect(c.workers[1].sent[0]).toMatchObject({ allowNetwork: true });
+		// The replaced worker's reply is ignored.
+		loading.reply({ type: "ready", id: 0 });
+		expect(state(c)).toEqual({ kind: "downloading", progress: null });
+		c.workers[1].reply({ type: "ready", id: 0 });
+		expect(state(c)).toEqual({ kind: "ready" });
+	});
+
+	it("Remove while the catalog is still loading starts no worker afterwards", async () => {
+		let release: (entries: EmojiEntry[]) => void = () => {};
+		const c = setup({
+			deps: {
+				loadCatalog: () =>
+					new Promise<EmojiEntry[]>((resolve) => {
+						release = resolve;
+					}),
+			},
+		});
+		c.controller.wake();
+		await tick();
+		await c.controller.remove();
+		release(catalog);
+		await tick();
+		expect(c.workers).toHaveLength(0);
+		expect(status(c)).toBe("off");
+		expect(c.storage.state?.loading).toBe(false);
+	});
+
+	it("a message the browser cannot decode ends the engine like any other worker error", async () => {
+		const c = setup();
+		c.controller.wake();
+		await tick();
+		c.workers[0].onmessageerror?.({});
+		await tick();
+		expect(status(c)).toBe("unavailable");
+		expect(state(c)).toEqual({ kind: "failed", reason: "load" });
+		expect(c.workers[0].terminated).toBe(true);
+	});
+
+	it("disposing in the middle of a download stops it, and the unfinished opt-in lapses like it does at the next start", async () => {
+		const c = setup({ storage: memoryEngineStorage() });
+		const worker = await startDownload(c);
+		worker.reply({ type: "progress", id: 0, loaded: 100, total: TOTAL });
+		c.controller.dispose();
+		expect(worker.terminated).toBe(true);
+		expect(c.storage.optedIn).toBe(false);
+		expect(c.storage.state?.loading).toBe(false);
+		expect(status(c)).toBe("off");
+		expect(state(c)).toEqual({ kind: "notDownloaded", note: null });
+	});
+
+	it("Download waits for the deletion Remove started, so it cannot delete the files it is about to store", async () => {
+		let finish: () => void = () => {};
+		const order: string[] = [];
+		const c = setup({
+			deps: {
+				deleteCaches: (scope) =>
+					new Promise<void>((resolve) => {
+						order.push(`delete ${scope}`);
+						finish = () => {
+							order.push("deleted");
+							resolve();
+						};
+					}),
+				createWorker: () => {
+					order.push("worker");
+					return new FakeWorker();
+				},
+			},
+		});
+		const removing = c.controller.remove();
+		const downloading = c.controller.download();
+		await tick();
+		expect(order).toEqual(["delete all"]);
+		finish();
+		await removing;
+		await downloading;
+		await tick();
+		expect(order).toEqual(["delete all", "deleted", "worker"]);
+	});
+
+	it("logs what it swallows: a failed deletion, a failed catalog, a worker that cannot be created", async () => {
+		const c = setup({
+			deps: { deleteCaches: async () => Promise.reject(new Error("locked")) },
+		});
+		await c.controller.remove();
+		expect(warn).toHaveBeenCalledWith(
+			expect.stringContaining("[emoji]"),
+			expect.any(Error),
+		);
+		warn.mockClear();
+		const noCatalog = setup({
+			deps: { loadCatalog: async () => Promise.reject(new Error("x")) },
+		});
+		noCatalog.controller.wake();
+		await tick();
+		expect(warn).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("the engine object", () => {
+	it("stays the same while only the download progress changes, and still tells listeners", async () => {
+		const c = setup({ storage: memoryEngineStorage() });
+		const worker = await startDownload(c);
+		const engine = c.controller.getSnapshot().engine;
+		const before = c.statuses.length;
+		worker.reply({ type: "progress", id: 0, loaded: 100, total: TOTAL });
+		worker.reply({ type: "progress", id: 0, loaded: 200, total: TOTAL });
+		expect(c.controller.getSnapshot().engine).toBe(engine);
+		expect(c.statuses.length).toBe(before + 2);
+		expect(state(c)).toEqual({ kind: "downloading", progress: 0.2 });
+		worker.reply({ type: "ready", id: 0 });
+		expect(c.controller.getSnapshot().engine).not.toBe(engine);
 	});
 });
