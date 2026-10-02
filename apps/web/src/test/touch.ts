@@ -25,14 +25,20 @@ function touchEvent(
  * Dispatches a one-finger touch sequence the way iOS does (touchstart, optional move, touchend)
  * and returns the touchend so a test can read `defaultPrevented`. A real finger does not fire the
  * synthesized click in jsdom, so a test that sees one knows the code under test produced it.
+ * `beforeEnd` runs between the move and the touchend, for example to advance a fake clock.
  */
 export function touchTap(
 	target: Element,
-	{ at = { x: 100, y: 100 }, moveTo = at }: { at?: Point; moveTo?: Point } = {},
+	{
+		at = { x: 100, y: 100 },
+		moveTo = at,
+		beforeEnd,
+	}: { at?: Point; moveTo?: Point; beforeEnd?: () => void } = {},
 ) {
 	fireEvent(target, touchEvent("touchstart", target, [at], [at]));
 	if (moveTo !== at)
 		fireEvent(target, touchEvent("touchmove", target, [moveTo], [moveTo]));
+	beforeEnd?.();
 	const end = touchEvent("touchend", target, [], [moveTo]);
 	fireEvent(target, end);
 	return end;

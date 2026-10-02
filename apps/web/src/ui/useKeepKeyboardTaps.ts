@@ -2,8 +2,11 @@ import { useCallback, useRef } from "react";
 
 /** A tap that moves further than this (px) is a scroll or swipe, never a tap. */
 const TAP_SLOP = 10;
-/** A press held longer than this (ms) is not treated as a tap. */
-const TAP_MAX_MS = 700;
+/**
+ * A touch that starts this soon (ms) after a scroll event in the popup is not intercepted: on iOS
+ * a touch that merely stops momentum scrolling produces no click, so it is not a tap on a control.
+ */
+const SCROLL_SETTLE_MS = 150;
 
 const TEXT_INPUT_TYPES = new Set([
 	"text",
@@ -56,7 +59,7 @@ function activatableControl(target: EventTarget | null): HTMLElement | null {
 	return control;
 }
 
-type Touch = { x: number; y: number; target: EventTarget | null; at: number };
+type Touch = { x: number; y: number; target: EventTarget | null };
 
 /**
  * iOS Safari blurs a focused text field (and starts dismissing the keyboard) while it is
@@ -66,7 +69,9 @@ type Touch = { x: number; y: number; target: EventTarget | null; at: number };
  * Returns a callback ref for the sheet's popup. While a text field inside the popup is focused,
  * a clean one-finger tap on an activatable control is handled on `touchend`: the event is
  * cancelled (no synthesized mouse events, so no blur, so the keyboard and sheet stay put) and
- * the control is clicked once. Everything else keeps the browser's behaviour.
+ * the control is clicked once. Everything else keeps the browser's behaviour: swipes (movement
+ * past the slop), multi-touch, and a touch that begins just after a scroll (it only stopped
+ * momentum scrolling, which iOS does not turn into a click). A slow press is still a tap.
  */
 export function useKeepKeyboardTaps(): (popup: HTMLElement | null) => void {
 	const cleanup = useRef<(() => void) | null>(null);
@@ -77,6 +82,12 @@ export function useKeepKeyboardTaps(): (popup: HTMLElement | null) => void {
 		if (!popup) return;
 
 		let touch: Touch | null = null;
+		let lastScrollAt = Number.NEGATIVE_INFINITY;
+
+		// `scroll` does not bubble, so a capture listener on the popup sees the scrolling body.
+		const onScroll = () => {
+			lastScrollAt = Date.now();
+		};
 
 		const focusedTextEntry = () => {
 			const active = document.activeElement;
@@ -91,13 +102,10 @@ export function useKeepKeyboardTaps(): (popup: HTMLElement | null) => void {
 			}
 			const first = event.touches[0];
 			touch =
-				first && focusedTextEntry()
-					? {
-							x: first.clientX,
-							y: first.clientY,
-							target: event.target,
-							at: Date.now(),
-						}
+				first &&
+				focusedTextEntry() &&
+				Date.now() - lastScrollAt >= SCROLL_SETTLE_MS
+					? { x: first.clientX, y: first.clientY, target: event.target }
 					: null;
 		};
 		const onMove = (event: TouchEvent) => {
@@ -125,7 +133,6 @@ export function useKeepKeyboardTaps(): (popup: HTMLElement | null) => void {
 			if (!end) return;
 			if (Math.hypot(end.clientX - start.x, end.clientY - start.y) > TAP_SLOP)
 				return;
-			if (Date.now() - start.at > TAP_MAX_MS) return;
 			if (!focusedTextEntry()) return;
 			const control = activatableControl(event.target);
 			if (!control || control !== activatableControl(start.target)) return;
@@ -134,11 +141,16 @@ export function useKeepKeyboardTaps(): (popup: HTMLElement | null) => void {
 			control.click();
 		};
 
+		popup.addEventListener("scroll", onScroll, {
+			capture: true,
+			passive: true,
+		});
 		popup.addEventListener("touchstart", onStart, { passive: true });
 		popup.addEventListener("touchmove", onMove, { passive: true });
 		popup.addEventListener("touchcancel", onCancel, { passive: true });
 		popup.addEventListener("touchend", onEnd, { passive: false });
 		cleanup.current = () => {
+			popup.removeEventListener("scroll", onScroll, { capture: true });
 			popup.removeEventListener("touchstart", onStart);
 			popup.removeEventListener("touchmove", onMove);
 			popup.removeEventListener("touchcancel", onCancel);

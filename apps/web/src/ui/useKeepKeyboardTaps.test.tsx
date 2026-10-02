@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { touchCancelled, touchMultiTap, touchTap } from "../test/touch";
 import { Sheet } from "./Sheet";
 
@@ -211,5 +211,46 @@ describe("keyboard-open taps in a Sheet", () => {
 		rerender(<Harness onAction={onAction} />);
 		touchTap(screen.getByRole("button", { name: "Repeat" }));
 		expect(onAction).toHaveBeenCalledTimes(1);
+	});
+
+	describe("timing", () => {
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
+		it("still activates a slow tap that was held for 1.2 s", () => {
+			vi.useFakeTimers();
+			const onAction = vi.fn();
+			render(<Harness onAction={onAction} />);
+			const end = touchTap(screen.getByRole("button", { name: "Repeat" }), {
+				beforeEnd: () => vi.advanceTimersByTime(1200),
+			});
+			expect(end.defaultPrevented).toBe(true);
+			expect(onAction).toHaveBeenCalledTimes(1);
+		});
+
+		it("ignores a tap that starts within 100 ms of a scroll, as it only stopped momentum", () => {
+			vi.useFakeTimers();
+			const onAction = vi.fn();
+			render(<Harness onAction={onAction} />);
+			const button = screen.getByRole("button", { name: "Repeat" });
+			fireEvent.scroll(button);
+			vi.advanceTimersByTime(100);
+			const end = touchTap(button);
+			expect(end.defaultPrevented).toBe(false);
+			expect(onAction).not.toHaveBeenCalled();
+		});
+
+		it("handles a tap that starts 400 ms after a scroll", () => {
+			vi.useFakeTimers();
+			const onAction = vi.fn();
+			render(<Harness onAction={onAction} />);
+			const button = screen.getByRole("button", { name: "Repeat" });
+			fireEvent.scroll(button);
+			vi.advanceTimersByTime(400);
+			const end = touchTap(button);
+			expect(end.defaultPrevented).toBe(true);
+			expect(onAction).toHaveBeenCalledTimes(1);
+		});
 	});
 });
