@@ -256,9 +256,10 @@ What shipped:
   tap with the keyboard open works on the first tap. The failed state was covered by unit and e2e tests only.
 - Docker (2026-10-02): `docker build -t tagteam:local .` succeeds; the running image serves `/assets/emoji/<version>/`
   with the right sizes and content types (wasm `application/wasm`, mjs `text/javascript`, onnx and json), immutable
-  caching, and a 404 for a missing file. Not run for this branch: GitHub Actions and `actionlint`. CI never requests the
-  model from the built image.
-- Not verified: a real iPhone (speed, memory, eviction over days), the installed-app `persist()` grant.
+  caching, and a 404 for a missing file. GitHub Actions went green on the pushed branch (owner, 2026-10-02). CI never
+  requests the model from the built image; `actionlint` was not run.
+- Real iPhone (owner, 2026-10-02): tested and working. Not verified: memory pressure and eviction over days, the
+  installed-app `persist()` grant.
 
 Follow-ups and owner questions:
 
@@ -384,5 +385,5 @@ Follow-ups and owner questions:
 - Suggestion pushes have no per-sender throttle (the cap counts only pending suggestions; acceptable
   for small trusted groups).
 - Suggestion rows are never pruned, so pulls carry the full history between pairs.
-- Emoji suggestions: check on a real iPhone (speed, memory, eviction over days); the stored model can be evicted by
-  the browser, in which case Me offers Download again.
+- Emoji suggestions: works on a real iPhone (owner, 2026-10-02); still watch memory and eviction over days. The stored
+  model can be evicted by the browser, in which case Me offers Download again.
