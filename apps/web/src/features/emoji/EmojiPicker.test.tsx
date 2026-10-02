@@ -256,7 +256,8 @@ describe("EmojiPicker", () => {
 			screen.getByRole("heading", { name: "Animals & nature" }),
 		).toBeInTheDocument();
 		expect(emojiButtons()).toEqual([]);
-		expect(FakeObserver.all).toHaveLength(2);
+		// The observers are created in a passive effect, which can land after the heading is found.
+		await waitFor(() => expect(FakeObserver.all).toHaveLength(2));
 		expect(FakeObserver.all[0]?.options?.rootMargin).toBe("600px 0px");
 
 		act(() => FakeObserver.all[0]?.fire(true));
