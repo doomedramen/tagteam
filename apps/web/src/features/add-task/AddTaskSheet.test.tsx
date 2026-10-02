@@ -20,6 +20,7 @@ import {
 	fakeTask,
 	renderWithSession,
 } from "../../test/fakes";
+import { touchTap } from "../../test/touch";
 import { AddTaskSheet } from "./AddTaskSheet";
 
 const PLANT = "\u{1FAB4}"; // potted plant
@@ -168,6 +169,52 @@ describe("AddTaskSheet", () => {
 		expect(onClose).not.toHaveBeenCalled();
 		await userEvent.click(create());
 		expect(onClose).toHaveBeenCalledOnce();
+	});
+
+	describe("taps while the keyboard is open (touch)", () => {
+		it("a tap on Create submits once and leaves the title focused", async () => {
+			const engine = fakeEngine();
+			const onClose = vi.fn();
+			renderWithSession(<AddTaskSheet open onClose={onClose} />, { engine });
+			const title = screen.getByLabelText("Task");
+			await userEvent.type(title, "Call grandma");
+			const end = touchTap(create());
+			expect(end.defaultPrevented).toBe(true);
+			expect(title).toHaveFocus();
+			await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+			expect(engine.enqueue).toHaveBeenCalledTimes(1);
+		});
+
+		it("a tap on a colour option selects it", async () => {
+			const engine = fakeEngine();
+			renderWithSession(<AddTaskSheet open onClose={vi.fn()} />, { engine });
+			const title = screen.getByLabelText("Task");
+			await userEvent.type(title, "Water plants");
+			const end = touchTap(
+				screen.getByLabelText("Pink").closest("label") as Element,
+			);
+			expect(end.defaultPrevented).toBe(true);
+			expect(screen.getByLabelText("Pink")).toBeChecked();
+			expect(title).toHaveFocus();
+		});
+
+		it("a tap on a settings row expands it", async () => {
+			renderWithSession(<AddTaskSheet open onClose={vi.fn()} />);
+			expect(screen.getByLabelText("Task")).toHaveFocus();
+			expect(row(/^Repeat/)).toHaveAttribute("aria-expanded", "false");
+			const end = touchTap(row(/^Repeat/));
+			expect(end.defaultPrevented).toBe(true);
+			expect(row(/^Repeat/)).toHaveAttribute("aria-expanded", "true");
+			expect(screen.getByLabelText("Task")).toHaveFocus();
+		});
+
+		it("a tap on the emoji circle opens the picker once", async () => {
+			renderWithSession(<AddTaskSheet open onClose={vi.fn()} />);
+			touchTap(screen.getByRole("button", { name: /^Emoji:/ }));
+			expect(
+				await screen.findByRole("dialog", { name: "Choose emoji" }),
+			).toBeInTheDocument();
+		});
 	});
 
 	describe("rows", () => {

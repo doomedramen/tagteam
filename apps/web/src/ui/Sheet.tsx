@@ -9,6 +9,7 @@ import {
 	DrawerTitle,
 } from "@/components/ui/drawer";
 import { cx } from "../lib/cx";
+import { useKeepKeyboardTaps } from "./useKeepKeyboardTaps";
 
 const SAFE_BOTTOM =
 	"pb-[max(1rem,calc(env(safe-area-inset-bottom)-var(--drawer-keyboard-inset,0px)))]";
@@ -49,9 +50,11 @@ export function Sheet({
 	const tinted = tint !== undefined;
 	const popupRef = useRef<HTMLDivElement>(null);
 	const previouslyFocused = useRef<HTMLElement | null>(null);
+	const keepKeyboardTaps = useKeepKeyboardTaps();
 	const setPopupRef = useCallback(
 		(popup: HTMLDivElement | null) => {
 			popupRef.current = popup;
+			keepKeyboardTaps(popup);
 			if (!open || !popup || popup.contains(document.activeElement)) return;
 			previouslyFocused.current =
 				document.activeElement instanceof HTMLElement
@@ -77,7 +80,7 @@ export function Sheet({
 				preventScroll: true,
 			});
 		},
-		[open, focusOnTouch],
+		[open, focusOnTouch, keepKeyboardTaps],
 	);
 	useLayoutEffect(() => {
 		if (open) return;
@@ -138,8 +141,10 @@ export function Sheet({
 					initialFocus={false}
 					data-task-color={tint ?? undefined}
 					onPointerDown={(event) => {
-						// Keep the keyboard and hit target stationary until a button tap commits.
-						// Inputs/selects still receive native focus; keyboard Tab is unaffected.
+						// Mouse and pen: keep the keyboard and hit target stationary until a button
+						// click commits. Inputs/selects still receive native focus; keyboard Tab is
+						// unaffected. Touch is handled on touchend (see useKeepKeyboardTaps), because
+						// iOS blurs the field regardless of this.
 						const active = document.activeElement;
 						if (
 							event.target instanceof Element &&
