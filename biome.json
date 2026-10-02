@@ -14,7 +14,8 @@
 			"*.yaml",
 			"!pnpm-lock.yaml",
 			"*.yml",
-			"!apps/server/drizzle"
+			"!apps/server/drizzle",
+			"!apps/web/src/features/emoji/catalog.json"
 		]
 	},
 	"formatter": {
