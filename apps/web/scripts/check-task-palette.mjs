@@ -78,8 +78,6 @@ for (const [mode, tokens] of [
 			["--text on swatch", text("--text"), role("swatch"), 4.5],
 			["fg on card", role("fg"), role("card"), 4.5],
 			["ring on sheet", role("ring"), role("sheet"), 3],
-			// The Today row emoji circle's ring sits on the list card (--surface).
-			["ring on surface", role("ring"), text("--surface"), 3],
 			// A Today tile is filled with `sheet` in light mode and `card` in dark mode. Its
 			// overdue meta text is --danger; the completion circle's unchecked ring is
 			// --text-3 (dashed or solid) and its overdue ring is --danger (graphics, 3:1);

@@ -111,10 +111,10 @@ follow-ups below). Per-task ledger (rulings, review findings): git-ignored
 - Palette: seven hues x five roles as `--task-{hue}-{role}` tokens, mapped by `data-task-color`
   onto `--task-sheet|card|swatch|ring|fg` (neutral fallbacks for tasks with no colour). The contrast
   script `apps/web/scripts/check-task-palette.mjs` runs inside `pnpm test` and as
-  `pnpm --filter @tagteam/web check:palette` (196 pairs, includes the Today tile pairs). Spec §3
-  says dark `fg` on `swatch` is >= 4.5:1 but it measures about 4.0:1, so the script asserts 3:1
-  there (icons) and `--text` on swatches at 4.5:1.
-- Sheet: close circle + action pill in the header (no footer), emoji circle, heading-style title,
+  `pnpm --filter @tagteam/web check:palette` (182 pairs, includes the Today tile pairs). Dark `fg`
+  on `swatch` measures about 4.0:1 (spec §3 records this), so the script asserts 3:1 there (graphics,
+  icons) and `--text` on swatches at 4.5:1.
+- Sheet: close circle + action pill in the header (no footer), a large bare emoji (64 px, no circle; see 11c), heading-style title,
   seven colour radios, one settings card (For / Repeat / Starts / Due by, one open at a time).
   A tinted `Sheet` (`tint`, `action`, `notice`) re-tints with a 200 ms transition. Editing sends one
   `task.update` with only what changed.
@@ -156,7 +156,13 @@ follow-ups below). Per-task ledger (rulings, review findings): git-ignored
   - 11c `3516069` the task sheet shows the emoji large (64 px) with no circle behind it.
 - Known flake: three times during this plan a full `pnpm test` run had one web test time out at 5 s
   (twice "builds a custom weekly schedule with a due time" in `AddTaskSheet.test.tsx`); it passed
-  alone and on re-run. Not diagnosed; likely load-sensitive.
+  alone and on re-run. The likely cause is load: the test makes about 14 sequential `userEvent`
+  calls on a heavier sheet, and a full run executes test files in parallel under CPU contention.
+  The final-review fix addressed it: `testTimeout` is 15 s in `apps/web/vitest.config.ts`, and that
+  test uses `userEvent.setup({ delay: null })` and `fireEvent.change` for the time input.
+- Notes for the owner: the active group is now visible only on Me, so a user in several groups
+  cannot see which group Today and Team show (owner's request, 7bb5050). Team's Nudge button is
+  40 px tall, under the 44 px tap-target rule (pre-existing, not touched).
 - Visual check (controller, 2026-10-02, browser pane at 375 x 812, light and dark): New/Edit sheet,
   all screens' header bands, Today tiles, task detail, Team, History and Me checked after each change.
 - iOS Simulator (controller, 2026-10-02, iPhone 18 Pro, iOS 27, Safari tab and an earlier spike as

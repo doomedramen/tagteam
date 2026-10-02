@@ -26,7 +26,7 @@ Tasks stay standalone. Subtasks, goals, and tags from the reference app are not 
 | Emoji | One emoji per task, optional. Suggested from the title, changeable in a picker |
 | Emoji order of precedence | Default emoji, replaced by the automatic pick if and when one is made, unless the person has picked one by hand. A hand-picked emoji is never changed automatically |
 | Who picks | A device belonging to the task's owner picks and stores the result on the task, so every member sees the same emoji. Once a task has a stored emoji nothing changes it except its owner |
-| Suggestion, not assignment | The top suggestion fills the emoji circle while the person has not chosen one. The picker lists the top three first |
+| Suggestion, not assignment | The top suggestion fills the sheet's emoji while the person has not chosen one. The picker lists the top three first |
 | Colour | Never picked automatically. A new task starts blue, as in the approved mock-up, and changes only when the person taps a colour |
 | Default emoji | A task with no stored emoji shows 📋 (clipboard) everywhere an emoji appears. No stored emoji means "not decided yet". ✅ is avoided because it reads as "done" next to an open task |
 | Existing tasks | Never receive an automatic emoji. Tasks that predate this feature show the default emoji, on neutral surfaces with no colour, until their owner picks by hand |
@@ -98,7 +98,7 @@ distinct at pastel strength.
 
 ### Shape
 
-- Circles: close button, emoji circle, colour options, row icon holders.
+- Circles: close button, colour options, row icon holders, and the emoji holder on task detail. The sheet's emoji is a bare glyph with no circle (amended 2026-10-02, 11c).
 - Pills: header action, row values.
 - Large radii: settings card about 26 px, sheet top corners about 32 px.
 - Rows in the card are separated by spacing, not divider lines.
@@ -161,7 +161,7 @@ One component as now. Top to bottom:
    hide it. Behaviour carried over from the footer button it replaces: pointer-down on the pill
    keeps the title input focused, duplicate submissions are blocked until the local write
    finishes, and Enter in the title still submits.
-2. **Emoji circle.** 60 px, `card` fill (the sheet around it already carries the colour). Tapping opens the emoji picker. Its accessible name is
+2. **Emoji.** A bare 64 px glyph in an 80 px box, with no circle, fill or ring (the sheet around it already carries the colour; amended 2026-10-02, 11c, replacing a 60 px `card` circle). Tapping opens the emoji picker. Its accessible name is
    "Emoji: {name}, change". With no emoji stored it shows the default and the name reads
    "Emoji: clipboard, default, change".
 3. **Title.** The existing input, centred and styled as a heading, same placeholder, same focus,
@@ -293,7 +293,7 @@ screens and tests never touch the model directly.
 
 Rule: the engine can never block, delay, or break creating or editing a task. Every failure ends
 in the same safe state, "no suggestions", in which the sheet works exactly as it does with the Me
-toggle off: the emoji circle stays as it is, the person can still pick an emoji by hand, and the
+toggle off: the emoji stays as it is, the person can still pick an emoji by hand, and the
 task saves. Failures are quiet in the sheet; no error is shown there.
 
 The engine has four states: `off` (toggle), `loading`, `ready`, `unavailable`.
