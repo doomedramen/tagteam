@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, Outlet, useNavigate } from "react-router";
 import { apiFetch } from "../lib/api";
 import { authClient } from "../lib/auth";
+import { requestPersistentStorage } from "../lib/persist-storage";
 import { clearStore, db, getMeta, setMeta } from "../store/db";
 import { createSyncEngine } from "../sync/engine";
 import { httpSyncApi } from "../sync/http-api";
@@ -52,6 +53,11 @@ function SignedIn({ initialMe }: { initialMe: MeResponse }) {
 		} catch {
 			// Retry when the next sync succeeds.
 		}
+	}, []);
+
+	// Signed in: ask the browser to keep this device's data (once per app start).
+	useEffect(() => {
+		void requestPersistentStorage();
 	}, []);
 
 	useEffect(() => {
