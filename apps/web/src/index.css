@@ -38,6 +38,48 @@
 	--av-pink-fg: #97304f;
 	--av-gray: #ebeae6;
 	--av-gray-fg: #4f4e4a;
+	/* Task colors: seven hues x five roles (spec 2026-10-01-task-look-and-emoji-design §3). */
+	--task-pink-sheet: #feeaf1;
+	--task-pink-card: #ffffff;
+	--task-pink-swatch: #ffcadd;
+	--task-pink-ring: #b96989;
+	--task-pink-fg: #7c2b50;
+	--task-coral-sheet: #ffece3;
+	--task-coral-card: #ffffff;
+	--task-coral-swatch: #fecfba;
+	--task-coral-ring: #bc6f4c;
+	--task-coral-fg: #803200;
+	--task-amber-sheet: #f9f0da;
+	--task-amber-card: #ffffff;
+	--task-amber-swatch: #efd9a2;
+	--task-amber-ring: #a2822a;
+	--task-amber-fg: #614900;
+	--task-green-sheet: #e4f6e4;
+	--task-green-card: #ffffff;
+	--task-green-swatch: #bde9bd;
+	--task-green-ring: #59985b;
+	--task-green-fg: #135d1d;
+	--task-teal-sheet: #dcf7f1;
+	--task-teal-card: #ffffff;
+	--task-teal-swatch: #a3ecdc;
+	--task-teal-ring: #0f9b89;
+	--task-teal-fg: #015a4f;
+	--task-blue-sheet: #e7f1fe;
+	--task-blue-card: #ffffff;
+	--task-blue-swatch: #c4ddfe;
+	--task-blue-ring: #5788c7;
+	--task-blue-fg: #154d8c;
+	--task-purple-sheet: #f1eefe;
+	--task-purple-card: #ffffff;
+	--task-purple-swatch: #ddd4ff;
+	--task-purple-ring: #8b78c1;
+	--task-purple-fg: #533c87;
+	/* What a task without a color wears: the neutral tokens. */
+	--task-sheet: var(--bg);
+	--task-card: var(--surface);
+	--task-swatch: var(--surface-2);
+	--task-ring: var(--text-3);
+	--task-fg: var(--text);
 	--background: var(--bg);
 	--foreground: var(--text);
 	--card: var(--surface);
@@ -92,6 +134,41 @@
 		--av-pink-fg: #f0a3bc;
 		--av-gray: #2a2a28;
 		--av-gray-fg: #c9c7bf;
+		--task-pink-sheet: #231219;
+		--task-pink-card: #331e26;
+		--task-pink-swatch: #854760;
+		--task-pink-ring: #d084a1;
+		--task-pink-fg: #f6b5cd;
+		--task-coral-sheet: #24140c;
+		--task-coral-card: #342017;
+		--task-coral-swatch: #874c30;
+		--task-coral-ring: #d28a69;
+		--task-coral-fg: #f8bba0;
+		--task-amber-sheet: #1e1707;
+		--task-amber-card: #2c2410;
+		--task-amber-swatch: #735a13;
+		--task-amber-ring: #b89b51;
+		--task-amber-fg: #e0c88e;
+		--task-green-sheet: #0f1c10;
+		--task-green-card: #1a2a1b;
+		--task-green-swatch: #3a6b3d;
+		--task-green-ring: #76af77;
+		--task-green-fg: #aad9ab;
+		--task-teal-sheet: #061d19;
+		--task-teal-card: #0f2b26;
+		--task-teal-swatch: #046d5f;
+		--task-teal-ring: #4bb3a1;
+		--task-teal-fg: #8fdccc;
+		--task-blue-sheet: #0f1926;
+		--task-blue-card: #192636;
+		--task-blue-swatch: #395f8f;
+		--task-blue-ring: #73a1dc;
+		--task-blue-fg: #a8ceff;
+		--task-purple-sheet: #191525;
+		--task-purple-card: #262235;
+		--task-purple-swatch: #61538b;
+		--task-purple-ring: #a392d6;
+		--task-purple-fg: #cec1fa;
 	}
 }
 
@@ -112,6 +189,11 @@
 	--color-warning-soft: var(--warning-soft);
 	--color-danger: var(--danger);
 	--color-danger-soft: var(--danger-soft);
+	--color-task-sheet: var(--task-sheet);
+	--color-task-card: var(--task-card);
+	--color-task-swatch: var(--task-swatch);
+	--color-task-ring: var(--task-ring);
+	--color-task-fg: var(--task-fg);
 	--font-sans:
 		ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
 		sans-serif;
@@ -201,6 +283,57 @@
 .avatar-gray {
 	background: var(--av-gray);
 	color: var(--av-gray-fg);
+}
+
+/* An element with data-task-color wears that hue; its descendants inherit it. */
+[data-task-color="pink"] {
+	--task-sheet: var(--task-pink-sheet);
+	--task-card: var(--task-pink-card);
+	--task-swatch: var(--task-pink-swatch);
+	--task-ring: var(--task-pink-ring);
+	--task-fg: var(--task-pink-fg);
+}
+[data-task-color="coral"] {
+	--task-sheet: var(--task-coral-sheet);
+	--task-card: var(--task-coral-card);
+	--task-swatch: var(--task-coral-swatch);
+	--task-ring: var(--task-coral-ring);
+	--task-fg: var(--task-coral-fg);
+}
+[data-task-color="amber"] {
+	--task-sheet: var(--task-amber-sheet);
+	--task-card: var(--task-amber-card);
+	--task-swatch: var(--task-amber-swatch);
+	--task-ring: var(--task-amber-ring);
+	--task-fg: var(--task-amber-fg);
+}
+[data-task-color="green"] {
+	--task-sheet: var(--task-green-sheet);
+	--task-card: var(--task-green-card);
+	--task-swatch: var(--task-green-swatch);
+	--task-ring: var(--task-green-ring);
+	--task-fg: var(--task-green-fg);
+}
+[data-task-color="teal"] {
+	--task-sheet: var(--task-teal-sheet);
+	--task-card: var(--task-teal-card);
+	--task-swatch: var(--task-teal-swatch);
+	--task-ring: var(--task-teal-ring);
+	--task-fg: var(--task-teal-fg);
+}
+[data-task-color="blue"] {
+	--task-sheet: var(--task-blue-sheet);
+	--task-card: var(--task-blue-card);
+	--task-swatch: var(--task-blue-swatch);
+	--task-ring: var(--task-blue-ring);
+	--task-fg: var(--task-blue-fg);
+}
+[data-task-color="purple"] {
+	--task-sheet: var(--task-purple-sheet);
+	--task-card: var(--task-purple-card);
+	--task-swatch: var(--task-purple-swatch);
+	--task-ring: var(--task-purple-ring);
+	--task-fg: var(--task-purple-fg);
 }
 
 html,
