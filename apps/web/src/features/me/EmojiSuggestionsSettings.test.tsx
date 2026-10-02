@@ -51,7 +51,9 @@ describe("EmojiSuggestionsSettings", () => {
 			screen.getByRole("progressbar", { name: "Download progress" }),
 		).toBeInTheDocument();
 		act(() => change({ download: { kind: "downloading", progress: 0.426 } }));
-		expect(status()).toHaveTextContent("Downloading… 43%");
+		expect(status()).toHaveTextContent("Downloading…");
+		expect(status()).not.toHaveTextContent("43");
+		expect(screen.getByText("43%")).toHaveAttribute("aria-hidden", "true");
 		expect(screen.getByRole("progressbar")).toHaveAttribute(
 			"aria-valuenow",
 			"43",
@@ -108,7 +110,7 @@ describe("EmojiSuggestionsSettings", () => {
 		expect(screen.queryByRole("button")).not.toBeInTheDocument();
 	});
 
-	it("shows an update only here: Download, with the old copy described as paused", async () => {
+	it("shows an update with Download and the paused explanation", async () => {
 		const { controller } = setup({
 			optedIn: true,
 			download: { kind: "updateAvailable" },

@@ -32,6 +32,7 @@ export function EmojiSuggestionsSettings() {
 	let action: { label: string; run: () => void; variant?: "primary" } | null =
 		null;
 	let progress: number | null | undefined;
+	let percent: number | null = null;
 
 	switch (download.kind) {
 		case "notDownloaded":
@@ -51,10 +52,11 @@ export function EmojiSuggestionsSettings() {
 			break;
 		case "downloading":
 			progress = download.progress;
-			status =
-				download.progress === null
-					? "Downloading…"
-					: `Downloading… ${Math.round(download.progress * 100)}%`;
+			percent =
+				download.progress === null ? null : Math.round(download.progress * 100);
+			// The live region names the state only; the percentage is shown beside it and carried
+			// by the progress bar, so a screen reader is not read a new number every percent.
+			status = "Downloading…";
 			action = { label: "Cancel", run: removeDownload };
 			break;
 		case "loading":
@@ -85,14 +87,25 @@ export function EmojiSuggestionsSettings() {
 			</div>
 			<Card className="gap-3 rounded-2xl p-4 ring-line">
 				<CardContent className="flex flex-col gap-3 p-0">
-					<p role="status" className="text-[14px] font-medium">
-						{status}
-					</p>
+					<div className="flex items-baseline justify-between gap-3">
+						<p role="status" className="text-[14px] font-medium">
+							{status}
+						</p>
+						{percent !== null ? (
+							<span
+								aria-hidden
+								className="text-[13px] text-text-2 tabular-nums"
+							>
+								{percent}%
+							</span>
+						) : null}
+					</div>
 					{detail ? <p className="text-[13px] text-text-2">{detail}</p> : null}
 					{progress !== undefined ? (
 						<Progress
 							aria-label="Download progress"
-							value={progress === null ? null : Math.round(progress * 100)}
+							value={percent}
+							indicatorClassName="data-indeterminate:w-2/5 motion-safe:data-indeterminate:animate-pulse"
 						/>
 					) : null}
 					{action ? (
