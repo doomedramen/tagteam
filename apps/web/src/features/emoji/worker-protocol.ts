@@ -22,9 +22,10 @@ export type WorkerRequest =
  * - `uncached`: a load that may not use the network found the model is not stored on the device.
  * - `offline`: files were not stored on the device and the device is offline.
  * - `quota`: the browser refused to store the files.
- * - `corrupt`: files were stored on the device and loading them still failed.
+ * - `corrupt`: files were stored on the device and loading the model still failed (a failed fetch of the
+ *   index files is `load`, never `corrupt`: it says nothing about the stored model).
  * - `index`: index.bin files do not match the catalog.
- * - `load`: loading failed for any other reason (a missing file, a failed download, no memory).
+ * - `load`: loading failed for any other reason (a missing file, a failed download or index fetch, no memory).
  * - `runtime`: the worker failed while answering.
  */
 export type FailureKind =

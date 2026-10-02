@@ -12,7 +12,9 @@ import {
 } from "./assets";
 import bitsUrl from "./index/bits.bin?url";
 import int8Url from "./index/int8.bin?url";
+import { storeFiles } from "./store-files";
 import {
+	createNetworkGuard,
 	createWorkerCore,
 	NotCachedError,
 	type WorkerDeps,
@@ -26,6 +28,7 @@ interface Scope {
 	postMessage(message: WorkerReply): void;
 }
 const scope = self as unknown as Scope;
+const realFetch = self.fetch.bind(self);
 
 // Nothing may leave this origin: the model is the one in the image, never Hugging Face.
 env.allowLocalModels = true;
@@ -44,69 +47,28 @@ ortWasm.wasmPaths = {
 	wasm: new URL(EMOJI_ORT_WASM_PATH, scope.location.href).href,
 };
 
-// The only gate on the network for the model. `init` with allowNetwork false turns it off for the
-// whole load, so neither storeFiles nor the library's own lookups (env.fetch) can make a request
-// even if a stored file went missing after the `filesCached()` pre-check.
+// What is and is not guaranteed about the network. While a load runs without `allowNetwork`
+// (`networkAllowed` false) every `fetch` for a path under /assets/emoji/ is rejected with a
+// NotCachedError, on both `env.fetch` (transformers.js's own fetches, including its wasm/mjs
+// pre-load, which on a failure falls back to ORT's own loading) and `self.fetch` (ORT's fallback
+// fetch of the wasm). Not guarded: ORT's fallback `import()` of the runtime .mjs, which a worker
+// cannot intercept. `storeFiles` therefore checks, before the library is called, that all six
+// files (the .mjs and .wasm included) are in the cache and answers `uncached` otherwise; the
+// library then finds them in the cache and falls back to nothing. The one residual window is a
+// file evicted by the browser between that check and the library's own cache lookup.
 let networkAllowed = false;
-env.fetch = (input, init) => {
-	if (!networkAllowed) return Promise.reject(new NotCachedError());
-	return fetch(input, init);
-};
+const guardedFetch = createNetworkGuard(
+	(input, init) => realFetch(input, init),
+	scope.location.href,
+	() => networkAllowed,
+);
+env.fetch = guardedFetch;
+self.fetch = guardedFetch;
 
 async function fetchBytes(url: string): Promise<ArrayBuffer> {
 	const response = await fetch(url);
 	if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
 	return response.arrayBuffer();
-}
-
-/**
- * Puts every file that is not stored yet (only with `allowNetwork`; otherwise a missing file stops the load) into the Cache API under the URL transformers.js looks it
- * up by, counting the bytes as they arrive. transformers.js then finds all six files in its cache
- * and makes no request of its own. Fetching them here gives one progress bar for the whole 49 MB
- * (the library reports only the model weights) and one request per file; `no-store` keeps the
- * browser's HTTP cache from keeping a second copy. A storage quota error from `cache.put`
- * surfaces as `QuotaExceededError`; an HTML answer (a dev server's fallback page) is refused.
- */
-async function storeFiles(
-	onBytes: (loaded: number) => void,
-	allowNetwork: boolean,
-) {
-	if (typeof caches === "undefined") {
-		if (allowNetwork) return;
-		throw new NotCachedError();
-	}
-	const cache = await caches.open(EMOJI_CACHE_NAME);
-	let loaded = 0;
-	for (const path of EMOJI_STORED_PATHS) {
-		const url = new URL(path, scope.location.href).href;
-		if ((await cache.match(url)) !== undefined) continue;
-		// A load that may not use the network never fetches: a missing file is "not stored".
-		if (!allowNetwork) throw new NotCachedError();
-		const response = await fetch(url, { cache: "no-store" });
-		if (!response.ok || !response.body)
-			throw new Error(`${path}: HTTP ${response.status}`);
-		// A server that answers an unknown path with its app shell must not get stored as a model file.
-		if (response.headers.get("content-type")?.includes("text/html"))
-			throw new Error(`${path}: the server sent a web page, not the file`);
-		const reader = response.body.getReader();
-		const chunks: Uint8Array<ArrayBuffer>[] = [];
-		for (;;) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			chunks.push(value as Uint8Array<ArrayBuffer>);
-			loaded += value.length;
-			onBytes(loaded);
-		}
-		await cache.put(
-			url,
-			new Response(new Blob(chunks), {
-				headers: {
-					"content-type":
-						response.headers.get("content-type") ?? "application/octet-stream",
-				},
-			}),
-		);
-	}
 }
 
 const createExtractor = () =>
@@ -142,7 +104,19 @@ const deps: WorkerDeps = {
 		networkAllowed = allowNetwork;
 		let extractor: Awaited<ReturnType<typeof createExtractor>>;
 		try {
-			await storeFiles(onBytes, allowNetwork);
+			if (typeof caches === "undefined") {
+				if (!allowNetwork) throw new NotCachedError();
+			} else {
+				await storeFiles({
+					urls: EMOJI_STORED_PATHS.map(
+						(path) => new URL(path, scope.location.href).href,
+					),
+					cache: await caches.open(EMOJI_CACHE_NAME),
+					fetch: guardedFetch,
+					allowNetwork,
+					onBytes,
+				});
+			}
 			extractor = await createExtractor();
 		} finally {
 			networkAllowed = false;

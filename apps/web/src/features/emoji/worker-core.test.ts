@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { BIT_BYTES, DIM, quantiseIndex } from "./search";
 import {
 	classifyFailure,
+	createNetworkGuard,
 	createWorkerCore,
 	NotCachedError,
 	type WorkerDeps,
@@ -216,6 +217,101 @@ describe("the worker core", () => {
 	});
 });
 
+describe("the worker core, failure handling", () => {
+	it("classifies a failed index load as load, never corrupt, even when the model files are stored", async () => {
+		const { handle, replies } = setup({
+			filesCached: async () => true,
+			loadIndex: async () => {
+				throw new Error("bits.bin: HTTP 503");
+			},
+		});
+		await handle(init(1, 3, false));
+		expect(replies).toHaveLength(1);
+		expect(replies[0]).toMatchObject({ type: "error", id: 1, kind: "load" });
+	});
+
+	it("treats a filesCached that throws as not stored", async () => {
+		const { handle, replies } = setup({
+			filesCached: async () => {
+				throw new Error("cache unavailable");
+			},
+		});
+		await handle(init(1, 3, false));
+		expect(replies[0]).toMatchObject({
+			type: "error",
+			id: 1,
+			kind: "uncached",
+		});
+	});
+
+	it("keeps answering when post throws, so the queue cannot wedge", async () => {
+		let failNext = true;
+		const replies: WorkerReply[] = [];
+		const { handle } = setup({
+			post: (reply) => {
+				if (failNext) {
+					failNext = false;
+					throw new Error("port closed");
+				}
+				replies.push(reply);
+			},
+		});
+		await handle(init(1, 4)); // index mismatch: the error reply throws in post
+		await handle(init(2, 3));
+		expect(replies).toEqual([{ type: "ready", id: 2 }]);
+	});
+});
+
+describe("createNetworkGuard", () => {
+	const base = "https://tagteam.test/assets/worker-abc.js";
+	function guard(allowed: () => boolean) {
+		const real = vi.fn(async (_input: RequestInfo | URL) => new Response("ok"));
+		return { real, guarded: createNetworkGuard(real, base, allowed) };
+	}
+
+	it("rejects a model or runtime file request while the network is not allowed, by any kind of input", async () => {
+		const { guarded, real } = guard(() => false);
+		const path = "/assets/emoji/abc/ort/ort-wasm-simd-threaded.wasm";
+		await expect(guarded(path)).rejects.toMatchObject({
+			name: "NotCachedError",
+		});
+		await expect(guarded(`https://tagteam.test${path}`)).rejects.toMatchObject({
+			name: "NotCachedError",
+		});
+		await expect(guarded(new URL(path, base))).rejects.toMatchObject({
+			name: "NotCachedError",
+		});
+		await expect(
+			guarded(new Request(new URL(path, base))),
+		).rejects.toMatchObject({ name: "NotCachedError" });
+		expect(real).not.toHaveBeenCalled();
+	});
+
+	it("lets the same requests through while the network is allowed", async () => {
+		const { guarded, real } = guard(() => true);
+		await guarded("/assets/emoji/abc/models/config.json");
+		expect(real).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not touch other paths, such as the index files under /assets/", async () => {
+		const { guarded, real } = guard(() => false);
+		await guarded("/assets/bits-CYoASfZi.bin");
+		await guarded("/api/sync/pull");
+		await guarded("/assets/emojis-not-a-folder.js");
+		expect(real).toHaveBeenCalledTimes(3);
+	});
+
+	it("reads the allowance at call time", async () => {
+		let allowed = true;
+		const { guarded } = guard(() => allowed);
+		await guarded("/assets/emoji/abc/x");
+		allowed = false;
+		await expect(guarded("/assets/emoji/abc/x")).rejects.toMatchObject({
+			name: "NotCachedError",
+		});
+	});
+});
+
 describe("classifyFailure", () => {
 	const none = { filesCached: false, online: true };
 	it("recognises a storage quota error by name or message, whatever else is true", () => {
@@ -233,6 +329,17 @@ describe("classifyFailure", () => {
 		expect(
 			classifyFailure(new Error("bad"), { filesCached: true, online: false }),
 		).toBe("corrupt");
+	});
+
+	it("classifies an index load failure as load whatever the device holds", () => {
+		const error = new Error("x");
+		error.name = "IndexLoadError";
+		for (const context of [
+			{ filesCached: true, online: true },
+			{ filesCached: true, online: false },
+			{ filesCached: false, online: false },
+		])
+			expect(classifyFailure(error, context)).toBe("load");
 	});
 
 	it("handles values that are not errors", () => {

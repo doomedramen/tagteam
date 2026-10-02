@@ -29,10 +29,53 @@ export interface WorkerDeps {
 	post(reply: WorkerReply): void;
 }
 
+/** Where the model and the runtime files are served from; nothing under it may be requested without opt-in. */
+const EMOJI_FILES_PREFIX = "/assets/emoji/";
+
+/**
+ * Wraps a `fetch` so that, while `allowed()` is false, any request for a model or runtime file
+ * (a URL whose path starts with `/assets/emoji/`) is rejected with a NotCachedError before it
+ * reaches the network. Everything else, such as the index files under `/assets/`, passes through.
+ * `base` resolves relative URLs the way the worker would.
+ */
+export function createNetworkGuard(
+	real: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
+	base: string,
+	allowed: () => boolean,
+): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> {
+	return (input, init) => {
+		if (!allowed()) {
+			const raw =
+				typeof input === "string"
+					? input
+					: input instanceof URL
+						? input.href
+						: input.url;
+			let path = "";
+			try {
+				path = new URL(raw, base).pathname;
+			} catch {
+				// An unparseable URL cannot be a model file; let fetch reject it.
+			}
+			if (path.startsWith(EMOJI_FILES_PREFIX))
+				return Promise.reject(new NotCachedError());
+		}
+		return real(input, init);
+	};
+}
+
 export class NotCachedError extends Error {
 	constructor() {
 		super("the model is not stored on this device");
 		this.name = "NotCachedError";
+	}
+}
+
+/** loadIndex failed (a failed fetch of bits.bin or int8.bin). Never a reason to delete the model. */
+class IndexLoadError extends Error {
+	constructor(cause: unknown) {
+		super(cause instanceof Error ? cause.message : String(cause));
+		this.name = "IndexLoadError";
 	}
 }
 
@@ -52,6 +95,8 @@ export function classifyFailure(
 	if (name === "QuotaExceededError" || /quota/i.test(message)) return "quota";
 	if (name === "NotCachedError") return "uncached";
 	if (name === "IndexMismatchError") return "index";
+	// A failed fetch of the index says nothing about the stored model: never "corrupt".
+	if (name === "IndexLoadError") return "load";
 	if (context.filesCached) return "corrupt";
 	if (!context.online) return "offline";
 	return "load";
@@ -67,6 +112,14 @@ export function createWorkerCore(
 	let index: EmojiIndex | null = null;
 	let embedder: Embedder | null = null;
 	let queue: Promise<void> = Promise.resolve();
+	/** A closed port must not stop the queue: a reply that cannot be posted is dropped. */
+	const post = (reply: WorkerReply) => {
+		try {
+			deps.post(reply);
+		} catch {
+			// Nothing else can be done with it.
+		}
+	};
 
 	async function init(
 		id: number,
@@ -74,10 +127,17 @@ export function createWorkerCore(
 		allowNetwork: boolean,
 		totalBytes: number,
 	) {
-		const filesCached = await deps.filesCached();
+		let filesCached = false;
 		try {
+			try {
+				filesCached = await deps.filesCached();
+			} catch {
+				filesCached = false;
+			}
 			if (!allowNetwork && !filesCached) throw new NotCachedError();
-			const files = await deps.loadIndex();
+			const files = await deps.loadIndex().catch((error) => {
+				throw new IndexLoadError(error);
+			});
 			if (
 				files.bits.length !== count * BIT_BYTES ||
 				files.int8.length !== count * DIM
@@ -93,16 +153,16 @@ export function createWorkerCore(
 						totalBytes > 0 ? Math.floor((done / totalBytes) * 100) : 0;
 					if (next === percent) return;
 					percent = next;
-					deps.post({ type: "progress", id, loaded: done, total: totalBytes });
+					post({ type: "progress", id, loaded: done, total: totalBytes });
 				},
 				{ allowNetwork },
 			);
 			await loaded.embed("warm up");
 			index = { count, bits: files.bits, int8: files.int8 };
 			embedder = loaded;
-			deps.post({ type: "ready", id });
+			post({ type: "ready", id });
 		} catch (error) {
-			deps.post({
+			post({
 				type: "error",
 				id,
 				kind: classifyFailure(error, {
@@ -118,9 +178,9 @@ export function createWorkerCore(
 		try {
 			if (!index || !embedder) throw new Error("the worker is not initialised");
 			const ranked = rank(await embedder.embed(text), index);
-			deps.post({ type: "ranked", id, ...ranked });
+			post({ type: "ranked", id, ...ranked });
 		} catch (error) {
-			deps.post({
+			post({
 				type: "error",
 				id,
 				kind: "runtime",
@@ -131,14 +191,15 @@ export function createWorkerCore(
 
 	return (request) => {
 		queue = queue.then(() =>
-			request.type === "init"
+			(request.type === "init"
 				? init(
 						request.id,
 						request.count,
 						request.allowNetwork,
 						request.totalBytes,
 					)
-				: search(request.id, request.text),
+				: search(request.id, request.text)
+			).catch(() => {}),
 		);
 		return queue;
 	};

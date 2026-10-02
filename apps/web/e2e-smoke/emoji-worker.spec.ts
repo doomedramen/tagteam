@@ -90,11 +90,30 @@ test("after a download the stored model loads with no network at all", async ({
 	test.skip(!requireModel, "needs the model files");
 	const first = await runSmoke(page, "/emoji-smoke.html");
 	expect(first.result.ok, JSON.stringify(first.result)).toBe(true);
+	// Proves the listener sees worker traffic, so the zero assertions below mean something: the
+	// six model and runtime files were each requested exactly once.
+	expect([...first.modelRequests].sort()).toHaveLength(6);
+	expect(new Set(first.modelRequests).size).toBe(6);
 	// Same browser context, so the Cache API still holds the six files.
 	const again = await page.context().newPage();
 	const second = await runSmoke(again, "/emoji-smoke.html?network=0");
 	expect(second.result.ok, JSON.stringify(second.result)).toBe(true);
 	expect(second.modelRequests).toEqual([]);
+
+	// The browser evicts the ONNX Runtime wasm after the model was stored: a load that may not use
+	// the network answers uncached and still requests nothing (the library's pre-load fallback
+	// and ORT's own fetch are guarded too).
+	await again.evaluate(async (suffix) => {
+		const cache = await caches.open("transformers-cache");
+		for (const request of await cache.keys())
+			if (request.url.endsWith(suffix)) await cache.delete(request);
+	}, "ort-wasm-simd-threaded.wasm");
+	const third = await runSmoke(
+		await page.context().newPage(),
+		"/emoji-smoke.html?network=0",
+	);
+	expect(third.result).toMatchObject({ ok: false, kind: "uncached" });
+	expect(third.modelRequests).toEqual([]);
 });
 
 test("the production build emits no ONNX Runtime wasm of its own", () => {
