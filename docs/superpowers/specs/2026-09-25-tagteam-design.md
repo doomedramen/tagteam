@@ -105,6 +105,8 @@ limited: 1 nudge per sender per task per 30 min). Task suggestions add three pus
   `task.complete`, `task.uncomplete`, `task.nudge`, and the suggestion mutations `suggestion.create`,
   `suggestion.accept`, `suggestion.decline`, `suggestion.withdraw` (see
   `2026-10-01-task-suggestions-design.md`). Each has a client UUID `id` and client `at`.
+  `task.create`, `task.update` and `suggestion.create` also carry optional `emoji` and `color` (see
+  `2026-10-01-task-look-and-emoji-design.md` §5).
 - `POST /api/sync/push { mutations }` (≤ 100) → per-mutation `applied | duplicate | rejected (reason)`.
   Rejected mutations are dropped by the client and its data re-pulled.
 - `GET /api/sync/pull?cursor=N` → `{ cursor, groups, members, tasks, events, suggestions, removedGroupIds }`.
@@ -123,12 +125,13 @@ Better Auth owns `user`, `session`, `account`, `passkey`. App tables (all synced
   usedBy, usedAt, revokedAt. Single use: consumed atomically on join. Redeem attempts rate limited
   per user (5/min, 20/h).
 - `task` — id, groupId, ownerId, title, notes, timezone, startDate, rules (JSON RuleVersion[] —
-  each {effectiveFrom, rule, dueTime}), archivedAt, createdAt, clocks (LWW per field group), seq,
-  suggestedBy (nullable user id; set when the task came from an accepted suggestion)
+  each {effectiveFrom, rule, dueTime}), archivedAt, createdAt, clocks (LWW per field group, now
+  including emoji and color), seq, suggestedBy (nullable user id; set when the task came from an
+  accepted suggestion), emoji (nullable), color (nullable, one of the seven hue names)
 - `task_event` — id (= mutation id), taskId, groupId, userId, type, occurrenceKey, refEventId, at
   (client, clamped), receivedAt, seq
 - `push_subscription` — userId, endpoint, keys, deviceLabel
-- `suggestion` — id, groupId, fromUserId, toUserId, title, notes, startDate, dueTime, rule (the task
+- `suggestion` — id, groupId, fromUserId, toUserId, title, notes, emoji, color, startDate, dueTime, rule (the task
   draft), status (`pending` | `accepted` | `declined` | `withdrawn`), taskId (null until accepted),
   createdAt, resolvedAt, seq. Rows are never deleted. Columns and rules in
   `2026-10-01-task-suggestions-design.md` §3.
@@ -184,14 +187,23 @@ the add-task sheet. All tap targets ≥ 44 px. Respect safe-area insets; light +
 
 ### 6.1 Header (all tabs)
 
-- Active group name + chevron → bottom sheet: your groups, "Create group", "Join with code".
-  Selection persists until changed manually.
-- Sync chip: hidden when online + synced; amber "Offline · N queued" when offline or pending.
+Amended 2026-10-02 (owner, during the Plan 9 visual checks): there is no top bar. Each main page
+(Today, Team, History, Me) starts with a full-bleed square header band in the same colour as the
+bottom nav, with a hairline under it (`2026-10-01-task-look-and-emoji-design.md` §6).
+
+- Group switcher: lives on **Me**, in a "Group" section. The control shows the active group name +
+  chevron and opens a bottom sheet: your groups, "Create group", "Join with code". Selection
+  persists until changed manually.
+- Sync chip: hidden when online + synced; amber "Offline · N queued" when offline or pending,
+  overlaid at the top right.
 - Access-expired banner: "Session expired — tap to reconnect".
 
 ### 6.2 Today (home)
 
-- Day title + "X of Y done today" + thin progress bar.
+- Header band: day title + "X of Y done today" + thin progress bar.
+- Each task is its own rounded tile (not a row in a shared card): bare emoji, title and meta,
+  repeat icon, completion checkmark on the right; a coloured task's tile is tinted with its hue
+  (`2026-10-01-task-look-and-emoji-design.md` §6).
 - Sections: **Overdue** (red text: "Since Mon 08:00 · 2 missed"), **Today** (by due time, then
   untimed; completed items sink to bottom, struck through with "Done 07:42").
 - **Upcoming hidden by default** behind a "Show upcoming" toggle at list end (state remembered
@@ -215,11 +227,13 @@ the add-task sheet. All tap targets ≥ 44 px. Respect safe-area insets; light +
 - Custom reveals: "Every [N] [days|weeks|months]"; weeks → weekday toggles (M T W T F S S);
   months → day-of-month or "last day".
 - Chips: "Starts today" (date picker), optional "By HH:MM" time.
-- Single primary button "Add task" / "Save".
+- Single primary action: the pill in the sheet header ("Create" / "Save"; "Suggest to {name}" when
+  suggesting). Restyled around emoji and colour in `2026-10-01-task-look-and-emoji-design.md` §6.
 - Edit same sheet, from task detail; plus Archive (history kept).
 
 ### 6.5 Task detail / history
 
+- Tinted by the task's colour, flush to the top of the screen; emoji above the title.
 - Title, rule summary ("Daily · by 08:00 · since 1 Sep").
 - Stat tiles (last 30 days): on-time %, late count, missed count.
 - Month calendar dots: green on time, amber late, red missed, dashed red outline open/overdue.
@@ -231,12 +245,13 @@ the add-task sheet. All tap targets ≥ 44 px. Respect safe-area insets; light +
 ### 6.6 History tab
 
 Group activity feed, newest first, grouped by day: completions (on time / late), misses,
-nudges, new tasks. Filter by member.
+nudges, new tasks. Filter by member (default "Everyone").
 
 ### 6.7 Me
 
-Profile (name, avatar colour, timezone), passkeys + password, notification preferences
-(reminders on/off, nudges on/off, quiet hours), groups (leave, create, join), theme, sign out.
+Profile (name, avatar colour, timezone), the group switcher (a "Group" section), passkeys +
+password, notification preferences (reminders on/off, nudges on/off, quiet hours), groups (leave,
+create, join), theme, sign out.
 
 ### 6.8 Principles
 

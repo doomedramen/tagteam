@@ -236,10 +236,33 @@ adds meaning-based matches after them. Off-screen groups are not rendered until 
   the checkmark to the right. This replaces an earlier same-day choice of a ringed emoji circle.
 - **Task detail.** The screen carries `data-task-color`: `sheet` background, `card` surfaces, the
   emoji circle (`card` fill) above the title. Small icon circles inside cards use `sheet`, never
-  `swatch`, so `--text-3` icons stay readable.
+  `swatch`, so `--text-3` icons stay readable. The tinted panel runs flush up to the top of the
+  screen: no gap above it and a square top edge (owner decision, 2026-10-02). When the task has a
+  colour, the panel's surface replaces `--surface-2` for the inner icon holders, so History icons
+  stay readable in dark mode.
 - **Suggestion cards.** The emoji shows beside the title, bare as on Today. Accepting copies emoji and colour.
 
-History is unchanged.
+History keeps its layout; the only change is the member filter's default option, which reads
+"Everyone" (was "All members") and no longer collides with the select arrow.
+
+### Page headers and list rows (owner decisions, 2026-10-02)
+
+Decided while checking the look in the browser; they apply to every main page, not only to tasks.
+
+- **Page header band.** Today, Team, History and Me start with a shared band (`PageHeader`): full
+  bleed, square corners, filled with the same `--surface` colour as the bottom navigation bar, with a
+  1 px `--line` hairline underneath. Today's empty state has the band too. Today's progress track
+  inside it is the text colour at 15 % so it stays visible on the band.
+- **No top bar.** The old top bar with the group name and switcher is gone. The sticky area above
+  the content is only the safe-area strip, in the band colour so it reads as one with the header.
+  The sync chip overlays at the top right and only when syncing or offline. The **group switcher
+  moved to a "Group" section on Me**.
+- **Full-width list rows.** In cards that hold a list (Team members, Suggestions, the History
+  feed, the task detail History) the rows span the card's full width and carry their own
+  horizontal padding, so separators and press states reach the card edges. Team's expanded task
+  list uses the standard 16 px inset.
+- **Bold tile text.** Today tile titles are `font-semibold` and the meta line `font-medium`, so
+  they hold up on the pastel fills.
 
 ### Me
 

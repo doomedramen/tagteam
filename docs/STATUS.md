@@ -1,8 +1,8 @@
 # Project status
 
-_Last updated: 2026-10-01 (Plan 8 complete; final fixes; task look and emoji spec drafted)._
+_Last updated: 2026-10-02 (Plan 9 task look complete)._
 
-## Done (on `main`; CI green through Plan 7, Plan 8 not yet run in CI)
+## Done (on `main`; CI green through Plan 7, Plans 8 and 9 not yet run in CI)
 
 | Plan | Scope | Notes |
 |---|---|---|
@@ -14,6 +14,7 @@ _Last updated: 2026-10-01 (Plan 8 complete; final fixes; task look and emoji spe
 | 06 remaining screens | Team, task history/editing, profile editing, swipe-to-complete | CI passed |
 | 07 push notifications | per-device web-push, due/overdue reminders, team nudges, quiet hours | Requires VAPID environment values to send push |
 | 08 task suggestions | suggest a task to another member from New task; accept or decline on Today; History and task detail say who suggested it; push for suggested, accepted and declined | Spec: `2026-10-01-task-suggestions-design.md` |
+| 09 task look | per-task emoji and color; tinted New/Edit task sheet with emoji picker; emoji and color on Today tiles, task detail and suggestion cards; page header bands; persistent-storage request | Spec: `2026-10-01-task-look-and-emoji-design.md` |
 
 ## Complete — Plan 5: `docs/superpowers/plans/2026-09-25-05-app-foundation-today.md`
 
@@ -97,23 +98,99 @@ decisions that matter are summarised below.
   Suggestions sheet, New task "For" select, and History; the Me toggle label is covered by unit test
   only because the local dev server had no VAPID keys.
 
+## Complete — Plan 9: task look
+
+Plan: `docs/superpowers/plans/2026-10-01-09-task-look.md` (Tasks 1-11 as written, then the owner
+follow-ups below). Per-task ledger (rulings, review findings): git-ignored
+`.superpowers/sdd/2026-10-01-09-task-look/` in the working checkout.
+
+- Core: `TASK_COLORS`/`TaskColor`, `isEmoji`, `DEFAULT_EMOJI` (bare U+1F4CB), optional `emoji` and
+  `color` on `task.create`, `task.update`, `suggestion.create`. Server: nullable columns on `task`
+  and `suggestion` (migration `0005_task_look.sql`, generated), per-field LWW clocks for both
+  (missing clocks read as 0), the accept path copies both. Web store writes them in `applyLocal`.
+- Palette: seven hues x five roles as `--task-{hue}-{role}` tokens, mapped by `data-task-color`
+  onto `--task-sheet|card|swatch|ring|fg` (neutral fallbacks for tasks with no colour). The contrast
+  script `apps/web/scripts/check-task-palette.mjs` runs inside `pnpm test` and as
+  `pnpm --filter @tagteam/web check:palette` (196 pairs, includes the Today tile pairs). Spec §3
+  says dark `fg` on `swatch` is >= 4.5:1 but it measures about 4.0:1, so the script asserts 3:1
+  there (icons) and `--text` on swatches at 4.5:1.
+- Sheet: close circle + action pill in the header (no footer), emoji circle, heading-style title,
+  seven colour radios, one settings card (For / Repeat / Starts / Due by, one open at a time).
+  A tinted `Sheet` (`tint`, `action`, `notice`) re-tints with a 200 ms transition. Editing sends one
+  `task.update` with only what changed.
+- Picker: "Choose emoji" nested sheet, 1,794-emoji catalog (`catalog.json`, built from
+  `emojibase-data` 17.0.0 by `pnpm --filter @tagteam/web emoji:catalog`, its own ~183 KB chunk,
+  precached by the existing `globPatterns`), name and keyword search, lazy groups, typed/pasted
+  emoji field, "Use default" (stores the clipboard). The `EmojiEngine` seam
+  (`features/emoji/engine.ts`) is in place with an always-unavailable default; "Suggested" and
+  meaning-based search show only when an engine reports `ready`.
+- `navigator.storage.persist()` is requested once per app start after sign-in
+  (`src/lib/persist-storage.ts`).
+- Owner follow-ups made during the visual checks (all on `main`, spec amended; 2026-10-02):
+  - 9b `db3873b` emoji circle ringed look (later superseded on Today by 9e); task detail remaps
+    `--surface-2` to `--task-sheet` only when coloured so History icons read in dark.
+  - 9c `a0b0896`, `a6d49a6` list-card rows span the full card width (padding moved into the rows)
+    on Team, Today suggestions, task-detail History, History; Team's task list uses the 16 px inset.
+  - 9d `61a08f3`, `d972e0e` History member filter: arrow no longer overlaps; default option is
+    "Everyone".
+  - 9e `826339f`, `3a65b97` Today is a stack of separate rounded tinted tiles: bare emoji left,
+    title + meta, repeat icon, completion checkmark on the right. Tile fill is `sheet` in light and
+    `card` in dark; colourless tiles are `bg-card`. `TaskEmoji` sizes: `bare`, `sheet`, `detail`.
+  - 9f `3e24623` tile title `font-semibold`, meta `font-medium`.
+  - 9g `180570a`, `bf58dc8` shared `PageHeader` band (full bleed, square) on Today, Team, History,
+    Me; Today's empty state has it too; progress track `bg-text/15`.
+  - 9h `409b186` task detail panel runs flush to the top, square top edge.
+  - 9i + 9j `7bb5050` header band colour is `--surface` (matches the bottom nav) with a
+    `border-b border-line` hairline. The top bar no longer exists: the group switcher is a "Group"
+    section on Me; the sticky top area is only the safe-area strip; `SyncChip` overlays top right
+    when syncing or offline.
+- Checks: `pnpm test`, typecheck, lint, format, `check:palette`, and the Playwright specs (WebKit
+  `iphone` and `chromium`: `app`, `suggestions`, `task-look`, 6 tests) passed on 2026-10-02.
+  `task-look.spec.ts` covers: create with an emoji and a colour, the `persist()` spy (called once),
+  the tinted tile on Today, task detail, editing the colour, and a fresh browser context (empty
+  IndexedDB) that can only learn the emoji and colour from the server.
+- Known flake: twice during this plan a full `pnpm test` run had one unexplained web failure (once
+  an `AddTaskSheet` test hit the 5 s timeout) that passed alone and on re-run. Not diagnosed.
+- Visual check at 375 x 812 (light and dark) and iOS Simulator check: see the line the controller
+  adds below; not asserted here by the implementer.
+
 ## Next plans
 
-- **Task look and emoji suggestions** — spec approved 2026-10-01:
-  `docs/superpowers/specs/2026-10-01-task-look-and-emoji-design.md` (all section 14 decisions
-  made). Two plans:
-  - **Plan 09 "task look"** — written, not started:
-    `docs/superpowers/plans/2026-10-01-09-task-look.md` (11 tasks: per-task `emoji` and `color`
-    end to end, seven-hue tokens and contrast script, emoji picker, restyled New/Edit task sheet
-    with header action pill, Today/detail/suggestion rendering, `navigator.storage.persist()`).
-    Its code was trial-run in a scratch clone (tests, typecheck, lint, e2e green) but nothing is
-    applied to `main` yet.
-  - **Plan 10 "emoji suggestions"** — not written. On-device `bge-small-en-v1.5` in a Web Worker,
-    automatic emoji for new tasks only, late picks, failure handling (spec sections 7 and 9).
-    Plan 09's last task leaves carry-over notes for it.
-- A spike on 2026-10-01 measured the emoji model (accuracy, size, iOS simulator behaviour); the
-  numbers are in the spec, sections 7 and 9. The spike code lived in a temporary session folder and
-  is not in the repo; Plan 10 would rebuild its evaluation script.
+- **Plan 10: emoji suggestions** — not written. Spec
+  `docs/superpowers/specs/2026-10-01-task-look-and-emoji-design.md` (§7 engine, §9 assets, §6 emoji
+  behaviour, §11 evaluation): on-device `bge-small-en-v1.5` in a Web Worker, automatic emoji for new
+  tasks only, late picks, failure handling. The spike (2026-10-01) measured the model; numbers are in
+  the spec §7 and §9, its code is not in the repo and Plan 10 rebuilds the evaluation script.
+  Carry-over notes from Plan 9 (also at the end of the plan file):
+  - Seam: `features/emoji/engine.ts` (`EmojiEngine`, `EmojiEngineProvider`, `useEmojiEngine`).
+    Provide a real engine from `SessionGate`/`SignedIn` and hand out a new object whenever its status
+    changes (the picker re-reads through context, there is no subscribe API). The picker already
+    calls `engine.suggest(title)` (up to 3, titles of 3+ characters, only while `ready`) and
+    `engine.search(q)` (appended after keyword matches).
+  - The sheet does not auto-fill yet. Plan 10 adds the 300 ms debounce, the stale-result drop, and
+    uses `draft.emojiChosen` (set on pick, typed or "Use default", kept through dismissal) so a
+    hand-picked emoji is never overwritten. Edit mode must never auto-fill (`taskDraft` sets
+    `emojiChosen` from the stored emoji; Plan 10 must still skip editing explicitly).
+  - The catalog is the index's key: `apps/web/src/features/emoji/catalog.json` (1,794 entries, CLDR
+    order). `bits.bin`/`int8.bin` must be built from this exact file and order; rebuilding the
+    catalog invalidates them. Spec §9 says the catalog is served from `/assets/emoji/{version}/`;
+    Plan 9 ships it as a hashed JS chunk instead.
+  - Emoji identity: the catalog spells the clipboard U+1F4CB U+FE0F, `DEFAULT_EMOJI` is bare
+    U+1F4CB; compare through `emojiKey()`. Any suggested or picked emoji must pass `isEmoji` before a
+    mutation is enqueued.
+  - The device-local "awaiting emoji" list (spec §6 late pick) is not started: it belongs in the web
+    store's device metadata (`MetaKey` in `src/store/db.ts`), never synced. Tasks created by Plan 9
+    without an emoji are on no list, so none is late-picked until Plan 10 lists them.
+  - Without `Intl.Segmenter` (Firefox before 125) the client skips the grapheme-count check; the
+    server always checks, so a two-emoji paste in the typed field is rejected by the server there.
+    A client-side guard is optional.
+  - A tinted `Sheet` drops the grey swipe handle (swipe still dismisses). The picker is a nested
+    drawer inside the add-task sheet; if a future Base UI changes nested stacking, make it a sibling.
+    The submit button inside the form is `aria-hidden`, `tabIndex={-1}` on purpose.
+  - Not verified: native iOS keyboard behaviour with the header pill beyond what the Simulator
+    showed, the installed-PWA `persist()` grant and eviction over days; a real iPhone is a follow-up.
+  - Out of scope (spec §13): subtasks, goals, tags, automatic colour, notes in the sheet, per-task
+    reminder row, custom emoji, skin tones.
 
 ## Considered and dropped
 
@@ -134,13 +211,23 @@ decisions that matter are summarised below.
 - Task circles now support a single tap to complete or reopen; right swipe remains a shortcut.
   A completed task uses neutral blue Reopen feedback. Drag-generated clicks remain suppressed,
   and vertical, short, reversed, and cancelled gestures do not change state.
-- New tasks open a compact title-first sheet. Schedule expands on request; editing starts with
-  schedule expanded. Add/Save and inline save failures sit outside the scrolling body.
-- The sheet lifts and caps its height using the keyboard inset, keeping its header and footer
-  visible. Button taps retain input focus so keyboard dismissal cannot move the hit target
+- The New/Edit task sheet is title-first with a header (close circle, action pill) and one
+  settings card (For / Repeat / Starts / Due by, one row open at a time); editing opens with
+  "Repeat" expanded. The action pill and inline save failures sit in the header, outside the
+  scrolling body (there is no footer).
+- The sheet lifts and caps its height using the keyboard inset, keeping its header visible. Button taps retain input focus so keyboard dismissal cannot move the hit target
   before release. Extra keyboard scroll padding is suppressed because the sheet already clears
   the keyboard. Drafts survive closing/reopening within the current group and page session.
 - Interaction design: `docs/superpowers/specs/2026-09-28-task-interactions.md`.
+- Task look: `emoji: null` means "not decided yet" and renders as the clipboard; the app never
+  picks a colour (new drafts start blue; editing a colourless task shows no option selected and
+  sends no colour until one is tapped). The catalog spells the clipboard with U+FE0F and the stored
+  default does not, so emoji are compared through `emojiKey()`. The add-task sheet keeps an
+  `aria-hidden` submit button inside its form so Enter in the title submits; the visible action is
+  in the header.
+- Layout: no top bar. Pages open with a `PageHeader` band (`--surface`, hairline, square, full
+  bleed); the group switcher lives on Me. Today tasks are separate tinted tiles, not shared-card
+  rows; list cards elsewhere use full-width rows.
 - Validation includes 75 web tests, web typecheck, lint, production build, and mobile browser
   coverage for task creation, simulated keyboard geometry, taps, swipes, undo, and offline sync.
   Native iPhone keyboard animation and installed-PWA behavior still require device verification.
