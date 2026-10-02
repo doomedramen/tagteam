@@ -7,7 +7,9 @@
 	<body>
 		<pre id="result">pending</pre>
 		<script type="module">
-			// Only the smoke build (EMOJI_SMOKE=1) includes this page.
+			// Only the smoke build (EMOJI_SMOKE=1) includes this page. It drives the real worker.
+			import index from "./src/features/emoji/index/index.json";
+
 			const worker = new Worker(
 				new URL("./src/features/emoji/worker.ts", import.meta.url),
 				{ type: "module" },
@@ -15,10 +17,26 @@
 			const show = (value) => {
 				document.getElementById("result").textContent = JSON.stringify(value);
 			};
-			worker.onmessage = (event) => show(event.data);
+			worker.onmessage = ({ data }) => {
+				if (data.type === "progress") return;
+				if (data.type === "ready")
+					worker.postMessage({ type: "rank", id: 2, text: "Water the plants" });
+				else if (data.type === "ranked")
+					show({ ok: true, indices: data.indices });
+				else show({ ok: false, kind: data.kind, message: data.message });
+			};
 			worker.onerror = (event) =>
-				show({ ok: false, name: "WorkerError", message: event.message });
-			worker.postMessage({ text: "Water the plants" });
+				show({ ok: false, kind: "worker", message: event.message });
+			// ?network=0 asks for a load that may not use the network (the opt-out path).
+			const allowNetwork =
+				new URLSearchParams(location.search).get("network") !== "0";
+			worker.postMessage({
+				type: "init",
+				id: 1,
+				count: index.count,
+				allowNetwork,
+				totalBytes: 49016090,
+			});
 		</script>
 	</body>
 </html>
