@@ -142,6 +142,40 @@ describe("EmojiSuggestionsSettings", () => {
 		).toBeInTheDocument();
 	});
 
+	it("also offers Remove download next to the primary action when an update is pending", async () => {
+		const { controller } = setup({
+			optedIn: true,
+			download: { kind: "updateAvailable" },
+		});
+		expect(button("Download")).toBeInTheDocument();
+		expect(button("Remove download")).toHaveClass("min-h-11");
+		await userEvent.click(button("Remove download"));
+		expect(controller.remove).toHaveBeenCalledTimes(1);
+		expect(controller.download).not.toHaveBeenCalled();
+	});
+
+	it("also offers Remove download next to Try again after a failure, a stop included", async () => {
+		const { controller, change } = setup({ optedIn: true });
+		for (const reason of ["offline", "storage", "load", "stopped"] as const) {
+			act(() => change({ download: { kind: "failed", reason } }));
+			expect(button("Try again"), reason).toBeInTheDocument();
+			expect(button("Remove download"), reason).toHaveClass("min-h-11");
+		}
+		await userEvent.click(button("Remove download"));
+		expect(controller.remove).toHaveBeenCalledTimes(1);
+		expect(controller.download).not.toHaveBeenCalled();
+	});
+
+	it("offers no Remove download where there is nothing to remove", () => {
+		const { change } = setup();
+		act(() => change({ download: { kind: "notDownloaded", note: "evicted" } }));
+		expect(
+			screen.queryByRole("button", { name: "Remove download" }),
+		).not.toBeInTheDocument();
+		act(() => change({ download: { kind: "failed", reason: "unsupported" } }));
+		expect(screen.queryByRole("button")).not.toBeInTheDocument();
+	});
+
 	it("has buttons at least 44 px tall", () => {
 		setup();
 		expect(button("Download")).toHaveClass("min-h-11");

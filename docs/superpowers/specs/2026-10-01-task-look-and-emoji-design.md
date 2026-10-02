@@ -272,7 +272,8 @@ A section "Emoji suggestions", device-local. Not downloaded (the default): a hel
 49 MB, one-time, works offline afterwards, Wi-Fi is best) and a "Download" button. Downloading:
 progress and "Cancel". Ready: "Emoji suggestions are on" and "Remove download", which stops the
 engine, deletes the stored model of every version, and returns to the default. Failed: one plain
-sentence (offline, storage full, could not load, stopped after repeated problems) and "Try again".
+sentence (offline, storage full, could not load, stopped after repeated problems), "Try again" and
+"Remove download".
 A switch-off after two crashes, a browser that evicted the stored model, and an update (a new asset
 version; the old download is unusable with the new build) show their explanation here, with
 "Download" again. This section is the only place any of that is shown. A device that has not
@@ -280,17 +281,18 @@ downloaded the model has engine status `off`: the sheet shows the default emoji,
 "Suggested" row, and no task is listed for a late pick, so tasks created before the person opts in
 are never late-picked.
 
-States, copy and accessibility (as shipped). One status line (`role="status"`) and one button of at
-least 44 px:
+States, copy and accessibility (as shipped). One status line (`role="status"`) and one primary
+button of at least 44 px; where a stored model may exist (update available, failed) a secondary
+"Remove download" button of the same size sits below it, so the person can always delete the model:
 
 | State | Status line | Button |
 |---|---|---|
 | Not downloaded | "Emoji suggestions are off." (plus the crash or eviction explanation when there is one) | Download |
-| Update available | "An update is available." and "Suggestions are paused until you download it. It is about 49 MB, so Wi-Fi is best." | Download |
+| Update available | "An update is available." and "Suggestions are paused until you download it. It is about 49 MB, so Wi-Fi is best." | Download, Remove download |
 | Downloading | "Downloading…" with a progress bar and the percentage beside it | Cancel |
 | Loading | "Getting emoji suggestions ready…" | Remove download |
 | Ready | "Emoji suggestions are on" and "They work offline." | Remove download |
-| Failed | "Couldn't download. You're offline. Connect and try again." / "Couldn't download. This device is out of storage." / "Couldn't load emoji suggestions." / "Emoji suggestions stopped after repeated problems." | Try again |
+| Failed | "Couldn't download. You're offline. Connect and try again." / "Couldn't download. This device is out of storage." / "Couldn't load emoji suggestions." / "Emoji suggestions stopped after repeated problems." | Try again, Remove download |
 | Unsupported browser | "This browser can't run emoji suggestions." | none |
 
 The live region announces the state only; the percentage is `aria-hidden` and the progress bar
@@ -413,7 +415,8 @@ outbox of unsynced changes, from storage-pressure eviction.
   fields.
 - **Server.** Push and pull round-trips for the new fields, clock ordering for `task.update`, the
   accept copy, and the migration test.
-- **Web.** Draft and sheet tests with a fake engine: auto-fill, stale result dropped, chosen emoji
+- **Web.** The opt-in Download on Me comes first: nothing is requested or loaded before it. Draft
+  and sheet tests with a fake engine: auto-fill, stale result dropped, chosen emoji
   not overwritten, colour never changed by a suggestion, submit without waiting, edit mode. Late
   pick: fills listed tasks with no stored emoji, skips hand-picked and "Use default" tasks, skips
   tasks not on the list (including all pre-existing tasks), never touches colour, one attempt per
@@ -421,7 +424,7 @@ outbox of unsynced changes, from storage-pressure eviction.
 - **Evaluation.** The spike's 79 labelled titles and its harness move into the repo as a script
   run by hand, not in CI. It gates the auto-pick exclusion in section 7.
 - **Visual.** 375 × 812, light and dark, all seven hues on the sheet, plus Today and task detail.
-- **iOS.** Simulator: model load, suggestion, offline relaunch, and `persist()` in the installed
+- **iOS.** Simulator: press Download on Me (the opt-in), then model load, suggestion, offline relaunch, and `persist()` in the installed
   app. A real iPhone remains a follow-up for speed and memory.
 
 ## 12. Phasing

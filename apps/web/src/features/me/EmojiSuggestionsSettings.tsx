@@ -31,6 +31,8 @@ export function EmojiSuggestionsSettings() {
 	let detail: string | null = null;
 	let action: { label: string; run: () => void; variant?: "primary" } | null =
 		null;
+	// A stored model may exist in these states, so the person can also remove it (spec §9).
+	let removable = false;
 	let progress: number | null | undefined;
 	let percent: number | null = null;
 
@@ -49,6 +51,7 @@ export function EmojiSuggestionsSettings() {
 			status = "An update is available.";
 			detail = `Suggestions are paused until you download it. It is about ${DOWNLOAD_MB} MB, so Wi-Fi is best.`;
 			action = { label: "Download", run: startDownload, variant: "primary" };
+			removable = true;
 			break;
 		case "downloading":
 			progress = download.progress;
@@ -74,6 +77,7 @@ export function EmojiSuggestionsSettings() {
 				download.reason === "unsupported"
 					? null
 					: { label: "Try again", run: startDownload, variant: "primary" };
+			removable = download.reason !== "unsupported";
 			break;
 	}
 
@@ -115,6 +119,11 @@ export function EmojiSuggestionsSettings() {
 							onClick={action.run}
 						>
 							{action.label}
+						</Button>
+					) : null}
+					{removable ? (
+						<Button variant="secondary" block onClick={removeDownload}>
+							Remove download
 						</Button>
 					) : null}
 				</CardContent>

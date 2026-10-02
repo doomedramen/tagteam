@@ -149,8 +149,8 @@ downloads a small model (about 49 MB) from your own TagTeam server once; nothing
 otherwise. The model is not in git: the build fetches `Xenova/bge-small-en-v1.5` from Hugging Face at the
 revision pinned in `apps/web/emoji-assets.json`, verifies every file's SHA-256, and copies the ONNX
 Runtime wasm from `node_modules`. Run `pnpm --filter @tagteam/web emoji:assets` once in a checkout to try
-the feature in `pnpm --filter @tagteam/web dev`; without the files the app works and the Download button
-reports that it could not download.
+the feature in `pnpm --filter @tagteam/web dev`; without the files the app works and Me shows a failure with
+Try again (the files answer 404, so "Couldn't load emoji suggestions."; offline it says "Couldn't download…").
 
 Build and run the image locally (the build needs network access to huggingface.co; the image grows
 by about 49 MB):
