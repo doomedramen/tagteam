@@ -257,28 +257,36 @@ test.describe("with the model files", () => {
 	}, testInfo) => {
 		test.setTimeout(240_000);
 		await page.setViewportSize({ width: 375, height: 812 });
+		await watchWorkersAndClock(page);
 		await signUpAndCreateGroup(page, testInfo);
 		await page.goto("/");
 		await downloadFromMe(page);
 		expect(await storedModelFiles(page, "/assets/emoji/")).toBe(6);
 
+		// From here on the device must neither start a worker nor ask for a model file.
+		const modelRequests = watchModelRequests(page);
 		await page.getByRole("button", { name: "Remove download" }).click();
 		await expect(page.getByText("Emoji suggestions are off.")).toBeVisible();
 		await expect.poll(() => storedModelFiles(page, "/assets/emoji/")).toBe(0);
+		const workersAtRemove = await workersStarted(page);
 
 		await goToToday(page);
 		const sheet = await openNewTask(page);
-		await page.clock.install();
 		await sheet.getByRole("textbox", { name: "Task" }).fill("Walk the dog");
 		await letTimersRun(page);
 		await expect(
 			sheet.getByRole("button", { name: "Emoji: clipboard, default, change" }),
 		).toBeVisible();
 		await sheet.getByRole("button", { name: "Close" }).click();
+		expect(await workersStarted(page)).toBe(workersAtRemove);
 		await page.reload();
 		await goToMe(page);
 		await expect(page.getByText("Emoji suggestions are off.")).toBeVisible();
+		await letTimersRun(page);
 		expect(await storedModelFiles(page, "/assets/emoji/")).toBe(0);
+		// The reloaded page is a fresh one: it started no worker at all.
+		expect(await workersStarted(page)).toBe(0);
+		expect(modelRequests).toEqual([]);
 	});
 
 	test("a task saved while the model is still downloading gets an emoji afterwards, and the emoji reaches the server", async ({
@@ -385,9 +393,19 @@ test.describe("with the model files", () => {
 		await expect(
 			sheet.getByRole("button", { name: "Emoji: clipboard, default, change" }),
 		).toBeVisible();
-		// Nothing outside Me mentions an update.
+		// Nothing outside Me mentions an update: not the sheet, Today, the task, Team or History.
 		await expect(page.getByText(/update/i)).toHaveCount(0);
-		await sheet.getByRole("button", { name: "Close" }).click();
+		await sheet.getByRole("button", { name: "Create", exact: true }).click();
+		await expect(tileGlyph(page, "Water the plants")).toHaveText(DEFAULT_GLYPH);
+		await expect(page.getByText(/update/i)).toHaveCount(0);
+		await page.getByRole("link", { name: /Water the plants/ }).click();
+		await expect(page.locator('[data-slot="task-detail"]')).toBeVisible();
+		await expect(page.getByText(/update/i)).toHaveCount(0);
+		for (const name of ["Team", "History", "Today"]) {
+			await page.getByRole("link", { name, exact: true }).click();
+			await letTimersRun(page);
+			await expect(page.getByText(/update/i), name).toHaveCount(0);
+		}
 		expect(modelRequests).toEqual([]);
 		expect(await workersStarted(page)).toBe(0);
 

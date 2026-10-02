@@ -73,7 +73,10 @@ export function checkFile(path, entry) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Downloads `url`, retrying network failures and server errors. Returns the bytes. */
+/** Statuses worth another attempt: server errors, "request timeout" and "too many requests". */
+const retryable = (status) => status >= 500 || status === 408 || status === 429;
+
+/** Downloads `url`, retrying network failures, server errors, 408 and 429. Returns the bytes. */
 export async function download(
 	url,
 	{ fetchImpl = fetch, attempts = 3, retryDelayMs = 2000 } = {},
@@ -84,7 +87,7 @@ export async function download(
 			const response = await fetchImpl(url);
 			if (response.ok) return Buffer.from(await response.arrayBuffer());
 			lastError = new Error(`${url}: HTTP ${response.status}`);
-			if (response.status < 500) break;
+			if (!retryable(response.status)) break;
 		} catch (error) {
 			lastError = error;
 		}
@@ -100,8 +103,25 @@ function writeVerified(path, bytes, entry) {
 		);
 	mkdirSync(dirname(path), { recursive: true });
 	const temporary = `${path}.part`;
-	writeFileSync(temporary, bytes);
-	renameSync(temporary, path);
+	try {
+		writeFileSync(temporary, bytes);
+		renameSync(temporary, path);
+	} catch (error) {
+		// A half-written .part file must not stay: a later vite build would copy it into dist.
+		rmSync(temporary, { force: true });
+		throw error;
+	}
+}
+
+/** The model repository's current `main` revision, from the Hugging Face API. */
+export async function currentRevision(modelId, fetchImpl = fetch) {
+	const url = `https://huggingface.co/api/models/${modelId}`;
+	const response = await fetchImpl(url);
+	if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+	const { sha } = await response.json();
+	if (typeof sha !== "string" || sha === "")
+		throw new Error(`${url}: the response has no revision (sha)`);
+	return sha;
 }
 
 /** The folder onnxruntime-web's files live in: next to transformers.js in node_modules, whatever the package manager. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAutoPickExcluded } from "./auto-pick";
+import { AUTO_PICK_EXCLUSION, isAutoPickExcluded } from "./auto-pick";
 import catalog from "./catalog.json";
 
 const entries = catalog as { e: string; n: string; g: string }[];
@@ -41,5 +41,12 @@ describe("isAutoPickExcluded", () => {
 				["flags", "symbols", "travel & places"].includes(entry.g),
 			),
 		).toBe(true);
+	});
+});
+
+describe("AUTO_PICK_EXCLUSION", () => {
+	it("ships off", () => {
+		// Flip it only when `pnpm --filter @tagteam/web emoji:eval` prints ADOPT (its last line says so).
+		expect(AUTO_PICK_EXCLUSION).toBe(false);
 	});
 });

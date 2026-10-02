@@ -45,6 +45,10 @@ export function checkFile(
 	entry: AssetFile,
 ): "ok" | "missing" | "bad";
 export function download(url: string, options?: FetchOptions): Promise<Buffer>;
+export function currentRevision(
+	modelId: string,
+	fetchImpl?: (url: string) => Promise<Response>,
+): Promise<string>;
 export function findOrtDist(webRoot?: string): string;
 export function installedTransformersVersion(webRoot?: string): string;
 export function fetchEmojiAssets(

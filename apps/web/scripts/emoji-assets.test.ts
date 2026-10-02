@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import {
 	existsSync,
 	mkdirSync,
@@ -7,13 +7,17 @@ import {
 	rmSync,
 	writeFileSync,
 } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	assetVersion,
 	buildManifest,
 	checkFile,
+	currentRevision,
+	download,
 	downloadBytes,
 	type EmojiAssetManifest,
 	fetchEmojiAssets,
@@ -222,6 +226,18 @@ describe("fetchEmojiAssets", () => {
 		expect(existsSync(`${target}.part`)).toBe(false);
 	});
 
+	it("removes the .part file when storing a file fails", async () => {
+		const target = join(
+			root,
+			assetVersion(manifest),
+			"models/Org/tiny-model/config.json",
+		);
+		// A non-empty folder where the file belongs: the final rename cannot succeed.
+		mkdirSync(join(target, "blocker"), { recursive: true });
+		await expect(run(fakeFetch())).rejects.toThrow();
+		expect(existsSync(`${target}.part`)).toBe(false);
+	});
+
 	it("rejects a runtime file that no longer matches the manifest", async () => {
 		writeFileSync(join(ortDist, "ort.wasm"), "different runtime");
 		await expect(run(fakeFetch())).rejects.toThrow(
@@ -253,6 +269,25 @@ describe("fetchEmojiAssets", () => {
 			/HTTP 404/,
 		);
 		expect(missing).toHaveBeenCalledTimes(1);
+	});
+
+	it("retries a 408 and a 429 like a server error", async () => {
+		const statuses = [408, 429, 200];
+		const fetchImpl = vi.fn(async () => {
+			const status = statuses.shift() ?? 200;
+			return new Response(status === 200 ? "ok" : "", { status });
+		});
+		const bytes = await download("https://t.test/x", {
+			fetchImpl,
+			retryDelayMs: 0,
+		});
+		expect(bytes.toString()).toBe("ok");
+		expect(fetchImpl).toHaveBeenCalledTimes(3);
+		const forbidden = vi.fn(async () => new Response("", { status: 403 }));
+		await expect(
+			download("https://t.test/x", { fetchImpl: forbidden, retryDelayMs: 0 }),
+		).rejects.toThrow(/HTTP 403/);
+		expect(forbidden).toHaveBeenCalledTimes(1);
 	});
 
 	it("removes folders of other versions", async () => {
@@ -293,4 +328,67 @@ describe("the command", () => {
 		);
 		expect(output).toContain("SKIP_EMOJI_MODEL is set");
 	});
+});
+
+describe("currentRevision (--update)", () => {
+	const api = (response: Response) => vi.fn(async () => response);
+
+	it("returns the sha of the model's current revision", async () => {
+		const fetchImpl = api(Response.json({ sha: REVISION }));
+		await expect(currentRevision("Org/tiny-model", fetchImpl)).resolves.toBe(
+			REVISION,
+		);
+		expect(fetchImpl).toHaveBeenCalledWith(
+			"https://huggingface.co/api/models/Org/tiny-model",
+		);
+	});
+
+	it("throws a clear error when the API answers with a failure or without a sha", async () => {
+		await expect(
+			currentRevision("Org/tiny-model", api(new Response("", { status: 404 }))),
+		).rejects.toThrow(/api\/models\/Org\/tiny-model: HTTP 404/);
+		await expect(
+			currentRevision("Org/tiny-model", api(Response.json({ id: "x" }))),
+		).rejects.toThrow(/no revision \(sha\)/);
+		await expect(
+			currentRevision("Org/tiny-model", api(Response.json({ sha: "" }))),
+		).rejects.toThrow(/no revision \(sha\)/);
+	});
+});
+
+describe("the command against a checksum mismatch", () => {
+	it("exits non-zero without SKIP_EMOJI_MODEL and writes nothing usable", async () => {
+		// A hub that answers every file with bytes the manifest does not describe.
+		const hub = createServer((_request, response) => response.end("tampered"));
+		await new Promise<void>((resolve) => hub.listen(0, "127.0.0.1", resolve));
+		const { port } = hub.address() as { port: number };
+		const dir = mkdtempSync(join(tmpdir(), "emoji-cli-"));
+		try {
+			const pinned = loadManifest();
+			const manifestPath = join(dir, "emoji-assets.json");
+			writeFileSync(manifestPath, JSON.stringify(pinned));
+			const outputRoot = join(dir, "emoji");
+			const env = { ...process.env, SKIP_EMOJI_MODEL: "" };
+			Object.assign(env, {
+				EMOJI_ASSETS_MANIFEST: manifestPath,
+				EMOJI_ASSETS_ROOT: outputRoot,
+				EMOJI_ASSETS_HUB: `http://127.0.0.1:${port}`,
+			});
+			const result = await promisify(execFile)(
+				process.execPath,
+				[join(import.meta.dirname, "fetch-emoji-assets.mjs")],
+				{ env },
+			).then(
+				() => ({ code: 0, stderr: "" }),
+				(error: { code: number; stderr: string }) => error,
+			);
+			expect(result.code).toBe(1);
+			expect(result.stderr).toMatch(/emoji assets: checksum mismatch for /);
+			const version = assetVersion(pinned);
+			expect(existsSync(join(outputRoot, version, "models"))).toBe(false);
+		} finally {
+			hub.close();
+			rmSync(dir, { recursive: true, force: true });
+		}
+	}, 30_000);
 });

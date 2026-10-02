@@ -4,7 +4,8 @@
 // It prints hit@1 and hit@3 for full-precision vectors, sign bits alone, and the shipped search
 // (bits shortlist + int8 re-rank), then for the shipped search with the auto-pick exclusion, and a
 // verdict for the exclusion. Not part of CI.
-import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { env, pipeline } from "@huggingface/transformers";
 import { isAutoPickExcluded } from "../src/features/emoji/auto-pick.ts";
@@ -15,9 +16,8 @@ import { norm } from "./emoji-eval-norm.mjs";
 const TOP = 3;
 const manifest = loadManifest();
 const emojiDir = join(WEB_ROOT, "src/features/emoji");
-const catalog = JSON.parse(
-	readFileSync(join(emojiDir, "catalog.json"), "utf8"),
-);
+const catalogBytes = readFileSync(join(emojiDir, "catalog.json"));
+const catalog = JSON.parse(catalogBytes.toString("utf8"));
 const titles = JSON.parse(
 	readFileSync(join(WEB_ROOT, "scripts/emoji-eval-titles.json"), "utf8"),
 );
@@ -32,21 +32,40 @@ const index = {
 	bits: new Uint8Array(bitsFile.buffer, bitsFile.byteOffset, bitsFile.length),
 	int8: new Int8Array(int8File.buffer, int8File.byteOffset, int8File.length),
 };
+// The index must be the one built from this catalog and this pinned model, or the numbers mean nothing.
+const rebuild = "run `pnpm --filter @tagteam/web emoji:index`";
 if (index.count !== catalog.length)
+	throw new Error(`the index does not match catalog.json; ${rebuild}`);
+if (
+	meta.catalogSha256 !== createHash("sha256").update(catalogBytes).digest("hex")
+)
 	throw new Error(
-		"the index does not match catalog.json; run `pnpm --filter @tagteam/web emoji:index`",
+		`catalog.json changed since the index was built (catalogSha256 differs); ${rebuild}`,
+	);
+if (meta.modelRevision !== manifest.model.revision)
+	throw new Error(
+		`the index was built for model revision ${meta.modelRevision}, but emoji-assets.json pins ${manifest.model.revision}; ${rebuild}`,
 	);
 
 const keys = catalog.map((entry) => norm(entry.e));
 
-env.allowRemoteModels = false;
-env.allowLocalModels = true;
-env.localModelPath = join(
+const modelsDir = join(
 	WEB_ROOT,
 	"public/assets/emoji",
 	assetVersion(manifest),
 	"models",
 );
+if (
+	!existsSync(join(modelsDir, manifest.model.id, "onnx/model_quantized.onnx"))
+) {
+	console.error(
+		"emoji eval: model files not found; run `pnpm --filter @tagteam/web emoji:assets` first",
+	);
+	process.exit(1);
+}
+env.allowRemoteModels = false;
+env.allowLocalModels = true;
+env.localModelPath = modelsDir;
 const extractor = await pipeline("feature-extraction", manifest.model.id, {
 	dtype: "q8",
 });
