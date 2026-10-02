@@ -26,6 +26,18 @@ describe("AppShell", () => {
 			"aria-current",
 		);
 	});
+
+	it("paints the sticky top bar in the app colour", () => {
+		const { container } = render(
+			<MemoryRouter>
+				<AppShell title="Smiths">
+					<p>content</p>
+				</AppShell>
+			</MemoryRouter>,
+		);
+		const bar = container.querySelector("header");
+		expect(bar).toHaveClass("sticky", "bg-header");
+	});
 });
 
 describe("syncLabel", () => {

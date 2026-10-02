@@ -55,3 +55,17 @@ describe("TeamScreen full-width rows", () => {
 		expect(row).toHaveClass("px-4");
 	});
 });
+
+describe("TeamScreen page header", () => {
+	it("paints the title block and Invite button in the app-colour band", async () => {
+		renderWithSession(<TeamScreen />, { store });
+		const heading = await screen.findByRole("heading", { name: "Team" });
+		const header = heading.closest('[data-slot="page-header"]');
+		expect(header).toHaveClass("bg-header", "rounded-none");
+		expect(
+			screen
+				.getByRole("button", { name: "Invite someone" })
+				.closest('[data-slot="page-header"]'),
+		).toBe(header);
+	});
+});

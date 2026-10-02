@@ -56,7 +56,7 @@ export function AppShell({
 		>
 			<header
 				className={cx(
-					"sticky z-30 bg-bg/90 backdrop-blur",
+					"sticky z-30 bg-header",
 					updateAvailable ? "" : "top-0 pt-[env(safe-area-inset-top)]",
 				)}
 				style={{

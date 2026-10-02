@@ -18,6 +18,7 @@ import {
 	useNow,
 } from "../../lib/time";
 import { useSession } from "../../session/session";
+import { PageHeader } from "../../ui/PageHeader";
 import { suggesterLabel } from "../suggestions/model";
 import {
 	type ActivityItem,
@@ -162,8 +163,8 @@ export function HistoryScreen() {
 	)?.displayName;
 
 	return (
-		<div className="mt-3 flex flex-col gap-5">
-			<div className="flex items-end justify-between gap-3">
+		<div className="flex flex-col gap-5">
+			<PageHeader className="flex items-end justify-between gap-3">
 				<div>
 					<h1 className="text-[26px] font-semibold tracking-tight">History</h1>
 					<p className="text-[14px] text-text-2">Recent group activity</p>
@@ -173,7 +174,7 @@ export function HistoryScreen() {
 					value={selectedMember}
 					onChange={setMemberFilter}
 				/>
-			</div>
+			</PageHeader>
 
 			{days.length > 0 ? (
 				<div className="flex flex-col gap-5">

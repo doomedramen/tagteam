@@ -13,6 +13,7 @@ import { dayBounds, useNow } from "../../lib/time";
 import { useSession } from "../../session/session";
 import { Avatar } from "../../ui/Avatar";
 import { Button } from "../../ui/Button";
+import { PageHeader } from "../../ui/PageHeader";
 import { useToast } from "../../ui/Toast";
 import { rowLabel } from "../today/labels";
 import type { TodayRow, TodayView } from "../today/model";
@@ -268,8 +269,8 @@ export function TeamScreen() {
 	};
 
 	return (
-		<div className="mt-3">
-			<div className="mb-4 flex items-center justify-between gap-3">
+		<div>
+			<PageHeader className="mb-4 flex items-center justify-between gap-3">
 				<div className="min-w-0">
 					<h1 className="text-[26px] font-semibold tracking-tight">Team</h1>
 					<p className="text-[14px] text-text-2">Today’s shared progress</p>
@@ -278,7 +279,7 @@ export function TeamScreen() {
 					<UserRoundPlus aria-hidden className="size-4" />
 					Invite
 				</Button>
-			</div>
+			</PageHeader>
 
 			{team.length > 0 ? (
 				<Card className="gap-0 rounded-2xl p-0 ring-line">

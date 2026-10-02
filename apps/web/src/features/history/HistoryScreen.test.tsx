@@ -110,3 +110,15 @@ describe("HistoryScreen member filter", () => {
 		).toBeNull();
 	});
 });
+
+describe("HistoryScreen page header", () => {
+	it("paints the title block and member filter in the app-colour band", async () => {
+		renderWithSession(<HistoryScreen />, { store });
+		const heading = await screen.findByRole("heading", { name: "History" });
+		const header = heading.closest('[data-slot="page-header"]');
+		expect(header).toHaveClass("bg-header", "rounded-none");
+		expect(
+			screen.getByLabelText("Member").closest('[data-slot="page-header"]'),
+		).toBe(header);
+	});
+});

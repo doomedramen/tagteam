@@ -17,6 +17,7 @@ import { authClient } from "../../lib/auth";
 import { useSession } from "../../session/session";
 import { Avatar } from "../../ui/Avatar";
 import { Button } from "../../ui/Button";
+import { PageHeader } from "../../ui/PageHeader";
 import { useToast } from "../../ui/Toast";
 import { NotificationSettings } from "./NotificationSettings";
 
@@ -77,8 +78,8 @@ export function MeScreen() {
 	const passkeys = passkeyQuery.data ?? [];
 
 	return (
-		<div className="mt-4 flex flex-col gap-6">
-			<div className="flex items-center gap-3">
+		<div className="flex flex-col gap-6">
+			<PageHeader className="flex items-center gap-3">
 				<Avatar name={me.profile.displayName} color={me.profile.avatarColor} />
 				<div className="min-w-0 flex-1">
 					<p className="truncate text-lg font-semibold">
@@ -96,7 +97,7 @@ export function MeScreen() {
 						<Pencil aria-hidden className="size-4" />
 					</Button>
 				) : null}
-			</div>
+			</PageHeader>
 			{editingProfile ? (
 				<form onSubmit={(event) => void saveProfile(event)}>
 					<Card className="gap-4 rounded-2xl p-4 ring-line">

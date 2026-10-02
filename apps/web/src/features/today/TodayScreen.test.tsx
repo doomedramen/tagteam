@@ -49,6 +49,23 @@ describe("TodayScreen", () => {
 		expect(await screen.findByText("Add your first task")).toBeInTheDocument();
 	});
 
+	it("paints the date, progress and hint in the app-colour page header", async () => {
+		await store.tasks.put(brushTeeth);
+		renderWithSession(<TodayScreen />, { store });
+		const heading = await screen.findByRole("heading", { level: 1 });
+		const header = heading.closest('[data-slot="page-header"]');
+		expect(header).toHaveClass("bg-header", "rounded-none");
+		expect(within(header as HTMLElement).getByText(/done today/)).toBeTruthy();
+		expect(
+			within(header as HTMLElement).getByRole("progressbar", {
+				name: "Done today",
+			}),
+		).toBeTruthy();
+		expect(
+			within(header as HTMLElement).getByText(/Tap a circle to complete/),
+		).toBeTruthy();
+	});
+
 	it("shows each task as its own rounded tile with a gap and no divider or card", async () => {
 		await store.tasks.bulkPut([
 			brushTeeth,

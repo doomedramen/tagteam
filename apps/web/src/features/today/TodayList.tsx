@@ -19,6 +19,7 @@ import { Progress } from "@/components/ui/progress";
 import { cx } from "../../lib/cx";
 import { Button } from "../../ui/Button";
 import { ConfettiBurst } from "../../ui/ConfettiBurst";
+import { PageHeader } from "../../ui/PageHeader";
 import { TaskEmoji } from "../look/TaskEmoji";
 import { rowLabel } from "./labels";
 import type { TodayRow, TodayView } from "./model";
@@ -338,7 +339,7 @@ export function TodayList({
 					exit={{ opacity: 0, transform: "translateY(-4px)" }}
 					transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
 				>
-					<div className="mt-2">
+					<PageHeader>
 						<h1 className="text-[26px] font-semibold tracking-tight">
 							{new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(
 								now,
@@ -353,13 +354,13 @@ export function TodayList({
 							value={percent}
 							aria-label="Done today"
 							className="mt-2 gap-0"
-							trackClassName="h-1.5"
+							trackClassName="h-1.5 bg-surface dark:bg-surface-2"
 							indicatorClassName="bg-success motion-safe:transition-transform duration-300 ease-[var(--ease-in-out)]"
 						/>
-					</div>
-					<p className="mt-3 text-[13px] text-text-2">
-						Tap a circle to complete or reopen. Swipe right works too.
-					</p>
+						<p className="mt-3 text-[13px] text-text-2">
+							Tap a circle to complete or reopen. Swipe right works too.
+						</p>
+					</PageHeader>
 					{strip}
 					<Section
 						title="Overdue"

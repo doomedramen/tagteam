@@ -98,6 +98,8 @@
 	--input: var(--line);
 	--ring: var(--accent);
 	--radius: 0.75rem;
+	/* App colour of the page headers: the blue sheet (light) / blue card (dark). */
+	--header: var(--task-blue-sheet);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -169,6 +171,7 @@
 		--task-purple-swatch: #61538b;
 		--task-purple-ring: #a392d6;
 		--task-purple-fg: #cec1fa;
+		--header: var(--task-blue-card);
 	}
 }
 
@@ -189,6 +192,7 @@
 	--color-warning-soft: var(--warning-soft);
 	--color-danger: var(--danger);
 	--color-danger-soft: var(--danger-soft);
+	--color-header: var(--header);
 	--color-task-sheet: var(--task-sheet);
 	--color-task-card: var(--task-card);
 	--color-task-swatch: var(--task-swatch);
